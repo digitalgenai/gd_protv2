@@ -1,0 +1,3207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galpão Design – Catálogo & Propostas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #1A202C;
+      --primary-light: #2D3748;
+      --gold: #C5A059;
+      --avatar-bg: #1A202C;
+      --bg: #F7FAFC;
+      --border: #EDF2F7;
+      --text-secondary: #A0AEC0;
+      --success: #38A169;
+      --error: #E53E3E;
+      --warning: #DD6B20;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--primary); }
+    h1, h2, h3 { font-family: 'Montserrat', 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }
+
+    /* Sidebar */
+    #sidebar { width: 256px; min-height: 100vh; background: var(--sidebar-bg); transition: width .28s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
+    #sidebar.collapsed { width: 72px; }
+    #sidebar.collapsed .nav-label, #sidebar.collapsed .brand-name,
+    #sidebar.collapsed .nav-section-label, #sidebar.collapsed .submenu { display: none !important; }
+    #sidebar.collapsed .brand-logo { margin: 0 auto; }
+
+    /* Nav */
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 8px; cursor: pointer; color: #CBD5E0; transition: background .18s, color .18s; margin: 2px 8px; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+    .nav-item.active { background: rgba(197,160,89,.18); color: #C5A059; }
+    .nav-item.active::before { content:''; position:absolute; left:0; top:20%; bottom:20%; width:3px; background:var(--gold); border-radius:0 3px 3px 0; }
+    .nav-icon { width: 20px; height: 20px; flex-shrink: 0; }
+    .submenu { padding-left: 36px; }
+    .submenu .nav-item { margin: 1px 8px 1px 0; font-size: 13.5px; }
+
+    /* Views */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Cards */
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.07); }
+    .product-card { transition: transform .2s, box-shadow .2s; }
+    .product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -4px rgba(0,0,0,.12); }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 11.5px; font-weight: 600; }
+    .badge-success { background: rgba(56,161,105,.12); color: var(--success); }
+    .badge-error   { background: rgba(229,62,62,.10);  color: var(--error); }
+    .badge-warning { background: rgba(221,107,32,.12); color: var(--warning); }
+    .badge-info    { background: rgba(66,153,225,.12); color: #2B6CB0; }
+    .badge-gold    { background: rgba(197,160,89,.14); color: var(--gold); }
+    .badge-draft   { background: #EDF2F7; color: #718096; }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table thead th { background: var(--bg); padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+    .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+    .data-table tbody tr:hover { background: #F7FAFC; }
+    .data-table tbody td { padding: 12px 16px; font-size: 14px; }
+    .data-table tbody tr:last-child { border-bottom: none; }
+
+    /* Proposal inline inputs */
+    .proposal-input { border: none; background: transparent; width: 100%; outline: none; font-family: 'JetBrains Mono', monospace; font-size: 13.5px; padding: 4px 6px; border-radius: 4px; transition: background .15s, box-shadow .15s; }
+    .proposal-input:focus { background: #EBF8FF; box-shadow: 0 0 0 2px #4299E1; }
+
+    /* Filter sidebar */
+    .filter-group { border-bottom: 1px solid var(--border); padding: 16px 0; }
+    .filter-group:last-child { border-bottom: none; }
+    .filter-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-secondary); margin-bottom: 10px; }
+    .filter-option { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13.5px; cursor: pointer; color: #4A5568; }
+    .filter-option:hover { color: var(--primary); }
+    input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
+
+    /* KPI Card */
+    .kpi-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 4px rgba(0,0,0,.05); }
+    .kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 600; color: var(--primary); }
+    .kpi-label { font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
+    .kpi-delta { font-size: 12px; font-weight: 600; margin-top: 8px; }
+    .kpi-delta.up   { color: var(--success); }
+    .kpi-delta.down { color: var(--error); }
+
+    /* Voice draft */
+    .draft-item { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: border-color .18s, box-shadow .18s; }
+    .draft-item:hover { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(197,160,89,.12); }
+    .draft-item.selected { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(197,160,89,.18); }
+
+    /* Split screen */
+    .split-left  { background: #1A202C; color: #E2E8F0; border-radius: 10px; padding: 20px; overflow-y: auto; }
+    .split-right { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; overflow-y: auto; }
+    .highlight-error { background: rgba(229,62,62,.15); border-bottom: 2px solid var(--error); color: var(--error); padding: 0 2px; border-radius: 2px; }
+    .highlight-found { background: rgba(56,161,105,.12); border-bottom: 2px solid var(--success); padding: 0 2px; border-radius: 2px; }
+
+    /* Drop zone */
+    .drop-zone { border: 2px dashed var(--border); border-radius: 10px; transition: border-color .2s, background .2s; }
+    .drop-zone.over { border-color: var(--gold); background: rgba(197,160,89,.06); }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box { background: #fff; border-radius: 16px; width: 720px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,.25); transform: scale(.96); transition: transform .2s; }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 28px; right: 28px; z-index: 200; transform: translateY(80px); opacity: 0; transition: transform .28s, opacity .28s; pointer-events: none; }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Button */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s, transform .1s; }
+    .btn:hover { opacity: .88; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-gold    { background: var(--gold); color: #fff; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--primary); }
+    .btn-ghost   { background: transparent; color: var(--text-secondary); }
+    .btn-danger  { background: var(--error); color: #fff; }
+    .btn-sm { padding: 5px 11px; font-size: 12.5px; }
+
+    /* Input / Select */
+    .form-input  { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 100%; outline: none; font-family: inherit; transition: border-color .15s, box-shadow .15s; }
+    .form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(197,160,89,.18); }
+    .form-label  { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em; display: block; }
+    select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A0AEC0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 10px; }
+
+    /* Gold line on cards */
+    .card-gold-line::before { content: ''; display: block; height: 3px; background: var(--gold); border-radius: 12px 12px 0 0; margin: -1px -1px 0; }
+
+    /* Tooltip */
+    .tooltip { position: relative; }
+    .tooltip .tt { display: none; position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); background: #1A202C; color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 6px; white-space: nowrap; z-index: 50; }
+    .tooltip:hover .tt { display: block; }
+
+    /* ── Dark mode ── */
+    :root {
+      --card:           #ffffff;
+      --card-hover:     #F7FAFC;
+      --header-bg:      #ffffff;
+      --sidebar-bg:     #1A202C;   /* sidebar sempre escura */
+      --input-bg:       #ffffff;
+      --split-left-bg:  #1A202C;
+      --split-left-text:#E2E8F0;
+    }
+
+    [data-theme="dark"] {
+      /* --primary vira cor de TEXTO (claro) no dark mode.
+         O sidebar usa --sidebar-bg separadamente. */
+      --primary:        #E2E8F0;
+      --bg:             #0F1117;
+      --border:         #2D3748;
+      --text-secondary: #718096;
+      --card:           #1A202C;
+      --card-hover:     #2D3748;
+      --header-bg:      #141921;
+      --sidebar-bg:     #0A0E17;
+      --input-bg:       #252D3D;
+      --split-left-bg:  #0A0E17;
+      --split-left-text:#CBD5E0;
+      --avatar-bg:      #2C3E6B;
+    }
+
+    /* ── Página ── */
+    [data-theme="dark"] body           { background: var(--bg); color: var(--primary); }
+
+    /* ── Header ── */
+    [data-theme="dark"] header         { background: var(--header-bg) !important; border-color: var(--border) !important; }
+
+    /* ── Sidebar (já usa --sidebar-bg no base CSS) ── */
+    [data-theme="dark"] #sidebar       { background: var(--sidebar-bg); }
+
+    /* ── Cards ── */
+    [data-theme="dark"] .card          { background: var(--card); border-color: var(--border); color: var(--primary); }
+    [data-theme="dark"] .kpi-card      { background: var(--card); border-color: var(--border); }
+
+    /* ── Botões ── */
+    /* btn-primary: --primary agora é claro, então precisa de cor fixa */
+    [data-theme="dark"] .btn-primary   { background: #2C3E6B; color: #E2E8F0; }
+    [data-theme="dark"] .btn-outline   { border-color: var(--border); color: var(--primary); background: transparent; }
+    [data-theme="dark"] .btn-ghost     { color: var(--text-secondary); }
+
+    /* ── Inputs & selects ── */
+    [data-theme="dark"] .form-input    { background-color: var(--input-bg); border-color: var(--border); color: var(--primary); }
+    [data-theme="dark"] .form-input::placeholder { color: var(--text-secondary); }
+    [data-theme="dark"] select.form-input option { background: var(--card); color: var(--primary); }
+    [data-theme="dark"] select.form-input {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 12px 12px;
+    }
+
+    /* ── Tabelas ── */
+    [data-theme="dark"] .data-table thead th     { background: var(--sidebar-bg); color: var(--text-secondary); border-color: var(--border); }
+    [data-theme="dark"] .data-table tbody tr     { border-color: var(--border); }
+    [data-theme="dark"] .data-table tbody tr:hover { background: var(--card-hover); }
+    [data-theme="dark"] .data-table tbody td     { color: var(--primary); }
+    [data-theme="dark"] .data-table tbody td span[style*="color:#718096"],
+    [data-theme="dark"] .data-table tbody td div[style*="color:#4A5568"] { color: var(--text-secondary) !important; }
+
+    /* ── Filtros ── */
+    [data-theme="dark"] .filter-option       { color: #A0AEC0; }
+    [data-theme="dark"] .filter-option:hover { color: var(--primary); }
+    [data-theme="dark"] .filter-group        { border-color: var(--border); }
+    [data-theme="dark"] .filter-label        { color: var(--text-secondary); }
+    [data-theme="dark"] aside.w-56           { background: var(--card) !important; border-color: var(--border) !important; }
+
+    /* ── Proposal inline inputs ── */
+    [data-theme="dark"] .proposal-input      { color: var(--primary); }
+    [data-theme="dark"] .proposal-input:focus { background: #1E3056; box-shadow: 0 0 0 2px #4299E1; }
+
+    /* ── Rascunhos de voz ── */
+    [data-theme="dark"] .draft-item          { background: var(--card); border-color: var(--border); }
+    [data-theme="dark"] .draft-item p        { color: var(--text-secondary); }
+    [data-theme="dark"] .draft-item:hover    { border-color: var(--gold); }
+    [data-theme="dark"] .draft-item.selected { border-color: var(--gold); }
+
+    /* ── Split screen ── */
+    [data-theme="dark"] .split-left         { background: var(--split-left-bg); color: var(--split-left-text); }
+    [data-theme="dark"] .split-right        { background: var(--card); border-color: var(--border); color: var(--primary); }
+
+    /* ── Modais ── */
+    [data-theme="dark"] .modal-box          { background: var(--card); color: var(--primary); }
+    [data-theme="dark"] .rec-popover        { background: var(--card) !important; }
+
+    /* ── Imagens & upload ── */
+    [data-theme="dark"] .img-slot           { background: #252D3D; border-color: var(--border); }
+    [data-theme="dark"] .drop-zone          { border-color: var(--border); }
+
+    /* ── Misc ── */
+    [data-theme="dark"] .progress-bar       { background: var(--border); }
+    [data-theme="dark"] #toast-inner        { background: #252D3D; color: var(--primary); }
+    [data-theme="dark"] #theme-toggle       { background: var(--card); border-color: var(--border); }
+    [data-theme="dark"] .kpi-label          { color: var(--text-secondary); }
+    [data-theme="dark"] .kpi-delta.up       { color: var(--success); }
+    [data-theme="dark"] .kpi-delta.down     { color: var(--error); }
+
+    /* Theme toggle button */
+    #theme-toggle { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s, border-color .2s; }
+    #theme-toggle:hover { border-color: var(--gold); }
+
+    /* Logo visibility */
+    /* Sidebar: mostra badge GD quando collapsed, logo PNG quando expanded */
+    #sidebar:not(.collapsed) .brand-logo       { display: none; }
+    #sidebar.collapsed .brand-name             { display: none !important; }
+    #sidebar.collapsed .brand-logo             { display: flex !important; }
+
+    /* Header logos: bege no light, branca no dark */
+    /* Um único logo PNG: escuro no light mode, branco no dark mode */
+    #header-logo-light { display: none; }
+    #header-logo-dark  { display: block; filter: brightness(0) opacity(0.85); }
+    [data-theme="dark"] #header-logo-dark  { filter: none; }
+
+    /* Responsive – tablet */
+    @media (max-width: 900px) { #sidebar { width: 72px !important; } .nav-label, .brand-name, .nav-section-label, .submenu { display: none !important; } }
+
+    /* Responsive – mobile */
+    @media (max-width: 640px) {
+      /* Sidebar vira drawer */
+      #sidebar {
+        position: fixed !important; left: -260px; top: 0; bottom: 0;
+        width: 240px !important; z-index: 50;
+        transition: left .28s cubic-bezier(.4,0,.2,1);
+        box-shadow: none;
+      }
+      #sidebar.mobile-open {
+        left: 0;
+        box-shadow: 4px 0 24px rgba(0,0,0,.35);
+      }
+      /* Mostrar labels dentro do drawer aberto */
+      #sidebar.mobile-open .nav-label,
+      #sidebar.mobile-open .brand-name,
+      #sidebar.mobile-open .nav-section-label,
+      #sidebar.mobile-open .submenu { display: block !important; }
+      #sidebar.mobile-open .brand-name { display: flex !important; }
+      #sidebar.mobile-open .brand-logo { display: none !important; }
+
+      /* Overlay backdrop */
+      #mobile-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,.5); z-index: 49;
+      }
+      #mobile-overlay.open { display: block; }
+
+      /* Header compacto */
+      #btn-hamburger { display: flex !important; }
+      header { padding-left: 14px !important; padding-right: 14px !important; gap: 10px !important; }
+      #btn-nova-proposta { display: none !important; }
+      #collapse-btn { display: none; }
+
+      /* Views: padding menor */
+      .view { padding: 14px !important; }
+
+      /* Dashboard: KPI 2 colunas */
+      #view-dashboard .grid-cols-4,
+      #view-dashboard .lg\:grid-cols-4 { grid-template-columns: repeat(2,1fr) !important; }
+      #view-dashboard .lg\:grid-cols-3 { grid-template-columns: 1fr !important; }
+
+      /* Catálogo: sem sidebar de filtro */
+      #catalog-filter-sidebar {
+        display: none !important;
+      }
+      #catalog-filter-sidebar.mobile-open {
+        display: block !important;
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: 280px !important; z-index: 51;
+        overflow-y: auto; border-radius: 0;
+        box-shadow: 4px 0 32px rgba(0,0,0,.4);
+        background: var(--card) !important;
+      }
+      #btn-filter-mobile   { display: flex !important; }
+      #btn-close-filter-mobile { display: flex !important; }
+      #catalog-grid        { grid-template-columns: repeat(2,1fr) !important; }
+      #view-catalog .flex-1.p-6 { padding: 12px !important; }
+
+      /* Toolbar do catálogo: 2 linhas no mobile */
+      #btn-import-produto  { display: none !important; }
+      #catalog-sort        { font-size: 12px !important; padding: 5px 24px 5px 8px !important; max-width: 140px !important; }
+      #view-catalog .flex.items-center.justify-between { flex-wrap: wrap; gap: 6px; }
+      #view-catalog .flex.items-center.gap-2 { flex-wrap: wrap; }
+
+      /* Nova Proposta: form 1 coluna */
+      #view-new-proposal .md\:grid-cols-3 { grid-template-columns: 1fr !important; }
+      #view-new-proposal .flex-wrap { flex-direction: column !important; }
+      #proposal-table { font-size: 12px !important; }
+
+      /* Voice view: abas mobile */
+      #voice-tabs { display: flex !important; }
+      #voice-inbox  { display: none; }
+      #voice-center { display: none; }
+      #voice-right  { display: none; }
+      #voice-inbox.tab-active,
+      #voice-center.tab-active,
+      #voice-right.tab-active  { display: flex !important; flex-direction: column; }
+      #voice-inbox.tab-active  { display: block !important; }
+      #view-voice .flex.gap-5 { flex-direction: column; gap: 0 !important; min-height: unset !important; }
+
+      /* History: scroll horizontal */
+      #view-history .overflow-x-auto { overflow-x: auto; }
+
+      /* Totals no mobile */
+      #view-new-proposal .flex.items-start.justify-between { flex-direction: column !important; }
+      #view-new-proposal .flex.items-start.justify-between > * { width: 100% !important; min-width: unset !important; }
+    }
+
+    /* Animation */
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    .fade-in { animation: fadeIn .25s ease forwards; }
+
+    /* Image slot */
+    .img-slot { aspect-ratio: 1/1; border-radius: 10px; border: 1.5px solid var(--border); overflow: hidden; position: relative; background: var(--bg); }
+    .img-slot img { width:100%; height:100%; object-fit: cover; }
+    .img-slot .img-actions { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity .18s; }
+    .img-slot:hover .img-actions { opacity: 1; }
+
+    /* Progress bar */
+    .progress-bar { height: 6px; background: var(--border); border-radius: 9999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--gold); border-radius: 9999px; transition: width .6s ease; }
+
+    /* ── FAB (Floating Action Button) ── */
+    .rec-fab {
+      position: fixed; bottom: 24px; right: 24px; width: 58px; height: 58px;
+      border-radius: 50%; background: var(--gold); border: none; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25); z-index: 92;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .rec-fab:hover  { transform: scale(1.08); box-shadow: 0 10px 28px rgba(0,0,0,.3); }
+    .rec-fab:active { transform: scale(.93); }
+    .rec-fab.visible { display: flex; }
+    .rec-fab.recording { background: var(--error); }
+    .rec-fab.recording::before {
+      content: ''; position: absolute; inset: -7px; border-radius: 50%;
+      border: 3px solid rgba(229,62,62,.4);
+      animation: pulse-ring 1.4s ease-out infinite;
+    }
+    .rec-fab.recording::after {
+      content: ''; position: absolute; inset: -14px; border-radius: 50%;
+      border: 2px solid rgba(229,62,62,.18);
+      animation: pulse-ring 1.4s ease-out .55s infinite;
+    }
+
+    /* ── Voice popover – desktop (balão acima do FAB) ── */
+    .rec-popover {
+      position: fixed; bottom: 96px; right: 24px; width: 348px;
+      background: var(--card); border-radius: 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0,0,0,.18);
+      z-index: 91; overflow: hidden;
+      opacity: 0; pointer-events: none;
+      transform: scale(.9) translateY(16px);
+      transform-origin: bottom right;
+      transition: opacity .22s cubic-bezier(.4,0,.2,1),
+                  transform .22s cubic-bezier(.4,0,.2,1);
+    }
+    .rec-popover.open { opacity: 1; pointer-events: all; transform: scale(1) translateY(0); }
+    [data-theme="dark"] .rec-popover { box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+
+    /* ── Mobile: bottom sheet full-width ── */
+    @media (max-width: 600px) {
+      .rec-fab { bottom: 20px; right: 16px; width: 54px; height: 54px; }
+
+      .rec-popover {
+        left: 0; right: 0; bottom: 0; width: 100%;
+        border-radius: 22px 22px 0 0;
+        max-height: 78vh;
+        transform-origin: bottom center;
+        transform: translateY(24px);
+        overflow-y: auto;
+      }
+      .rec-popover.open { transform: translateY(0); }
+
+      /* Handle de arrasto visual */
+      .rec-popover::before {
+        content: '';
+        display: block;
+        width: 40px; height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 10px auto 0;
+      }
+    }
+
+    /* ── Tablet: limitar largura e garantir que não saia da tela ── */
+    @media (min-width: 601px) and (max-width: 960px) {
+      .rec-popover { width: min(348px, calc(100vw - 40px)); right: 16px; }
+      .rec-fab     { right: 16px; }
+    }
+
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: .6; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+    @keyframes mic-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,.4); }
+      50%       { box-shadow: 0 0 0 16px rgba(229,62,62,.0); }
+    }
+    .rec-btn-active { animation: mic-glow 1.4s ease infinite; }
+    .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(229,62,62,.5); animation: pulse-ring 1.4s ease-out infinite; }
+
+    @keyframes bar-bounce {
+      0%, 100% { height: 6px; }
+      50%       { height: 28px; }
+    }
+    .wave-bar { width: 4px; border-radius: 2px; background: var(--gold); animation: bar-bounce 0.8s ease-in-out infinite; }
+    .wave-bar:nth-child(1) { animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-delay: .12s; }
+    .wave-bar:nth-child(3) { animation-delay: .24s; }
+    .wave-bar:nth-child(4) { animation-delay: .36s; }
+    .wave-bar:nth-child(5) { animation-delay: .48s; }
+    .wave-bar:nth-child(6) { animation-delay: .36s; }
+    .wave-bar:nth-child(7) { animation-delay: .24s; }
+    .wave-bar:nth-child(8) { animation-delay: .12s; }
+    .wave-bars-idle .wave-bar { animation: none; height: 6px; }
+
+    .extracted-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; margin: 3px; }
+    .tag-product  { background: rgba(56,161,105,.12);  color: var(--success); }
+    .tag-client   { background: rgba(197,160,89,.14);  color: var(--gold); }
+    .tag-number   { background: rgba(66,153,225,.12);  color: #2B6CB0; }
+    .tag-discount { background: rgba(221,107,32,.12);  color: var(--warning); }
+    .tag-unknown  { background: #EDF2F7; color: #718096; }
+
+    /* ── PDF / Print ── */
+    #print-area { display: none; }
+
+    @media print {
+      @page { size: A4; margin: 0; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+
+      body > * { display: none !important; }
+      #print-area {
+        display: block !important;
+        font-family: 'Inter', sans-serif;
+        color: #1A202C;
+        font-size: 12px;
+        background: #fff;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 0;
+      }
+
+      /* ── Top bar gold ── */
+      .pr-topbar {
+        height: 6px;
+        background: linear-gradient(90deg, #C5A059 0%, #e0c07a 50%, #C5A059 100%);
+      }
+
+      /* ── Header ── */
+      .pr-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 20px 24px 18px;
+        border-bottom: 1px solid #EDF2F7;
+      }
+      .pr-logo { height: 36px; }
+      .pr-header-right { text-align: right; }
+      .pr-title {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 18px; font-weight: 700; color: #1A202C; letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .pr-code-badge {
+        display: inline-block; margin-top: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px; font-weight: 700; color: #C5A059;
+        background: rgba(197,160,89,.08);
+        border: 1px solid rgba(197,160,89,.25);
+        border-radius: 4px; padding: 2px 8px;
+      }
+
+      /* ── Meta info ── */
+      .pr-meta {
+        display: grid; grid-template-columns: repeat(3,1fr);
+        gap: 0; margin: 0 24px 0;
+        border: 1px solid #EDF2F7; border-radius: 8px;
+        overflow: hidden; margin-top: 16px; margin-bottom: 20px;
+      }
+      .pr-meta-item {
+        padding: 10px 14px;
+        border-right: 1px solid #EDF2F7;
+      }
+      .pr-meta-item:nth-child(3n) { border-right: none; }
+      .pr-meta-item:nth-child(n+4) { border-top: 1px solid #EDF2F7; }
+      .pr-meta-item label {
+        font-size: 8.5px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .09em; color: #A0AEC0; display: block; margin-bottom: 3px;
+      }
+      .pr-meta-item span { font-size: 12px; font-weight: 600; color: #1A202C; }
+      .pr-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #C5A059; }
+
+      /* ── Section title ── */
+      .pr-section-title {
+        font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .1em; color: #A0AEC0;
+        padding: 0 24px; margin-bottom: 6px;
+      }
+
+      /* ── Items table ── */
+      .pr-table { width: calc(100% - 48px); margin: 0 24px 16px; border-collapse: collapse; }
+      .pr-table thead tr {
+        border-bottom: 2px solid #C5A059;
+      }
+      .pr-table thead th {
+        padding: 8px 10px; text-align: left;
+        font-size: 9px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .08em; color: #718096; background: #fff;
+      }
+      .pr-table thead th.right { text-align: right; }
+
+      .pr-table tbody tr { border-bottom: 1px solid #F0F0F0; }
+      .pr-table tbody tr:last-child { border-bottom: 2px solid #EDF2F7; }
+      .pr-table tbody td { padding: 9px 10px; vertical-align: middle; }
+
+      /* Foto do produto */
+      .pr-img {
+        width: 44px; height: 44px; border-radius: 6px;
+        object-fit: cover; border: 1px solid #EDF2F7;
+        display: block;
+      }
+
+      .pr-item-code { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #C5A059; font-weight: 700; }
+      .pr-item-name { font-size: 12px; font-weight: 600; color: #1A202C; }
+      .pr-item-sub  { font-size: 10px; color: #A0AEC0; margin-top: 1px; }
+
+      .pr-num { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600; }
+      .pr-right { text-align: right; }
+      .pr-center { text-align: center; }
+      .pr-disc-badge {
+        display: inline-block; background: rgba(221,107,32,.1);
+        color: #DD6B20; font-size: 10px; font-weight: 700;
+        border-radius: 4px; padding: 1px 5px;
+      }
+
+      /* ── Totals box ── */
+      .pr-totals {
+        margin: 0 24px 16px;
+        margin-left: auto; width: 240px;
+        border: 1px solid #EDF2F7; border-radius: 8px;
+        overflow: hidden;
+      }
+      .pr-totals-inner { padding: 12px 16px; }
+      .pr-totals-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+      .pr-totals-row:last-child { margin-bottom: 0; }
+      .pr-totals-label { font-size: 11px; color: #718096; }
+      .pr-totals-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: #1A202C; }
+      .pr-totals-divider { height: 1px; background: #EDF2F7; margin: 8px 0; }
+      .pr-totals-total-row { background: #1A202C; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; }
+      .pr-totals-total-label { font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: #fff; letter-spacing: .04em; }
+      .pr-totals-total-val { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: #C5A059; }
+
+      /* ── Observations ── */
+      .pr-obs {
+        margin: 0 24px 16px;
+        background: #FAFAFA; border: 1px solid #EDF2F7;
+        border-radius: 6px; padding: 10px 14px;
+        font-size: 11.5px; color: #4A5568; line-height: 1.55;
+      }
+      .pr-obs-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #A0AEC0; margin-bottom: 4px; }
+
+      /* ── Footer ── */
+      .pr-footer {
+        margin: 16px 24px 0;
+        padding-top: 12px; border-top: 1px solid #EDF2F7;
+        display: flex; justify-content: space-between; align-items: flex-start;
+      }
+      .pr-footer-left { font-size: 10px; color: #A0AEC0; line-height: 1.7; }
+      .pr-footer-right { text-align: right; }
+      .pr-footer-brand { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; color: #C5A059; }
+      .pr-footer-contact { font-size: 10px; color: #A0AEC0; margin-top: 2px; }
+      .pr-valid-pill {
+        display: inline-block; margin-top: 6px;
+        background: rgba(197,160,89,.1); border: 1px solid rgba(197,160,89,.3);
+        border-radius: 20px; padding: 3px 10px;
+        font-size: 10px; font-weight: 700; color: #C5A059;
+      }
+
+      /* ── Signatures ── */
+      .pr-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 28px 24px 24px; }
+      .pr-sign-line { border-top: 1px solid #CBD5E0; padding-top: 7px; font-size: 10px; color: #A0AEC0; text-align: center; }
+
+      /* ── Bottom bar ── */
+      .pr-bottombar {
+        height: 4px;
+        background: linear-gradient(90deg, #C5A059, #e0c07a, #C5A059);
+        margin-top: 24px;
+      }
+    }
+
+    /* ── Search autocomplete dropdown ── */
+    #search-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.15);
+      z-index: 300; overflow: hidden;
+      opacity: 0; pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity .18s, transform .18s;
+    }
+    #search-dropdown.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+    [data-theme="dark"] #search-dropdown { box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+
+    .ac-header {
+      padding: 8px 12px 6px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .ac-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; cursor: pointer;
+      transition: background .12s;
+    }
+    .ac-item:hover, .ac-item.focused { background: var(--card-hover); }
+    .ac-item:last-child { border-radius: 0 0 12px 12px; }
+    .ac-thumb {
+      width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+      border: 1px solid var(--border); flex-shrink: 0; background: var(--bg);
+    }
+    .ac-info { min-width: 0; }
+    .ac-name { font-size: 13.5px; font-weight: 600; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ac-name mark { background: rgba(197,160,89,.28); color: inherit; border-radius: 2px; padding: 0 1px; }
+    .ac-meta { font-size: 11.5px; color: var(--text-secondary); margin-top: 1px; }
+    .ac-price { margin-left: auto; font-family: 'JetBrains Mono',monospace; font-size: 12.5px; font-weight: 600; color: var(--gold); flex-shrink: 0; }
+    .ac-empty { padding: 16px 12px; font-size: 13px; color: var(--text-secondary); text-align: center; }
+    .ac-footer {
+      padding: 7px 12px; font-size: 11.5px; color: var(--text-secondary);
+      border-top: 1px solid var(--border); text-align: center;
+      cursor: pointer; transition: background .12s;
+    }
+    .ac-footer:hover { background: var(--card-hover); color: var(--gold); }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════
+     PDF PRINT AREA (oculto na tela, visível na impressão)
+════════════════════════════════════════ -->
+<!-- Mobile overlay backdrop -->
+<div id="mobile-overlay"></div>
+
+<div id="print-area">
+  <div class="pr-topbar"></div>
+
+  <!-- Header -->
+  <div class="pr-header">
+    <img src="GALPÃ_O_DESIGN_logo_bege_Prancheta_1.avif" alt="Galpão Design" class="pr-logo" />
+    <div class="pr-header-right">
+      <div class="pr-title">Proposta Comercial</div>
+      <div class="pr-code-badge" id="pr-code-sub"></div>
+    </div>
+  </div>
+
+  <!-- Meta info -->
+  <div class="pr-meta">
+    <div class="pr-meta-item">
+      <label>Código</label>
+      <span class="pr-code" id="pr-codigo"></span>
+    </div>
+    <div class="pr-meta-item">
+      <label>Cliente</label>
+      <span id="pr-cliente"></span>
+    </div>
+    <div class="pr-meta-item">
+      <label>Arquiteto / Escritório</label>
+      <span id="pr-arquiteto"></span>
+    </div>
+    <div class="pr-meta-item">
+      <label>Vendedor</label>
+      <span id="pr-vendedor"></span>
+    </div>
+    <div class="pr-meta-item">
+      <label>Condição de Pagamento</label>
+      <span id="pr-pagamento"></span>
+    </div>
+    <div class="pr-meta-item">
+      <label>Validade</label>
+      <span id="pr-validade"></span>
+    </div>
+  </div>
+
+  <!-- Items table -->
+  <div class="pr-section-title">Itens da Proposta</div>
+  <table class="pr-table">
+    <thead>
+      <tr>
+        <th style="width:54px"></th>
+        <th>Produto</th>
+        <th class="pr-center" style="width:44px">Qtd</th>
+        <th class="pr-right" style="width:110px">Preço Unit.</th>
+        <th class="pr-center" style="width:64px">Desc.</th>
+        <th class="pr-right" style="width:110px">Total</th>
+      </tr>
+    </thead>
+    <tbody id="pr-tbody"></tbody>
+  </table>
+
+  <!-- Totals -->
+  <div style="display:flex;justify-content:flex-end;padding:0 24px 16px">
+    <div class="pr-totals">
+      <div class="pr-totals-inner" id="pr-totals-inner"></div>
+      <div class="pr-totals-total-row">
+        <div class="pr-totals-total-label">TOTAL</div>
+        <div class="pr-totals-total-val" id="pr-total-val"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div id="pr-obs-wrap" style="display:none">
+    <div class="pr-obs">
+      <div class="pr-obs-label">Observações</div>
+      <div id="pr-obs-text"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="pr-footer">
+    <div class="pr-footer-left">
+      Proposta válida por <strong>15 dias</strong> a partir da data de emissão.<br>
+      Preços sujeitos a alteração sem aviso prévio. Frete e instalação sob consulta.<br>
+      <span class="pr-valid-pill" id="pr-valid-badge"></span>
+    </div>
+    <div class="pr-footer-right">
+      <div class="pr-footer-brand">Galpão Design</div>
+      <div class="pr-footer-contact">contato@galpaodesign.com.br</div>
+    </div>
+  </div>
+
+  <!-- Assinaturas -->
+  <div class="pr-sign">
+    <div><div class="pr-sign-line">Assinatura do Cliente</div></div>
+    <div><div class="pr-sign-line" id="pr-sign-seller">Assinatura do Vendedor</div></div>
+  </div>
+
+  <div class="pr-bottombar"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════ -->
+<aside id="sidebar" class="flex flex-col overflow-hidden z-20" style="flex-shrink:0">
+
+  <!-- Brand -->
+  <div class="flex items-center gap-3 px-4 py-4 border-b border-white/10" style="min-height:68px">
+    <!-- Badge compacto: visível apenas quando collapsed -->
+    <div class="brand-logo w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--gold)">
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;color:#1A202C;font-size:14px">GD</span>
+    </div>
+    <!-- Logo completa: visível quando expandida -->
+    <div class="brand-name flex items-center" style="overflow:hidden">
+      <img src="GD - Logo Branca.png"
+           alt="Galpão Design"
+           style="height:42px;width:auto;object-fit:contain;max-width:180px"
+           draggable="false" />
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 overflow-y-auto py-3">
+
+    <div class="px-4 mb-1">
+      <div class="nav-section-label" style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#4A5568;font-weight:600;padding:8px 8px 4px">Principal</div>
+    </div>
+
+    <div class="nav-item active tooltip" data-view="dashboard" id="nav-dashboard" role="button" tabindex="0">
+      <i data-lucide="layout-dashboard" class="nav-icon"></i>
+      <span class="nav-label">Dashboard</span>
+      <span class="tt">Dashboard</span>
+    </div>
+
+    <div class="nav-item tooltip" data-view="catalog" id="nav-catalog" role="button" tabindex="0">
+      <i data-lucide="package" class="nav-icon"></i>
+      <span class="nav-label">Catálogo</span>
+      <span class="tt">Catálogo</span>
+    </div>
+
+    <div class="px-4 mt-2 mb-1">
+      <div class="nav-section-label" style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#4A5568;font-weight:600;padding:8px 8px 4px">Comercial</div>
+    </div>
+
+    <div class="nav-item tooltip" id="propostas-parent" role="button" tabindex="0">
+      <i data-lucide="file-text" class="nav-icon"></i>
+      <span class="nav-label">Propostas</span>
+      <i data-lucide="chevron-down" id="propostas-chevron" style="width:16px;height:16px;margin-left:auto" class="nav-label transition-transform"></i>
+      <span class="tt">Propostas</span>
+    </div>
+
+    <div id="propostas-submenu" class="submenu">
+      <div class="nav-item" data-view="new-proposal" id="nav-new-proposal" role="button" tabindex="0">
+        <i data-lucide="file-plus" class="nav-icon" style="width:16px;height:16px"></i>
+        <span class="nav-label">Nova Proposta</span>
+      </div>
+      <div class="nav-item" data-view="history" id="nav-history" role="button" tabindex="0">
+        <i data-lucide="history" class="nav-icon" style="width:16px;height:16px"></i>
+        <span class="nav-label">Histórico</span>
+      </div>
+      <div class="nav-item" data-view="voice" id="nav-voice" role="button" tabindex="0">
+        <i data-lucide="mic" class="nav-icon" style="width:16px;height:16px"></i>
+        <span class="nav-label">Rascunhos de Voz</span>
+        <span id="voice-badge" class="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full" style="background:var(--error);color:#fff;font-size:10px">2</span>
+      </div>
+    </div>
+
+    <div class="px-4 mt-2 mb-1">
+      <div class="nav-section-label" style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#4A5568;font-weight:600;padding:8px 8px 4px">Sistema</div>
+    </div>
+
+    <div class="nav-item tooltip" data-view="settings" id="nav-settings" role="button" tabindex="0">
+      <i data-lucide="settings" class="nav-icon"></i>
+      <span class="nav-label">Configurações</span>
+      <span class="tt">Configurações</span>
+    </div>
+  </nav>
+
+  <!-- Collapse toggle -->
+  <div class="border-t border-white/10 p-3">
+    <button id="collapse-btn" class="nav-item w-full justify-center" style="margin:0;padding:9px" aria-label="Retrair menu">
+      <i data-lucide="panel-left-close" id="collapse-icon" class="nav-icon"></i>
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════ -->
+<main class="flex-1 flex flex-col overflow-hidden">
+
+  <!-- Top bar -->
+  <header class="flex items-center gap-4 px-6 py-3.5 bg-white border-b" style="border-color:var(--border)">
+    <button id="btn-hamburger" aria-label="Abrir menu"
+      style="display:none;width:36px;height:36px;border:none;background:transparent;cursor:pointer;align-items:center;justify-content:center;border-radius:8px;flex-shrink:0;color:var(--primary)">
+      <i data-lucide="menu" style="width:20px;height:20px"></i>
+    </button>
+    <div id="page-title" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;color:var(--primary)">Dashboard</div>
+    <div class="ml-auto flex items-center gap-3">
+      <div class="relative hidden md:block">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2" style="width:15px;height:15px;color:var(--text-secondary)"></i>
+        <input id="global-search" type="text" placeholder="Buscar produto, proposta..." class="form-input pl-9" style="width:280px;padding-top:7px;padding-bottom:7px;font-size:13.5px" aria-label="Busca global" autocomplete="off" />
+        <div id="search-dropdown"></div>
+      </div>
+      <button id="theme-toggle" aria-label="Alternar modo claro/escuro" title="Alternar tema">
+        <i data-lucide="moon" id="theme-icon" style="width:16px;height:16px;color:var(--text-secondary)"></i>
+      </button>
+      <button id="btn-nova-proposta" class="btn btn-gold btn-sm">
+        <i data-lucide="plus" style="width:14px;height:14px"></i> Nova Proposta
+      </button>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background:var(--avatar-bg);font-family:'Montserrat',sans-serif" aria-label="Usuário: Marcos Engel Silva">MR</div>
+    </div>
+  </header>
+
+  <!-- Views -->
+  <div class="flex-1 overflow-y-auto" style="background:var(--bg)">
+
+    <!-- ─────────────────── DASHBOARD ─────────────────── -->
+    <div id="view-dashboard" class="view active fade-in p-6" style="max-width:1440px">
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="kpi-card card-gold-line">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="kpi-value">R$ 148.700</div>
+              <div class="kpi-label">Faturamento do Mês</div>
+              <div class="kpi-delta up flex items-center gap-1"><i data-lucide="trending-up" style="width:13px;height:13px"></i> +12% vs. abril</div>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(197,160,89,.12)">
+              <i data-lucide="dollar-sign" style="width:20px;height:20px;color:var(--gold)"></i>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="kpi-value">23</div>
+              <div class="kpi-label">Propostas Enviadas</div>
+              <div class="kpi-delta up flex items-center gap-1"><i data-lucide="trending-up" style="width:13px;height:13px"></i> +5 este mês</div>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(66,153,225,.1)">
+              <i data-lucide="file-text" style="width:20px;height:20px;color:#3182CE"></i>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="kpi-value">68%</div>
+              <div class="kpi-label">Taxa de Conversão</div>
+              <div class="kpi-delta down flex items-center gap-1"><i data-lucide="trending-down" style="width:13px;height:13px"></i> -3% vs. abril</div>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(56,161,105,.1)">
+              <i data-lucide="percent" style="width:20px;height:20px;color:var(--success)"></i>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="kpi-value">247</div>
+              <div class="kpi-label">Produtos no Catálogo</div>
+              <div class="kpi-delta up flex items-center gap-1"><i data-lucide="trending-up" style="width:13px;height:13px"></i> +18 esta semana</div>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(159,122,234,.1)">
+              <i data-lucide="package" style="width:20px;height:20px;color:#805AD5"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- Recent proposals -->
+        <div class="card lg:col-span-2 overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--border)">
+            <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px">Propostas Recentes</span>
+            <button class="btn btn-ghost btn-sm" id="btn-ver-todas">Ver todas →</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Código</th><th>Cliente</th><th>Vendedor</th><th>Valor</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.MES.001.v1</span></td>
+                <td>Família Mendes</td><td>Marcos E.</td>
+                <td><span class="mono">R$ 47.200</span></td>
+                <td><span class="badge badge-success">Aprovada</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.CAR.002.v2</span></td>
+                <td>Ricardo Campos</td><td>Carolina R.</td>
+                <td><span class="mono">R$ 23.850</span></td>
+                <td><span class="badge badge-info">Enviada</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.MES.003.v1</span></td>
+                <td>BRK Advocacia</td><td>Marcos E.</td>
+                <td><span class="mono">R$ 91.400</span></td>
+                <td><span class="badge badge-draft">Rascunho</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono text-xs" style="color:var(--gold)">GD-04.26.ROD.004.v1</span></td>
+                <td>Hotel Palmeiras</td><td>Rodrigo S.</td>
+                <td><span class="mono">R$ 138.000</span></td>
+                <td><span class="badge badge-error">Reprovada</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.ANA.005.v1</span></td>
+                <td>Studio Ateliê</td><td>Ana Paula M.</td>
+                <td><span class="mono">R$ 19.300</span></td>
+                <td><span class="badge badge-warning">Revisão</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right column -->
+        <div class="flex flex-col gap-4">
+          <div class="card p-5" style="border-color:rgba(197,160,89,.3)">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(197,160,89,.12)">
+                <i data-lucide="mic" style="width:18px;height:18px;color:var(--gold)"></i>
+              </div>
+              <div>
+                <div style="font-weight:700;font-size:14px">Rascunhos de Voz</div>
+                <div style="font-size:12px;color:var(--text-secondary)">2 aguardando revisão</div>
+              </div>
+            </div>
+            <button class="btn btn-gold w-full" id="btn-revisar-voz">
+              <i data-lucide="arrow-right" style="width:14px;height:14px"></i> Revisar Agora
+            </button>
+          </div>
+
+          <div class="card p-5">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;margin-bottom:16px">Pipeline de Conversão</div>
+            <div class="space-y-3">
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span style="font-size:12.5px;color:var(--text-secondary)">Propostas Abertas</span>
+                  <span class="mono" style="font-size:12.5px;font-weight:600">18</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:75%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span style="font-size:12.5px;color:var(--text-secondary)">Em Negociação</span>
+                  <span class="mono" style="font-size:12.5px;font-weight:600">9</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:38%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span style="font-size:12.5px;color:var(--text-secondary)">Aprovadas (mês)</span>
+                  <span class="mono" style="font-size:12.5px;font-weight:600">12</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;margin-bottom:12px">Último Import Drive</div>
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(56,161,105,.1)">
+                <i data-lucide="cloud-upload" style="width:17px;height:17px;color:var(--success)"></i>
+              </div>
+              <div>
+                <div style="font-size:13.5px;font-weight:600;color:var(--success)">Sucesso</div>
+                <div style="font-size:12px;color:var(--text-secondary)">18 imagens · hoje 09:14</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+
+    <!-- ─────────────────── CATALOG ─────────────────── -->
+    <div id="view-catalog" class="view fade-in" style="max-width:1440px">
+      <div class="flex">
+
+        <!-- Filter sidebar -->
+        <aside id="catalog-filter-sidebar" class="w-56 flex-shrink-0 bg-white border-r p-4 overflow-y-auto" style="border-color:var(--border);min-height:calc(100vh - 57px)">
+          <div class="flex items-center justify-between mb-4">
+            <span style="font-weight:700;font-size:13.5px">Filtros</span>
+            <div class="flex items-center gap-2">
+              <button class="text-xs" style="color:var(--gold);font-weight:600" id="btn-clear-filters">Limpar</button>
+              <button id="btn-close-filter-mobile" onclick="closeMobileFilter()"
+                style="display:none;width:28px;height:28px;border:none;background:var(--border);border-radius:6px;cursor:pointer;align-items:center;justify-content:center">
+                <i data-lucide="x" style="width:14px;height:14px;color:var(--primary)"></i>
+              </button>
+            </div>
+          </div>
+          <div class="relative mb-4">
+            <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2" style="width:13px;height:13px;color:var(--text-secondary)"></i>
+            <input type="text" id="catalogSearch" placeholder="Código ou nome..." class="form-input pl-8" style="font-size:13px;padding-top:6px;padding-bottom:6px" aria-label="Buscar produto no catálogo" />
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-label">Categoria</div>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Cadeiras" /> Cadeiras <span class="ml-auto text-xs" style="color:var(--text-secondary)">38</span></label>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Mesas" /> Mesas <span class="ml-auto text-xs" style="color:var(--text-secondary)">29</span></label>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Sofás" /> Sofás <span class="ml-auto text-xs" style="color:var(--text-secondary)">22</span></label>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Iluminação" /> Iluminação <span class="ml-auto text-xs" style="color:var(--text-secondary)">41</span></label>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Armários" /> Armários <span class="ml-auto text-xs" style="color:var(--text-secondary)">17</span></label>
+            <label class="filter-option"><input type="checkbox" class="filter-cat" value="Acessórios" /> Acessórios <span class="ml-auto text-xs" style="color:var(--text-secondary)">100</span></label>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-label">Fornecedor</div>
+            <label class="filter-option"><input type="checkbox" class="filter-sup" value="Artefacto" /> Artefacto</label>
+            <label class="filter-option"><input type="checkbox" class="filter-sup" value="Dpot" /> Dpot</label>
+            <label class="filter-option"><input type="checkbox" class="filter-sup" value="Tok&Stok Premium" /> Tok&amp;Stok Premium</label>
+            <label class="filter-option"><input type="checkbox" class="filter-sup" value="Casa da Mesa" /> Casa da Mesa</label>
+            <label class="filter-option"><input type="checkbox" class="filter-sup" value="Punto Luce" /> Punto Luce</label>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-label">Acabamento</div>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Couro" /> Couro</label>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Veludo" /> Veludo</label>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Mármore" /> Mármore</label>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Madeira" /> Madeira Natural</label>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Aço" /> Aço</label>
+            <label class="filter-option"><input type="checkbox" class="filter-fin" value="Metal" /> Metal</label>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-label">Faixa de Preço</div>
+            <label class="filter-option"><input type="radio" name="price" value="all" checked /> Todos</label>
+            <label class="filter-option"><input type="radio" name="price" value="0-3000" /> Até R$ 3.000</label>
+            <label class="filter-option"><input type="radio" name="price" value="3000-8000" /> R$ 3k – R$ 8k</label>
+            <label class="filter-option"><input type="radio" name="price" value="8000+" /> Acima de R$ 8k</label>
+          </div>
+        </aside>
+
+        <!-- Product grid -->
+        <div class="flex-1 p-6 overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <button id="btn-filter-mobile" onclick="openMobileFilter()"
+                style="display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--primary)">
+                <i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i> Filtros
+              </button>
+              <div id="catalog-count" style="font-size:13.5px;color:var(--text-secondary)">12 produtos</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="catalog-sort" class="form-input" style="width:auto;font-size:13px;padding:6px 28px 6px 10px" aria-label="Ordenar catálogo">
+                <option value="relevance">Ordem: Relevância</option>
+                <option value="price-asc">Menor Preço</option>
+                <option value="price-desc">Maior Preço</option>
+                <option value="name-asc">Nome A-Z</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="btn-import-produto">
+                <i data-lucide="cloud-upload" style="width:13px;height:13px"></i> Importar Produto
+              </button>
+            </div>
+          </div>
+          <div id="catalog-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+        </div>
+      </div>
+    </div><!-- /catalog -->
+
+
+    <!-- ─────────────────── NEW PROPOSAL ─────────────────── -->
+    <div id="view-new-proposal" class="view fade-in p-6" style="max-width:1440px">
+
+      <!-- Code banner -->
+      <div class="card p-4 mb-5 flex items-center gap-4" style="border-color:rgba(197,160,89,.3)">
+        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Código</div>
+        <div id="proposal-code" class="mono" style="font-size:16px;font-weight:700;color:var(--gold)">GD-05.26.---.001.v1</div>
+        <div class="ml-auto flex items-center gap-2">
+          <span class="badge badge-draft">Rascunho</span>
+          <button id="btn-copy-code" class="btn btn-outline btn-sm"><i data-lucide="copy" style="width:13px;height:13px"></i> Copiar</button>
+        </div>
+      </div>
+
+      <!-- Header fields -->
+      <div class="card p-5 mb-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="form-label" for="pCliente">Cliente *</label>
+            <input type="text" id="pCliente" placeholder="Nome do cliente" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label" for="pArquiteto">Arquiteto / Escritório</label>
+            <input type="text" id="pArquiteto" placeholder="Nome do arquiteto" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label" for="pVendedor">Vendedor *</label>
+            <select id="pVendedor" class="form-input">
+              <option value="">Selecione...</option>
+              <option value="MES">Marcos E. Silva (MES)</option>
+              <option value="CAR">Carolina A. Rocha (CAR)</option>
+              <option value="ROD">Rodrigo Santos (ROD)</option>
+              <option value="ANA">Ana Paula Melo (ANA)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="pValidade">Validade da Proposta</label>
+            <input type="date" id="pValidade" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label" for="pPagamento">Condição de Pagamento</label>
+            <select id="pPagamento" class="form-input">
+              <option>À vista (5% desc.)</option>
+              <option>30/60/90 dias</option>
+              <option>10x sem juros no cartão</option>
+              <option>Financiamento direto</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="pVersion">Versão</label>
+            <input type="number" id="pVersion" value="1" min="1" class="form-input" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Items table -->
+      <div class="card overflow-hidden mb-4">
+        <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--border)">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px">Itens da Proposta</span>
+          <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" id="btn-buscar-catalogo">
+              <i data-lucide="package" style="width:13px;height:13px"></i> Buscar no Catálogo
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-add-row">
+              <i data-lucide="plus" style="width:13px;height:13px"></i> Adicionar Item
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="proposal-table" style="display:none">
+            <thead>
+              <tr>
+                <th style="width:40px">#</th>
+                <th style="width:120px">Código</th>
+                <th>Descrição</th>
+                <th style="width:80px">Qtd</th>
+                <th style="width:140px">Preço Unit.</th>
+                <th style="width:90px">Desc. %</th>
+                <th style="width:140px">Total</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody id="proposal-body"></tbody>
+          </table>
+        </div>
+        <div id="proposal-empty" class="flex flex-col items-center justify-center py-12 gap-2" style="color:var(--text-secondary)">
+          <i data-lucide="file-plus" style="width:36px;height:36px;opacity:.3"></i>
+          <div style="font-size:14px">Nenhum item adicionado.</div>
+          <button class="btn btn-gold btn-sm mt-1" id="btn-first-row">+ Adicionar primeiro item</button>
+        </div>
+      </div>
+
+      <!-- Totals -->
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div class="card p-4 flex-1" style="min-width:220px">
+          <label class="form-label" for="pObs">Observações para o cliente</label>
+          <textarea id="pObs" class="form-input" rows="3" placeholder="Prazo de entrega, condições especiais..."></textarea>
+        </div>
+        <div class="card p-5" style="min-width:280px">
+          <div class="space-y-3">
+            <div class="flex justify-between">
+              <span style="font-size:14px;color:var(--text-secondary)">Subtotal</span>
+              <span id="subtotal" class="mono font-semibold">R$ 0,00</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span style="font-size:14px;color:var(--text-secondary)">Desconto Global</span>
+              <div class="flex items-center gap-2">
+                <input type="number" id="globalDiscount" value="0" min="0" max="100" class="proposal-input text-right" style="width:55px;border:1.5px solid var(--border);border-radius:6px" aria-label="Desconto global em %" />
+                <span style="color:var(--text-secondary)">%</span>
+              </div>
+            </div>
+            <div class="border-t pt-3" style="border-color:var(--border)">
+              <div class="flex justify-between items-center">
+                <span style="font-weight:700;font-size:15px">Total</span>
+                <span id="total-final" class="mono" style="font-size:20px;font-weight:700;color:var(--gold)">R$ 0,00</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-outline flex-1" id="btn-salvar-proposta">
+              <i data-lucide="save" style="width:14px;height:14px"></i> Salvar
+            </button>
+            <button class="btn btn-outline flex-1" id="btn-gerar-pdf">
+              <i data-lucide="file-down" style="width:14px;height:14px"></i> PDF
+            </button>
+            <button class="btn btn-gold flex-1" id="btn-enviar-proposta">
+              <i data-lucide="send" style="width:14px;height:14px"></i> Enviar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /new-proposal -->
+
+
+    <!-- ─────────────────── HISTORY ─────────────────── -->
+    <div id="view-history" class="view fade-in p-6" style="max-width:1440px">
+      <div class="flex items-center gap-4 mb-5 flex-wrap">
+        <div class="relative flex-1" style="min-width:200px">
+          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2" style="width:14px;height:14px;color:var(--text-secondary)"></i>
+          <input type="text" placeholder="Buscar por código, cliente..." class="form-input pl-9" aria-label="Buscar proposta" />
+        </div>
+        <select class="form-input" style="width:auto" aria-label="Filtrar por status"><option>Todos os status</option><option>Aprovada</option><option>Enviada</option><option>Rascunho</option><option>Reprovada</option></select>
+        <select class="form-input" style="width:auto" aria-label="Filtrar por vendedor"><option>Todos os vendedores</option><option>Marcos E. Silva</option><option>Carolina Rocha</option><option>Rodrigo Santos</option></select>
+        <select class="form-input" style="width:auto" aria-label="Filtrar por período"><option>Últimos 30 dias</option><option>Últimos 90 dias</option><option>Este ano</option></select>
+      </div>
+      <div class="card overflow-hidden">
+        <table class="data-table">
+          <thead>
+            <tr><th>Código</th><th>Cliente</th><th>Arquiteto</th><th>Vendedor</th><th>Valor Total</th><th>Data</th><th>Versão</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.MES.001.v1</span></td>
+              <td class="font-medium">Família Mendes</td>
+              <td style="color:var(--text-secondary)">Arq. Beatriz Costa</td>
+              <td>Marcos E.</td>
+              <td><span class="mono font-semibold">R$ 47.200</span></td>
+              <td style="color:var(--text-secondary);font-size:13px">07/05/2026</td>
+              <td><span class="badge badge-gold">v1</span></td>
+              <td><span class="badge badge-success">Aprovada</span></td>
+              <td><div class="flex gap-1">
+                <button class="btn btn-ghost btn-sm" aria-label="Visualizar"><i data-lucide="eye" style="width:14px;height:14px"></i></button>
+                <button class="btn btn-ghost btn-sm" aria-label="Duplicar"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.CAR.002.v2</span></td>
+              <td class="font-medium">Ricardo Campos</td>
+              <td style="color:var(--text-secondary)">—</td>
+              <td>Carolina R.</td>
+              <td><span class="mono font-semibold">R$ 23.850</span></td>
+              <td style="color:var(--text-secondary);font-size:13px">05/05/2026</td>
+              <td><span class="badge badge-gold">v2</span></td>
+              <td><span class="badge badge-info">Enviada</span></td>
+              <td><div class="flex gap-1">
+                <button class="btn btn-ghost btn-sm" aria-label="Visualizar"><i data-lucide="eye" style="width:14px;height:14px"></i></button>
+                <button class="btn btn-ghost btn-sm" aria-label="Duplicar"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.MES.003.v1</span></td>
+              <td class="font-medium">BRK Advocacia</td>
+              <td style="color:var(--text-secondary)">Arq. Fábio Lima</td>
+              <td>Marcos E.</td>
+              <td><span class="mono font-semibold">R$ 91.400</span></td>
+              <td style="color:var(--text-secondary);font-size:13px">04/05/2026</td>
+              <td><span class="badge badge-gold">v1</span></td>
+              <td><span class="badge badge-draft">Rascunho</span></td>
+              <td><div class="flex gap-1">
+                <button class="btn btn-ghost btn-sm" aria-label="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+                <button class="btn btn-ghost btn-sm" aria-label="Duplicar"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><span class="mono text-xs" style="color:var(--gold)">GD-04.26.ROD.004.v1</span></td>
+              <td class="font-medium">Hotel Palmeiras</td>
+              <td style="color:var(--text-secondary)">Arq. Marina V.</td>
+              <td>Rodrigo S.</td>
+              <td><span class="mono font-semibold">R$ 138.000</span></td>
+              <td style="color:var(--text-secondary);font-size:13px">22/04/2026</td>
+              <td><span class="badge badge-gold">v1</span></td>
+              <td><span class="badge badge-error">Reprovada</span></td>
+              <td><div class="flex gap-1">
+                <button class="btn btn-ghost btn-sm" aria-label="Visualizar"><i data-lucide="eye" style="width:14px;height:14px"></i></button>
+                <button class="btn btn-ghost btn-sm" aria-label="Retomar"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><span class="mono text-xs" style="color:var(--gold)">GD-05.26.ANA.005.v1</span></td>
+              <td class="font-medium">Studio Ateliê</td>
+              <td style="color:var(--text-secondary)">—</td>
+              <td>Ana Paula M.</td>
+              <td><span class="mono font-semibold">R$ 19.300</span></td>
+              <td style="color:var(--text-secondary);font-size:13px">08/05/2026</td>
+              <td><span class="badge badge-gold">v1</span></td>
+              <td><span class="badge badge-warning">Revisão</span></td>
+              <td><div class="flex gap-1">
+                <button class="btn btn-ghost btn-sm" aria-label="Editar"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+                <button class="btn btn-ghost btn-sm" aria-label="Duplicar"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div><!-- /history -->
+
+
+    <!-- ─────────────────── VOICE DRAFTS ─────────────────── -->
+    <div id="view-voice" class="view fade-in p-6" style="max-width:1440px">
+
+      <!-- Abas mobile (só visíveis em telas pequenas) -->
+      <div id="voice-tabs" style="display:none;gap:0;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <button class="voice-tab-btn active" data-tab="voice-inbox" style="flex:1;padding:10px 4px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--gold);border-bottom:2px solid var(--gold)">
+          <i data-lucide="inbox" style="width:14px;height:14px;display:block;margin:0 auto 3px"></i>Inbox
+        </button>
+        <button class="voice-tab-btn" data-tab="voice-center" style="flex:1;padding:10px 4px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent">
+          <i data-lucide="file-text" style="width:14px;height:14px;display:block;margin:0 auto 3px"></i>Transcrição
+        </button>
+        <button class="voice-tab-btn" data-tab="voice-right" style="flex:1;padding:10px 4px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent">
+          <i data-lucide="zap" style="width:14px;height:14px;display:block;margin:0 auto 3px"></i>Campos
+        </button>
+      </div>
+
+      <div class="flex gap-5" style="min-height:calc(100vh - 120px)">
+
+        <!-- Inbox -->
+        <div id="voice-inbox" class="w-80 flex-shrink-0 flex flex-col gap-3 tab-active">
+          <div class="flex items-center justify-between mb-1">
+            <span style="font-weight:700;font-size:14px">Caixa de Entrada</span>
+            <span class="badge badge-error">2 pendentes</span>
+          </div>
+
+          <div class="draft-item selected" id="draft-0" role="button" tabindex="0">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:rgba(197,160,89,.15)">
+                  <i data-lucide="mic" style="width:15px;height:15px;color:var(--gold)"></i>
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600">Marcos E. Silva</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary)">Hoje · 09:42</div>
+                </div>
+              </div>
+              <span class="badge badge-warning" style="font-size:10px">Pendente</span>
+            </div>
+            <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">"preciso de três cadeiras barcelona em couro preto e duas mesas carrara para o cliente silva arquitetura..."</p>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="badge" style="background:rgba(229,62,62,.1);color:var(--error);font-size:10.5px">1 erro</span>
+              <span style="font-size:11px;color:var(--text-secondary)">3 produtos detectados</span>
+            </div>
+          </div>
+
+          <div class="draft-item" id="draft-1" role="button" tabindex="0">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:rgba(197,160,89,.15)">
+                  <i data-lucide="mic" style="width:15px;height:15px;color:var(--gold)"></i>
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600">Rodrigo Santos</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary)">Hoje · 11:15</div>
+                </div>
+              </div>
+              <span class="badge badge-warning" style="font-size:10px">Pendente</span>
+            </div>
+            <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">"manda proposta pro Rodrigo da construtora omega, um sofá modulare cinza e uma luminária arc em dourado..."</p>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="badge badge-success" style="font-size:10.5px">Todos ok</span>
+              <span style="font-size:11px;color:var(--text-secondary)">2 produtos detectados</span>
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);font-weight:600;margin-bottom:8px">Processados</div>
+            <div class="draft-item" style="opacity:.55;cursor:default">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check-circle" style="width:16px;height:16px;color:var(--success)"></i>
+                <div>
+                  <div style="font-size:13px;font-weight:600">Carolina Rocha</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary)">Ontem · 16:30</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Split screen -->
+        <div id="voice-center" class="flex-1 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span style="font-weight:700;font-size:15px">Revisão de Rascunho</span>
+              <span class="ml-2 badge badge-warning">Pendente</span>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-outline btn-sm" id="btn-descartar-draft">
+                <i data-lucide="trash-2" style="width:13px;height:13px"></i> Descartar
+              </button>
+              <button class="btn btn-gold btn-sm" id="btn-criar-proposta-draft">
+                <i data-lucide="file-plus" style="width:13px;height:13px"></i> Criar Proposta
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-4 flex-1">
+            <!-- Left: transcript -->
+            <div class="split-left flex-1">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#718096;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+                <i data-lucide="file-audio" style="width:14px;height:14px"></i> Transcrição Original (Whisper)
+              </div>
+              <p style="font-size:14.5px;line-height:1.8;color:#E2E8F0">
+                "preciso de três
+                <mark style="background:rgba(56,161,105,.25);color:#9AE6B4;padding:0 2px;border-radius:2px;border-bottom:2px solid #38A169">cadeiras barcelona</mark>
+                em
+                <mark style="background:rgba(56,161,105,.25);color:#9AE6B4;padding:0 2px;border-radius:2px;border-bottom:2px solid #38A169">couro preto</mark>
+                e duas
+                <mark style="background:rgba(56,161,105,.25);color:#9AE6B4;padding:0 2px;border-radius:2px;border-bottom:2px solid #38A169">mesas carrara</mark>
+                para o cliente <strong style="color:#fff">silva arquitetura</strong>, desconto de dez por cento, o arquiteto é <strong style="color:#fff">beatriz silva</strong>, entrega pra semana que vem, e também quero adicionar um
+                <mark style="background:rgba(229,62,62,.2);color:#FEB2B2;padding:0 2px;border-radius:2px;border-bottom:2px solid #E53E3E">poltrona egg bouclê bege</mark>
+                se tiver disponível"
+              </p>
+              <div class="mt-4 pt-4" style="border-top:1px solid rgba(255,255,255,.1)">
+                <div style="font-size:12px;color:#718096;font-weight:600;margin-bottom:8px">Legenda</div>
+                <div class="flex gap-4">
+                  <div class="flex items-center gap-2">
+                    <span style="width:12px;height:4px;background:var(--success);display:inline-block;border-radius:2px"></span>
+                    <span style="font-size:12px;color:#A0AEC0">Encontrado</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span style="width:12px;height:4px;background:var(--error);display:inline-block;border-radius:2px"></span>
+                    <span style="font-size:12px;color:#A0AEC0">Não encontrado</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: extracted fields -->
+            <div id="voice-right" class="split-right flex-1">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--text-secondary);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+                <i data-lucide="cpu" style="width:14px;height:14px"></i> Campos Extraídos pela IA
+              </div>
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label class="form-label" for="draft-cliente">Cliente</label>
+                  <input id="draft-cliente" class="form-input" value="Silva Arquitetura" />
+                </div>
+                <div>
+                  <label class="form-label" for="draft-arq">Arquiteto</label>
+                  <input id="draft-arq" class="form-input" value="Beatriz Silva" />
+                </div>
+                <div>
+                  <label class="form-label" for="draft-desc">Desconto Global</label>
+                  <input id="draft-desc" class="form-input" value="10%" />
+                </div>
+                <div>
+                  <label class="form-label" for="draft-prazo">Prazo de Entrega</label>
+                  <input id="draft-prazo" class="form-input" value="~7 dias (impreciso)" />
+                </div>
+              </div>
+
+              <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin-bottom:8px">Itens detectados</div>
+              <div class="space-y-2 mb-4">
+
+                <div class="flex items-center gap-3 p-3 rounded-lg" style="border:1px solid var(--border)">
+                  <i data-lucide="check-circle" style="width:18px;height:18px;color:var(--success);flex-shrink:0"></i>
+                  <div class="flex-1">
+                    <div style="font-size:13.5px;font-weight:600">GD-CAD-001 · Cadeira Barcelona Couro Preto</div>
+                    <div style="font-size:12px;color:var(--text-secondary)">Qtd: 3 · R$ 4.890,00 cada</div>
+                  </div>
+                  <input type="number" value="3" class="proposal-input" style="width:55px;border:1.5px solid var(--border);border-radius:6px;text-align:center" aria-label="Quantidade Cadeira Barcelona" />
+                </div>
+
+                <div class="flex items-center gap-3 p-3 rounded-lg" style="border:1px solid var(--border)">
+                  <i data-lucide="check-circle" style="width:18px;height:18px;color:var(--success);flex-shrink:0"></i>
+                  <div class="flex-1">
+                    <div style="font-size:13.5px;font-weight:600">GD-MES-003 · Mesa de Jantar Carrara</div>
+                    <div style="font-size:12px;color:var(--text-secondary)">Qtd: 2 · R$ 8.750,00 cada</div>
+                  </div>
+                  <input type="number" value="2" class="proposal-input" style="width:55px;border:1.5px solid var(--border);border-radius:6px;text-align:center" aria-label="Quantidade Mesa Carrara" />
+                </div>
+
+                <div class="flex items-center gap-3 p-3 rounded-lg" style="border:1.5px solid var(--error);background:rgba(229,62,62,.04)">
+                  <i data-lucide="alert-circle" style="width:18px;height:18px;color:var(--error);flex-shrink:0"></i>
+                  <div class="flex-1">
+                    <div style="font-size:13.5px;font-weight:600;color:var(--error)">"poltrona egg bouclê bege"</div>
+                    <div style="font-size:12px;color:var(--error);opacity:.75">Código não encontrado no catálogo</div>
+                  </div>
+                  <div class="flex gap-1">
+                    <button class="btn btn-sm" style="background:rgba(229,62,62,.1);color:var(--error)" id="btn-corrigir-item">Corrigir</button>
+                    <button class="btn btn-ghost btn-sm" id="btn-remover-item" aria-label="Remover item não encontrado"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-lg" style="background:rgba(197,160,89,.08);border:1px solid rgba(197,160,89,.3)">
+                <div style="font-size:12.5px;font-weight:600;color:var(--gold);margin-bottom:2px">Valor estimado</div>
+                <div class="mono" style="font-size:20px;font-weight:700;color:var(--primary)">R$ 32.170,00</div>
+                <div style="font-size:12px;color:var(--text-secondary)">Após desconto de 10% · 2 itens confirmados</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /voice -->
+
+
+    <!-- ─────────────────── SETTINGS ─────────────────── -->
+    <div id="view-settings" class="view fade-in p-6" style="max-width:960px">
+      <div class="grid gap-5">
+
+        <!-- Users -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:var(--border)">
+            <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px">Gestão de Usuários</span>
+            <button class="btn btn-primary btn-sm"><i data-lucide="user-plus" style="width:13px;height:13px"></i> Novo Usuário</button>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Nome</th><th>Código</th><th>E-mail</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="font-medium">Marcos E. Silva</td>
+                <td><span class="mono badge badge-gold">MES</span></td>
+                <td style="color:var(--text-secondary)">marcos@galpaodesign.com.br</td>
+                <td>Vendedor Sênior</td>
+                <td><span class="badge badge-success">Ativo</span></td>
+                <td><button class="btn btn-ghost btn-sm" aria-label="Configurar Marcos"><i data-lucide="settings" style="width:13px;height:13px"></i></button></td>
+              </tr>
+              <tr>
+                <td class="font-medium">Carolina A. Rocha</td>
+                <td><span class="mono badge badge-gold">CAR</span></td>
+                <td style="color:var(--text-secondary)">carolina@galpaodesign.com.br</td>
+                <td>Vendedor</td>
+                <td><span class="badge badge-success">Ativo</span></td>
+                <td><button class="btn btn-ghost btn-sm" aria-label="Configurar Carolina"><i data-lucide="settings" style="width:13px;height:13px"></i></button></td>
+              </tr>
+              <tr>
+                <td class="font-medium">Rodrigo Santos</td>
+                <td><span class="mono badge badge-gold">ROD</span></td>
+                <td style="color:var(--text-secondary)">rodrigo@galpaodesign.com.br</td>
+                <td>Vendedor</td>
+                <td><span class="badge badge-success">Ativo</span></td>
+                <td><button class="btn btn-ghost btn-sm" aria-label="Configurar Rodrigo"><i data-lucide="settings" style="width:13px;height:13px"></i></button></td>
+              </tr>
+              <tr>
+                <td class="font-medium">Ana Paula Melo</td>
+                <td><span class="mono badge badge-gold">ANA</span></td>
+                <td style="color:var(--text-secondary)">ana@galpaodesign.com.br</td>
+                <td>Vendedor</td>
+                <td><span class="badge badge-draft">Inativo</span></td>
+                <td><button class="btn btn-ghost btn-sm" aria-label="Configurar Ana Paula"><i data-lucide="settings" style="width:13px;height:13px"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Import logs -->
+        <div class="card p-5">
+          <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;margin-bottom:16px">Logs de Importação (Google Drive → S3)</div>
+          <div class="space-y-3">
+            <div class="flex items-center gap-4 p-3 rounded-lg" style="border:1px solid var(--border)">
+              <i data-lucide="check-circle" style="width:18px;height:18px;color:var(--success);flex-shrink:0"></i>
+              <div class="flex-1">
+                <div style="font-size:13.5px;font-weight:600">Import automático — Hoje 09:14</div>
+                <div style="font-size:12.5px;color:var(--text-secondary)">18 imagens importadas · 0 erros · Pasta: /catalogo-maio-2026</div>
+              </div>
+              <span class="badge badge-success">Sucesso</span>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-lg" style="border:1px solid var(--border)">
+              <i data-lucide="alert-triangle" style="width:18px;height:18px;color:var(--warning);flex-shrink:0"></i>
+              <div class="flex-1">
+                <div style="font-size:13.5px;font-weight:600">Import automático — Ontem 09:00</div>
+                <div style="font-size:12.5px;color:var(--text-secondary)">42 imagens · 3 rejeitadas (abaixo de 600×600px)</div>
+              </div>
+              <span class="badge badge-warning">Aviso</span>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-lg" style="border:1px solid var(--border)">
+              <i data-lucide="check-circle" style="width:18px;height:18px;color:var(--success);flex-shrink:0"></i>
+              <div class="flex-1">
+                <div style="font-size:13.5px;font-weight:600">Import manual — 07/05/2026</div>
+                <div style="font-size:12.5px;color:var(--text-secondary)">8 imagens importadas · 0 erros</div>
+              </div>
+              <span class="badge badge-success">Sucesso</span>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm mt-4" id="btn-force-import">
+            <i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Forçar Import Agora
+          </button>
+        </div>
+
+      </div>
+    </div><!-- /settings -->
+
+  </div><!-- /views -->
+</main>
+
+<!-- ═══════════════════════════════════════
+     FAB – Gravação de Voz
+════════════════════════════════════════ -->
+<button id="rec-fab" class="rec-fab" aria-label="Gravar proposta por voz" title="Criar proposta por voz">
+  <i data-lucide="mic" style="width:24px;height:24px;color:#fff;pointer-events:none"></i>
+  <span id="rec-fab-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--error);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;border:2px solid var(--card);font-family:'JetBrains Mono',monospace"></span>
+</button>
+
+<!-- ═══════════════════════════════════════
+     POPOVER – Gravação de Voz
+════════════════════════════════════════ -->
+<div id="rec-popover" class="rec-popover" role="dialog" aria-label="Gravação de voz">
+
+  <!-- Cabeçalho -->
+  <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--border)">
+    <div class="flex items-center gap-2">
+      <div id="rec-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text-secondary);transition:background .3s"></div>
+      <div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:13.5px;line-height:1.2" id="rec-title">Criar Proposta por Voz</div>
+        <div style="font-size:11px;color:var(--text-secondary);line-height:1.2" id="rec-subtitle">Diga produtos, cliente e desconto</div>
+      </div>
+    </div>
+    <button id="btn-rec-close" class="btn btn-ghost btn-sm" style="padding:4px" aria-label="Fechar">
+      <i data-lucide="x" style="width:16px;height:16px"></i>
+    </button>
+  </div>
+
+  <!-- Corpo -->
+  <div class="px-4 py-3" style="max-height:calc(100vh - 180px);overflow-y:auto">
+
+    <!-- Mic central + waveform -->
+    <div class="flex items-center gap-3 mb-3">
+      <button id="btn-rec-toggle"
+        style="width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#E53E3E;box-shadow:0 4px 12px rgba(229,62,62,.35);transition:background .2s,box-shadow .2s"
+        aria-label="Iniciar / parar gravação">
+        <i data-lucide="mic" id="rec-mic-icon" style="width:22px;height:22px;color:#fff"></i>
+      </button>
+
+      <div class="flex-1">
+        <div id="rec-status" style="font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">
+          Toque para começar a gravar
+        </div>
+        <!-- Waveform -->
+        <div id="wave-bars" class="wave-bars-idle flex items-end gap-1" style="height:24px">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transcrição ao vivo -->
+    <div style="background:var(--bg);border-radius:10px;padding:10px 12px;min-height:52px;border:1.5px solid var(--border);margin-bottom:10px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:4px">Transcrição</div>
+      <p id="rec-transcript" style="font-size:13px;color:var(--primary);line-height:1.55;min-height:18px"></p>
+    </div>
+
+    <!-- Tags extraídas -->
+    <div id="rec-tags-wrap" style="display:none;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Extraído</div>
+      <div id="rec-tags" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
+
+    <!-- Itens detectados -->
+    <div id="rec-items-wrap" style="display:none;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Itens detectados</div>
+      <div id="rec-items-list" class="space-y-1.5"></div>
+    </div>
+
+    <!-- Dicas (visível antes de gravar) -->
+    <div id="rec-hint" style="background:rgba(197,160,89,.07);border:1px solid rgba(197,160,89,.25);border-radius:8px;padding:10px 12px">
+      <div style="font-size:11.5px;color:#92400e;font-weight:600;margin-bottom:4px">Exemplos</div>
+      <ul style="font-size:11.5px;color:#78350f;line-height:1.75;list-style:disc;padding-left:16px">
+        <li>"<em>Três cadeiras barcelona, cliente Studio Lima</em>"</li>
+        <li>"<em>Duas mesas carrara, desconto dez por cento</em>"</li>
+        <li>"<em>Um sofá modulare cinza, arquiteto Beatriz</em>"</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Rodapé com ação -->
+  <div class="px-4 py-3 border-t flex gap-2" style="border-color:var(--border)">
+    <button id="btn-rec-cancel" class="btn btn-outline btn-sm flex-1">Cancelar</button>
+    <button id="btn-rec-apply" class="btn btn-gold btn-sm flex-1 btn-disabled" style="opacity:.45;cursor:not-allowed">
+      <i data-lucide="check" style="width:13px;height:13px"></i> Aplicar
+    </button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: IMAGE MANAGEMENT
+════════════════════════════════════════ -->
+<div id="modal-images" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-product-name">
+  <div class="modal-box">
+    <div class="px-6 py-5 border-b flex items-center justify-between" style="border-color:var(--border)">
+      <div>
+        <div id="modal-product-name" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:17px"></div>
+        <div id="modal-product-id" class="mono" style="font-size:12px;color:var(--text-secondary)"></div>
+      </div>
+      <button id="btn-modal-close" class="btn btn-ghost btn-sm" aria-label="Fechar modal">
+        <i data-lucide="x" style="width:18px;height:18px"></i>
+      </button>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-3 gap-4 mb-5">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Principal</div>
+          <div class="img-slot">
+            <img src="https://picsum.photos/seed/gd-chair-main/400/400" alt="Imagem principal do produto" />
+            <div class="img-actions">
+              <button class="btn btn-sm" style="background:rgba(0,0,0,.6);color:#fff;border-radius:8px" id="btn-del-img-1" aria-label="Remover imagem principal">
+                <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+              </button>
+              <button class="btn btn-sm" style="background:rgba(0,0,0,.6);color:#fff;border-radius:8px" aria-label="Visualizar imagem principal">
+                <i data-lucide="eye" style="width:13px;height:13px"></i>
+              </button>
+            </div>
+            <div style="position:absolute;bottom:6px;left:6px">
+              <span class="badge badge-gold" style="font-size:10px">Principal</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--success);margin-top:5px;display:flex;align-items:center;gap:4px">
+            <i data-lucide="check-circle" style="width:12px;height:12px"></i> 1200×1200px · Foco OK
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Detalhe</div>
+          <div class="img-slot">
+            <img src="https://picsum.photos/seed/gd-chair-detail/400/400" alt="Imagem de detalhe do produto" />
+            <div class="img-actions">
+              <button class="btn btn-sm" style="background:rgba(0,0,0,.6);color:#fff;border-radius:8px" id="btn-del-img-2" aria-label="Remover imagem de detalhe">
+                <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+              </button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--success);margin-top:5px;display:flex;align-items:center;gap:4px">
+            <i data-lucide="check-circle" style="width:12px;height:12px"></i> 800×800px · Foco OK
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Ambiente</div>
+          <div class="img-slot drop-zone flex flex-col items-center justify-center gap-2" style="min-height:160px;cursor:pointer" id="drop-zone-3" role="button" tabindex="0" aria-label="Área de upload para imagem de ambiente">
+            <i data-lucide="cloud-upload" style="width:28px;height:28px;color:var(--text-secondary)"></i>
+            <div style="font-size:13px;color:var(--text-secondary);text-align:center">Arraste ou clique<br/>para adicionar</div>
+            <div style="font-size:11px;color:#CBD5E0">Mín. 600×600px</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-lg mb-5" style="background:rgba(56,161,105,.07);border:1px solid rgba(56,161,105,.2)">
+        <div style="font-size:12.5px;font-weight:600;color:var(--success);margin-bottom:4px">Validação Automática Ativa</div>
+        <div style="font-size:12.5px;color:#4A5568">Imagens abaixo de <strong>600×600px</strong> ou com foco insuficiente serão rejeitadas. O <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#EDF2F7;padding:1px 4px;border-radius:3px">storage_path</code> no S3 é atualizado após confirmação.</div>
+      </div>
+
+      <div class="mb-5">
+        <label class="form-label" for="s3-path">Storage Path (S3)</label>
+        <div class="flex gap-2">
+          <input id="s3-path" class="form-input mono flex-1" style="font-size:13px" value="s3://galpao-design/catalogo/cadeiras/GD-CAD-001/" readonly aria-label="Caminho S3 do produto" />
+          <button class="btn btn-outline btn-sm" id="btn-copy-s3" aria-label="Copiar caminho S3">
+            <i data-lucide="copy" style="width:13px;height:13px"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button class="btn btn-outline" id="btn-modal-cancel">Cancelar</button>
+        <button class="btn btn-gold" id="btn-modal-save">
+          <i data-lucide="save" style="width:14px;height:14px"></i> Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     TOAST
+════════════════════════════════════════ -->
+<div id="toast" role="status" aria-live="polite">
+  <div id="toast-inner" class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl" style="background:#1A202C;color:#fff;min-width:240px;max-width:360px">
+    <i id="toast-icon" data-lucide="check-circle" style="width:18px;height:18px;flex-shrink:0;color:var(--success)"></i>
+    <span id="toast-msg" style="font-size:13.5px;font-weight:500"></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─── Helpers ─── */
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmt(n) {
+  return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ─── Mock data ─── */
+const PRODUCTS = [
+  { id: 'GD-CAD-001', name: 'Cadeira Barcelona',       cat: 'Cadeiras',   supplier: 'Artefacto',       finish: 'Couro',   price: 4890,  img: 'https://picsum.photos/seed/gd001/400/400' },
+  { id: 'GD-MES-003', name: 'Mesa de Jantar Carrara',  cat: 'Mesas',      supplier: 'Casa da Mesa',     finish: 'Mármore', price: 8750,  img: 'https://picsum.photos/seed/gd003/400/400' },
+  { id: 'GD-SOF-005', name: 'Sofá Modulare',           cat: 'Sofás',      supplier: 'Artefacto',        finish: 'Veludo',  price: 12400, img: 'https://picsum.photos/seed/gd005/400/400' },
+  { id: 'GD-LUM-007', name: 'Luminária Suspensa Arc',  cat: 'Iluminação', supplier: 'Punto Luce',       finish: 'Metal',   price: 2100,  img: 'https://picsum.photos/seed/gd007/400/400' },
+  { id: 'GD-ARM-009', name: 'Armário Ripado',          cat: 'Armários',   supplier: 'Dpot',             finish: 'Madeira', price: 6300,  img: 'https://picsum.photos/seed/gd009/400/400' },
+  { id: 'GD-POL-011', name: 'Poltrona Egg Bouclê',     cat: 'Cadeiras',   supplier: 'Artefacto',        finish: 'Veludo',  price: 3950,  img: 'https://picsum.photos/seed/gd011/400/400' },
+  { id: 'GD-MES-013', name: 'Mesa de Centro Float',    cat: 'Mesas',      supplier: 'Dpot',             finish: 'Mármore', price: 3200,  img: 'https://picsum.photos/seed/gd013/400/400' },
+  { id: 'GD-CAM-015', name: 'Cama Platform',           cat: 'Acessórios', supplier: 'Artefacto',        finish: 'Madeira', price: 7800,  img: 'https://picsum.photos/seed/gd015/400/400' },
+  { id: 'GD-APA-017', name: 'Aparador Brutalist',      cat: 'Acessórios', supplier: 'Tok&Stok Premium', finish: 'Aço',    price: 4500,  img: 'https://picsum.photos/seed/gd017/400/400' },
+  { id: 'GD-LUM-019', name: 'Luminária de Piso Arco',  cat: 'Iluminação', supplier: 'Punto Luce',       finish: 'Metal',   price: 1850,  img: 'https://picsum.photos/seed/gd019/400/400' },
+  { id: 'GD-EST-021', name: 'Prateleiras Flotante',    cat: 'Armários',   supplier: 'Tok&Stok Premium', finish: 'Madeira', price: 2300,  img: 'https://picsum.photos/seed/gd021/400/400' },
+  { id: 'GD-TAP-023', name: 'Tapete Geométrico',       cat: 'Acessórios', supplier: 'Casa da Mesa',     finish: 'Veludo',  price: 3600,  img: 'https://picsum.photos/seed/gd023/400/400' },
+];
+
+/* ─── State ─── */
+let proposalRows = [];
+let rowCounter   = 0;
+let sidebarOpen  = true;
+let submenuOpen  = true;
+
+/* ─── Navigation ─── */
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('[data-view]').forEach(el => el.classList.remove('active'));
+
+  const viewEl = document.getElementById('view-' + view);
+  if (viewEl) {
+    viewEl.classList.add('active');
+    viewEl.classList.remove('fade-in');
+    void viewEl.offsetWidth; // force reflow for animation restart
+    viewEl.classList.add('fade-in');
+  }
+
+  document.querySelectorAll('[data-view="' + view + '"]').forEach(el => el.classList.add('active'));
+
+  const titles = {
+    dashboard:       'Dashboard',
+    catalog:         'Catálogo',
+    'new-proposal':  'Nova Proposta',
+    history:         'Histórico de Propostas',
+    voice:           'Rascunhos de Voz',
+    settings:        'Configurações',
+  };
+  const titleEl = document.getElementById('page-title');
+  if (titleEl) titleEl.textContent = titles[view] || '';
+
+  syncFab(view);
+  if (view === 'catalog')       renderCatalog();
+  if (view === 'new-proposal')  { renderProposalTable(); updateProposalCode(); }
+
+  lucide.createIcons();
+}
+
+/* ─── Sidebar ─── */
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  const icon = document.getElementById('collapse-icon');
+  if (icon) {
+    icon.setAttribute('data-lucide', sidebarOpen ? 'panel-left-close' : 'panel-left-open');
+    lucide.createIcons();
+  }
+}
+
+function toggleSubmenu() {
+  submenuOpen = !submenuOpen;
+  const menu    = document.getElementById('propostas-submenu');
+  const chevron = document.getElementById('propostas-chevron');
+  if (menu)    menu.style.display = submenuOpen ? 'block' : 'none';
+  if (chevron) chevron.style.transform = submenuOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+/* ─── Catalog rendering (DOM API, no innerHTML with user data) ─── */
+function renderCatalog() {
+  const search   = (document.getElementById('catalogSearch')?.value || '').toLowerCase();
+  const selCats  = [...document.querySelectorAll('.filter-cat:checked')].map(c => c.value);
+  const selSups  = [...document.querySelectorAll('.filter-sup:checked')].map(c => c.value);
+  const selFins  = [...document.querySelectorAll('.filter-fin:checked')].map(c => c.value);
+  const price    = document.querySelector('input[name="price"]:checked')?.value || 'all';
+  const sort     = document.getElementById('catalog-sort')?.value || 'relevance';
+
+  let filtered = PRODUCTS.filter(p => {
+    if (search && !p.name.toLowerCase().includes(search) && !p.id.toLowerCase().includes(search)) return false;
+    if (selCats.length && !selCats.includes(p.cat))                    return false;
+    if (selSups.length && !selSups.includes(p.supplier))               return false;
+    if (selFins.length && !selFins.some(f => p.finish.includes(f)))    return false;
+    if (price === '0-3000'    && p.price >= 3000)                       return false;
+    if (price === '3000-8000' && (p.price < 3000 || p.price >= 8000))  return false;
+    if (price === '8000+'     && p.price < 8000)                        return false;
+    return true;
+  });
+
+  if (sort === 'price-asc')  filtered.sort((a,b) => a.price - b.price);
+  if (sort === 'price-desc') filtered.sort((a,b) => b.price - a.price);
+  if (sort === 'name-asc')   filtered.sort((a,b) => a.name.localeCompare(b.name));
+
+  const countEl = document.getElementById('catalog-count');
+  if (countEl) countEl.textContent = filtered.length + ' produto' + (filtered.length !== 1 ? 's' : '');
+
+  const grid = document.getElementById('catalog-grid');
+  if (!grid) return;
+  grid.textContent = ''; // safe clear
+
+  filtered.forEach(p => {
+    /* Card wrapper */
+    const card = document.createElement('div');
+    card.className = 'card product-card overflow-hidden';
+    card.setAttribute('data-product-id', p.id);
+
+    /* Image container */
+    const imgWrap = document.createElement('div');
+    imgWrap.style.cssText = 'aspect-ratio:1/1;overflow:hidden;position:relative';
+
+    const img = document.createElement('img');
+    img.src = p.img;
+    img.alt = p.name + ' – imagem do produto';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+    img.loading = 'lazy';
+    imgWrap.appendChild(img);
+
+    /* ID badge */
+    const idBadge = document.createElement('span');
+    idBadge.className = 'badge';
+    idBadge.style.cssText = 'position:absolute;top:8px;left:8px;background:rgba(26,32,44,.75);color:#fff;font-size:10.5px;backdrop-filter:blur(4px)';
+    idBadge.textContent = p.id;
+    imgWrap.appendChild(idBadge);
+
+    /* Image manage btn */
+    const imgBtn = document.createElement('button');
+    imgBtn.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(26,32,44,.65);border:none;border-radius:8px;padding:5px;cursor:pointer;backdrop-filter:blur(4px)';
+    imgBtn.title = 'Gerir Imagens';
+    imgBtn.setAttribute('aria-label', 'Gerir imagens de ' + p.name);
+    const imgIcon = document.createElement('i');
+    imgIcon.setAttribute('data-lucide', 'image');
+    imgIcon.style.cssText = 'width:14px;height:14px;color:#fff;display:block';
+    imgBtn.appendChild(imgIcon);
+    imgBtn.addEventListener('click', () => openImageModal(p.id));
+    imgWrap.appendChild(imgBtn);
+
+    card.appendChild(imgWrap);
+
+    /* Body */
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:12px 14px';
+
+    const name = document.createElement('div');
+    name.style.cssText = 'font-weight:600;font-size:14px;margin-bottom:2px';
+    name.textContent = p.name;
+    body.appendChild(name);
+
+    const meta = document.createElement('div');
+    meta.style.cssText = 'font-size:12px;color:var(--text-secondary);margin-bottom:6px';
+    meta.textContent = p.supplier + ' · ' + p.finish;
+    body.appendChild(meta);
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between';
+
+    const priceEl = document.createElement('div');
+    priceEl.className = 'mono';
+    priceEl.style.cssText = 'font-size:15px;font-weight:700;color:var(--primary)';
+    priceEl.textContent = fmt(p.price);
+    row.appendChild(priceEl);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary btn-sm';
+    const plusIcon = document.createElement('i');
+    plusIcon.setAttribute('data-lucide', 'plus');
+    plusIcon.style.cssText = 'width:12px;height:12px';
+    addBtn.appendChild(plusIcon);
+    addBtn.append(' Proposta');
+    addBtn.setAttribute('aria-label', 'Adicionar ' + p.name + ' à proposta');
+    addBtn.addEventListener('click', () => addProductToProposal(p));
+    row.appendChild(addBtn);
+
+    body.appendChild(row);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+function clearFilters() {
+  document.querySelectorAll('.filter-cat,.filter-sup,.filter-fin').forEach(c => { c.checked = false; });
+  const allPrice = document.querySelector('input[name="price"][value="all"]');
+  if (allPrice) allPrice.checked = true;
+  const search = document.getElementById('catalogSearch');
+  if (search) search.value = '';
+  renderCatalog();
+}
+
+/* ─── Proposal ─── */
+function addProductToProposal(product) {
+  proposalRows.push({ id: ++rowCounter, code: product.id, desc: product.name, qty: 1, price: product.price, disc: 0 });
+  showToast('“' + product.name + '” adicionado à proposta.', 'success');
+  if (document.getElementById('view-new-proposal').classList.contains('active')) {
+    renderProposalTable();
+  }
+}
+
+function addProposalRow() {
+  proposalRows.push({ id: ++rowCounter, code: '', desc: '', qty: 1, price: 0, disc: 0 });
+  renderProposalTable();
+}
+
+function removeRow(id) {
+  proposalRows = proposalRows.filter(r => r.id !== id);
+  renderProposalTable();
+}
+
+function renderProposalTable() {
+  const tbody  = document.getElementById('proposal-body');
+  const empty  = document.getElementById('proposal-empty');
+  const table  = document.getElementById('proposal-table');
+  if (!tbody || !empty || !table) return;
+
+  if (proposalRows.length === 0) {
+    empty.style.display = 'flex';
+    table.style.display = 'none';
+    recalculate();
+    return;
+  }
+
+  empty.style.display = 'none';
+  table.style.display = 'table';
+  tbody.textContent = '';
+
+  proposalRows.forEach((r, i) => {
+    const line = r.qty * r.price * (1 - r.disc / 100);
+    const tr   = document.createElement('tr');
+
+    /* # */
+    addTd(tr, String(i + 1), 'color:var(--text-secondary);font-size:13px');
+
+    /* Code */
+    const tdCode = document.createElement('td');
+    const inCode = makeInput('proposal-input mono', r.code, 'text', '110px');
+    inCode.addEventListener('change', e => { r.code = e.target.value; });
+    tdCode.appendChild(inCode);
+    tr.appendChild(tdCode);
+
+    /* Desc */
+    const tdDesc = document.createElement('td');
+    const inDesc = makeInput('proposal-input', r.desc, 'text', '');
+    inDesc.style.width = '100%';
+    inDesc.addEventListener('change', e => { r.desc = e.target.value; });
+    tdDesc.appendChild(inDesc);
+    tr.appendChild(tdDesc);
+
+    /* Qty */
+    const tdQty = document.createElement('td');
+    const inQty = makeInput('proposal-input mono text-center', r.qty, 'number', '65px');
+    inQty.min = '1';
+    inQty.addEventListener('input', e => { r.qty = parseFloat(e.target.value) || 0; recalculate(); renderTotals(); updateRowLine(tr, r); });
+    tdQty.appendChild(inQty);
+    tr.appendChild(tdQty);
+
+    /* Price */
+    const tdPrice = document.createElement('td');
+    const priceWrap = document.createElement('div');
+    priceWrap.className = 'flex items-center gap-1';
+    const cur = document.createElement('span');
+    cur.style.cssText = 'font-size:13px;color:var(--text-secondary)';
+    cur.textContent = 'R$';
+    priceWrap.appendChild(cur);
+    const inPrice = makeInput('proposal-input mono', r.price, 'number', '100px');
+    inPrice.min = '0';
+    inPrice.addEventListener('input', e => { r.price = parseFloat(e.target.value) || 0; recalculate(); renderTotals(); updateRowLine(tr, r); });
+    priceWrap.appendChild(inPrice);
+    tdPrice.appendChild(priceWrap);
+    tr.appendChild(tdPrice);
+
+    /* Discount */
+    const tdDisc = document.createElement('td');
+    const inDisc = makeInput('proposal-input mono text-center', r.disc, 'number', '65px');
+    inDisc.min = '0'; inDisc.max = '100';
+    inDisc.addEventListener('input', e => { r.disc = parseFloat(e.target.value) || 0; recalculate(); renderTotals(); updateRowLine(tr, r); });
+    tdDisc.appendChild(inDisc);
+    tr.appendChild(tdDisc);
+
+    /* Line total */
+    const tdLine = document.createElement('td');
+    const lineSpan = document.createElement('span');
+    lineSpan.className = 'mono font-semibold row-line';
+    lineSpan.style.color = 'var(--primary)';
+    lineSpan.textContent = fmt(line);
+    tdLine.appendChild(lineSpan);
+    tr.appendChild(tdLine);
+
+    /* Remove */
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-ghost btn-sm';
+    delBtn.setAttribute('aria-label', 'Remover item ' + (i + 1));
+    const delIcon = document.createElement('i');
+    delIcon.setAttribute('data-lucide', 'trash-2');
+    delIcon.style.cssText = 'width:13px;height:13px;color:var(--error)';
+    delBtn.appendChild(delIcon);
+    delBtn.addEventListener('click', () => removeRow(r.id));
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+
+  recalculate();
+  lucide.createIcons();
+}
+
+function addTd(tr, text, style) {
+  const td = document.createElement('td');
+  if (style) td.style.cssText = style;
+  td.textContent = text;
+  tr.appendChild(td);
+  return td;
+}
+
+function makeInput(className, value, type, width) {
+  const el = document.createElement('input');
+  el.className = className;
+  el.value = value;
+  el.type = type;
+  if (width) el.style.width = width;
+  return el;
+}
+
+function updateRowLine(tr, r) {
+  const lineSpan = tr.querySelector('.row-line');
+  if (lineSpan) lineSpan.textContent = fmt(r.qty * r.price * (1 - r.disc / 100));
+}
+
+function recalculate() {
+  const subtotal  = proposalRows.reduce((s, r) => s + r.qty * r.price * (1 - r.disc / 100), 0);
+  const gDisc     = parseFloat(document.getElementById('globalDiscount')?.value || 0);
+  const total     = subtotal * (1 - gDisc / 100);
+  const subEl     = document.getElementById('subtotal');
+  const totalEl   = document.getElementById('total-final');
+  if (subEl)   subEl.textContent   = fmt(subtotal);
+  if (totalEl) totalEl.textContent = fmt(total);
+}
+
+function renderTotals() { recalculate(); }
+
+function updateProposalCode() {
+  const now   = new Date();
+  const mm    = String(now.getMonth() + 1).padStart(2, '0');
+  const yy    = String(now.getFullYear()).slice(2);
+  const vend  = document.getElementById('pVendedor')?.value || '---';
+  const ver   = document.getElementById('pVersion')?.value  || '1';
+  const raw   = document.getElementById('pCliente')?.value  || '';
+  const cli   = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 8) || 'CLIENTE';
+  const code  = 'GD-' + mm + '.' + yy + '.' + (vend || '---') + '.001.v' + ver + '.' + cli;
+  const el    = document.getElementById('proposal-code');
+  if (el) el.textContent = code;
+}
+
+/* ─── Image modal ─── */
+function openImageModal(productId) {
+  const p = PRODUCTS.find(x => x.id === productId) || { id: '—', name: 'Produto' };
+  const nameEl = document.getElementById('modal-product-name');
+  const idEl   = document.getElementById('modal-product-id');
+  const s3El   = document.getElementById('s3-path');
+  if (nameEl) nameEl.textContent = p.name;
+  if (idEl)   idEl.textContent   = p.id;
+  if (s3El)   s3El.value = 's3://galpao-design/catalogo/' + p.cat.toLowerCase() + '/' + p.id.toLowerCase() + '/';
+  document.getElementById('modal-images').classList.add('open');
+  lucide.createIcons();
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+/* ─── Toast ─── */
+let toastTimer;
+function showToast(msg, type) {
+  const toast   = document.getElementById('toast');
+  const msgEl   = document.getElementById('toast-msg');
+  const iconEl  = document.getElementById('toast-icon');
+  if (!toast || !msgEl || !iconEl) return;
+
+  msgEl.textContent = msg;
+  const icons  = { success: 'check-circle', error: 'alert-circle', info: 'info', warning: 'alert-triangle' };
+  const colors = { success: 'var(--success)', error: 'var(--error)', info: '#3182CE', warning: 'var(--warning)' };
+  iconEl.setAttribute('data-lucide', icons[type] || 'info');
+  iconEl.style.color = colors[type] || colors.info;
+  toast.classList.add('show');
+  lucide.createIcons();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+/* ─── Wire up all buttons with addEventListener (no inline handlers) ─── */
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+
+  /* Set proposal validity default (+30 days) */
+  const validityEl = document.getElementById('pValidade');
+  if (validityEl) {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    validityEl.value = d.toISOString().split('T')[0];
+  }
+  updateProposalCode();
+
+  /* Sidebar nav items */
+  const views = ['dashboard', 'catalog', 'history', 'voice', 'settings', 'new-proposal'];
+  views.forEach(v => {
+    const el = document.getElementById('nav-' + v);
+    if (el) el.addEventListener('click', () => navigate(v));
+  });
+  document.getElementById('propostas-parent')?.addEventListener('click', toggleSubmenu);
+  document.getElementById('collapse-btn')?.addEventListener('click', toggleSidebar);
+
+  /* Header buttons */
+  document.getElementById('btn-nova-proposta')?.addEventListener('click', () => navigate('new-proposal'));
+  document.getElementById('btn-ver-todas')?.addEventListener('click', () => navigate('history'));
+  document.getElementById('btn-revisar-voz')?.addEventListener('click', () => navigate('voice'));
+
+  /* Catalog */
+  document.getElementById('btn-clear-filters')?.addEventListener('click', clearFilters);
+  document.getElementById('btn-import-produto')?.addEventListener('click', () => openImageModal('GD-CAD-001'));
+  document.getElementById('catalog-sort')?.addEventListener('change', renderCatalog);
+  document.getElementById('catalogSearch')?.addEventListener('input', renderCatalog);
+  document.querySelectorAll('.filter-cat,.filter-sup,.filter-fin').forEach(el =>
+    el.addEventListener('change', renderCatalog)
+  );
+  document.querySelectorAll('input[name="price"]').forEach(el =>
+    el.addEventListener('change', renderCatalog)
+  );
+
+  /* Proposal editor */
+  document.getElementById('btn-add-row')?.addEventListener('click', addProposalRow);
+  document.getElementById('btn-first-row')?.addEventListener('click', addProposalRow);
+  document.getElementById('btn-buscar-catalogo')?.addEventListener('click', () => navigate('catalog'));
+  document.getElementById('btn-salvar-proposta')?.addEventListener('click', () => showToast('Rascunho salvo!', 'success'));
+  document.getElementById('btn-enviar-proposta')?.addEventListener('click', () => showToast('Proposta enviada por e-mail!', 'success'));
+  document.getElementById('btn-copy-code')?.addEventListener('click', () => {
+    const code = document.getElementById('proposal-code')?.textContent || '';
+    navigator.clipboard?.writeText(code).catch(() => {});
+    showToast('Código copiado!', 'info');
+  });
+  document.getElementById('globalDiscount')?.addEventListener('input', recalculate);
+  document.getElementById('pCliente')?.addEventListener('input', updateProposalCode);
+  document.getElementById('pVendedor')?.addEventListener('change', updateProposalCode);
+  document.getElementById('pVersion')?.addEventListener('input', updateProposalCode);
+
+  /* Voice drafts */
+  document.getElementById('draft-0')?.addEventListener('click', () => selectDraft(0));
+  document.getElementById('draft-1')?.addEventListener('click', () => selectDraft(1));
+  document.getElementById('btn-descartar-draft')?.addEventListener('click', () => showToast('Rascunho descartado.', 'error'));
+  document.getElementById('btn-criar-proposta-draft')?.addEventListener('click', () => {
+    showToast('Proposta criada com sucesso!', 'success');
+    navigate('new-proposal');
+  });
+  document.getElementById('btn-corrigir-item')?.addEventListener('click', () => showToast('Adicione o produto manualmente no catálogo.', 'warning'));
+  document.getElementById('btn-remover-item')?.addEventListener('click', () => showToast('Item removido do rascunho.', 'info'));
+
+  /* Image modal */
+  document.getElementById('btn-modal-close')?.addEventListener('click', () => closeModal('modal-images'));
+  document.getElementById('btn-modal-cancel')?.addEventListener('click', () => closeModal('modal-images'));
+  document.getElementById('btn-modal-save')?.addEventListener('click', () => {
+    showToast('Imagens salvas no S3!', 'success');
+    closeModal('modal-images');
+  });
+  document.getElementById('modal-images')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-images')) closeModal('modal-images');
+  });
+  document.getElementById('btn-del-img-1')?.addEventListener('click', () => showToast('Imagem removida.', 'error'));
+  document.getElementById('btn-del-img-2')?.addEventListener('click', () => showToast('Imagem removida.', 'error'));
+  document.getElementById('btn-copy-s3')?.addEventListener('click', () => {
+    const val = document.getElementById('s3-path')?.value || '';
+    navigator.clipboard?.writeText(val).catch(() => {});
+    showToast('Caminho S3 copiado!', 'info');
+  });
+
+  /* Drop zone */
+  const dz = document.getElementById('drop-zone-3');
+  if (dz) {
+    dz.addEventListener('click', () => showToast('Selecione uma imagem para upload.', 'info'));
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); showToast('Upload simulado com sucesso!', 'success'); });
+    dz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') showToast('Selecione uma imagem para upload.', 'info'); });
+  }
+
+  /* Settings */
+  document.getElementById('btn-force-import')?.addEventListener('click', () => showToast('Import iniciado — aguarde...', 'info'));
+
+  /* ── Dark mode toggle ── */
+  const THEME_KEY = 'gd-theme';
+  const html      = document.documentElement;
+
+  function applyTheme(dark) {
+    html.setAttribute('data-theme', dark ? 'dark' : 'light');
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+      icon.setAttribute('data-lucide', dark ? 'sun' : 'moon');
+      icon.style.color = dark ? 'var(--gold)' : 'var(--text-secondary)';
+      lucide.createIcons();
+    }
+    try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch(_) {}
+  }
+
+  /* Restore saved preference */
+  const saved = (() => { try { return localStorage.getItem(THEME_KEY); } catch(_) { return null; } })();
+  const prefersDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(prefersDark);
+
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    applyTheme(html.getAttribute('data-theme') !== 'dark');
+  });
+});
+
+function selectDraft(idx) {
+  document.querySelectorAll('.draft-item').forEach((d, i) => d.classList.toggle('selected', i === idx));
+}
+
+/* ── FAB visível em qualquer tela de criação/browsing ── */
+const FAB_VIEWS = ['new-proposal', 'catalog', 'dashboard'];
+const FAB_SUBTITLES = {
+  'new-proposal': 'Diga produtos, cliente e desconto',
+  'catalog':      'Fale o produto — será adicionado à proposta',
+  'dashboard':    'Inicie uma nova proposta por voz',
+};
+
+function syncFab(view) {
+  const fab = document.getElementById('rec-fab');
+  if (!fab) return;
+  const show = FAB_VIEWS.includes(view);
+  fab.classList.toggle('visible', show);
+  if (!show) {
+    Recorder.close();
+    return;
+  }
+  const sub = document.getElementById('rec-subtitle');
+  if (sub) sub.textContent = FAB_SUBTITLES[view] || 'Diga produtos, cliente e desconto';
+}
+
+/* ═══════════════════════════════════════════════════
+   VOICE RECORDER
+═══════════════════════════════════════════════════ */
+const Recorder = (() => {
+  let recognition  = null;
+  let isRecording  = false;
+  let fullText     = '';
+  let interim      = '';
+  let parsed       = null;
+
+  /* Portuguese keywords for parser */
+  const DIGITS = { zero:0,um:1,uma:1,dois:2,duas:2,três:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12,quinze:15,vinte:20,trinta:30 };
+
+  function wordToNumber(word) {
+    return DIGITS[word.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')] ?? null;
+  }
+
+  /* ── Parser ── */
+  function parseText(text) {
+    const t = text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+    const result = { client: null, architect: null, discount: 0, items: [] };
+
+    /* Client */
+    const cliRx = /(?:para o cliente|cliente|para\s+a\s+empresa|empresa)\s+([\w\s]+?)(?:\s*,|\s+arquiteto|\s+desconto|\s+com\s*desconto|$)/;
+    const cliM = t.match(cliRx);
+    if (cliM) result.client = toTitleCase(cliM[1].trim());
+
+    /* Architect */
+    const arcRx = /(?:arquiteto|arquiteta)\s+([\w\s]+?)(?:\s*,|\s+desconto|\s+produto|$)/;
+    const arcM = t.match(arcRx);
+    if (arcM) result.architect = toTitleCase(arcM[1].trim());
+
+    /* Discount */
+    const discRx = /desconto\s+de\s+(\d+|[\w]+)\s*(?:por\s+cento|%)?|(\d+)\s*(?:%|por\s+cento)\s+(?:de\s+)?desconto/;
+    const discM  = t.match(discRx);
+    if (discM) {
+      const raw = discM[1] || discM[2];
+      result.discount = parseInt(raw) || wordToNumber(raw) || 0;
+    }
+
+    /* Products — look for each product name in transcript */
+    PRODUCTS.forEach(p => {
+      const keywords = p.name.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').split(' ').filter(w => w.length > 3);
+      const matches  = keywords.filter(kw => t.includes(kw));
+      if (matches.length < Math.min(2, keywords.length)) return;
+
+      /* Try to extract quantity before this product */
+      const prodIdx  = t.indexOf(matches[0]);
+      const before   = t.slice(Math.max(0, prodIdx - 30), prodIdx);
+      const numMatch = before.match(/(\d+)\s*$/) || before.match(/(um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s*$/i);
+      let qty = 1;
+      if (numMatch) {
+        qty = parseInt(numMatch[1]) || wordToNumber(numMatch[1]) || 1;
+      }
+      result.items.push({ product: p, qty });
+    });
+
+    return result;
+  }
+
+  function toTitleCase(str) {
+    return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }
+
+  /* ── UI helpers ── */
+  function setStatus(msg, color) {
+    const el = document.getElementById('rec-status');
+    if (el) { el.textContent = msg; el.style.color = color || 'var(--text-secondary)'; }
+  }
+
+  function setWave(active) {
+    const wb = document.getElementById('wave-bars');
+    if (wb) wb.classList.toggle('wave-bars-idle', !active);
+  }
+
+  function setPulse(active) {
+    /* FAB pulse */
+    const fab = document.getElementById('rec-fab');
+    if (fab) fab.classList.toggle('recording', active);
+    /* Dot indicator no popover */
+    const dot = document.getElementById('rec-dot');
+    if (dot) dot.style.background = active ? 'var(--error)' : 'var(--text-secondary)';
+    /* Título */
+    const title = document.getElementById('rec-title');
+    if (title) title.textContent = active ? 'Gravando…' : 'Gravação de Voz';
+    /* Botão do mic */
+    const btn = document.getElementById('btn-rec-toggle');
+    if (btn) btn.style.boxShadow = active
+      ? '0 4px 16px rgba(229,62,62,.55)' : '0 4px 12px rgba(229,62,62,.35)';
+  }
+
+  function updateTranscript(text) {
+    const el = document.getElementById('rec-transcript');
+    if (!el) return;
+    el.textContent = '';
+    if (!text) {
+      const ph = document.createElement('span');
+      ph.style.cssText = 'color:var(--text-secondary);font-style:italic';
+      ph.textContent = 'A transcrição aparecerá aqui enquanto você fala...';
+      el.appendChild(ph);
+      return;
+    }
+    el.textContent = text;
+  }
+
+  function renderTags(p) {
+    const wrap = document.getElementById('rec-tags-wrap');
+    const tags  = document.getElementById('rec-tags');
+    if (!wrap || !tags) return;
+    if (!p || (!p.client && !p.architect && !p.discount && !p.items.length)) {
+      wrap.style.display = 'none'; return;
+    }
+    wrap.style.display = 'block';
+    tags.textContent = '';
+
+    if (p.client) {
+      const t = makeTag(p.client, 'tag-client');
+      const ic = document.createElement('i');
+      ic.setAttribute('data-lucide','user'); ic.style.cssText='width:11px;height:11px';
+      t.prepend(ic); tags.appendChild(t);
+    }
+    if (p.architect) {
+      const t = makeTag('Arq. ' + p.architect, 'tag-client');
+      const ic = document.createElement('i');
+      ic.setAttribute('data-lucide','pencil-ruler'); ic.style.cssText='width:11px;height:11px';
+      t.prepend(ic); tags.appendChild(t);
+    }
+    if (p.discount) {
+      tags.appendChild(makeTag(p.discount + '% desconto', 'tag-discount'));
+    }
+    p.items.forEach(item => {
+      tags.appendChild(makeTag(item.qty + '× ' + item.product.name, 'tag-product'));
+    });
+    lucide.createIcons();
+  }
+
+  function makeTag(text, cls) {
+    const el = document.createElement('span');
+    el.className = 'extracted-tag ' + cls;
+    el.textContent = text;
+    return el;
+  }
+
+  function updateFabBadge(count) {
+    const badge = document.getElementById('rec-fab-badge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function renderItems(p) {
+    const wrap = document.getElementById('rec-items-wrap');
+    const list  = document.getElementById('rec-items-list');
+    if (!wrap || !list) return;
+    updateFabBadge(p?.items?.length || 0);
+    if (!p || !p.items.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    list.textContent = '';
+    p.items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 p-3 rounded-lg';
+      row.style.cssText = 'border:1px solid var(--border)';
+
+      const ic = document.createElement('i');
+      ic.setAttribute('data-lucide','check-circle');
+      ic.style.cssText = 'width:17px;height:17px;color:var(--success);flex-shrink:0';
+      row.appendChild(ic);
+
+      const info = document.createElement('div');
+      info.className = 'flex-1';
+      const name = document.createElement('div');
+      name.style.cssText = 'font-size:13.5px;font-weight:600';
+      name.textContent = item.product.id + ' · ' + item.product.name;
+      const sub = document.createElement('div');
+      sub.style.cssText = 'font-size:12px;color:var(--text-secondary)';
+      sub.textContent = 'Qtd: ' + item.qty + ' · ' + fmt(item.product.price) + ' cada';
+      info.appendChild(name); info.appendChild(sub);
+      row.appendChild(info);
+
+      /* Qty adjuster */
+      const qtyIn = document.createElement('input');
+      qtyIn.type = 'number'; qtyIn.value = item.qty; qtyIn.min = '1';
+      qtyIn.className = 'proposal-input';
+      qtyIn.setAttribute('aria-label', 'Quantidade de ' + item.product.name);
+      qtyIn.style.cssText = 'width:55px;border:1.5px solid var(--border);border-radius:6px;text-align:center';
+      qtyIn.addEventListener('input', () => { item.qty = parseInt(qtyIn.value) || 1; });
+      row.appendChild(qtyIn);
+
+      list.appendChild(row);
+    });
+    lucide.createIcons();
+  }
+
+  function setApplyEnabled(enabled) {
+    const btn = document.getElementById('btn-rec-apply');
+    if (!btn) return;
+    btn.classList.toggle('btn-disabled', !enabled);
+    btn.style.opacity = enabled ? '1' : '.45';
+    btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
+  }
+
+  /* ── SpeechRecognition ── */
+  function buildRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const r = new SR();
+    r.lang = 'pt-BR';
+    r.continuous = true;
+    r.interimResults = true;
+
+    r.onresult = e => {
+      interim = '';
+      let newFinal = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) newFinal += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      fullText += newFinal;
+      const display = (fullText + interim).trim();
+      updateTranscript(display);
+      if (display) {
+        parsed = parseText(display);
+        renderTags(parsed);
+        renderItems(parsed);
+        setApplyEnabled(parsed.items.length > 0 || parsed.client);
+        document.getElementById('rec-hint').style.display = 'none';
+      }
+    };
+
+    r.onerror = e => {
+      if (e.error === 'not-allowed') showToast('Permissão de microfone negada pelo navegador.', 'error');
+      stop();
+    };
+
+    r.onend = () => { if (isRecording) r.start(); }; // keep alive
+    return r;
+  }
+
+  /* Fallback simulation for browsers without SpeechRecognition */
+  function runSimulation() {
+    const phrases = [
+      'Três cadeiras barcelona',
+      ' para o cliente Studio Lima,',
+      ' arquiteto Beatriz Costa,',
+      ' duas mesas de jantar carrara,',
+      ' desconto de dez por cento.',
+    ];
+    let i = 0;
+    const iv = setInterval(() => {
+      if (!isRecording) { clearInterval(iv); return; }
+      fullText += phrases[i] || '';
+      i++;
+      updateTranscript(fullText.trim());
+      parsed = parseText(fullText);
+      renderTags(parsed);
+      renderItems(parsed);
+      setApplyEnabled(parsed.items.length > 0 || parsed.client);
+      document.getElementById('rec-hint').style.display = 'none';
+      if (i >= phrases.length) clearInterval(iv);
+    }, 900);
+  }
+
+  /* ── Start / Stop ── */
+  function start() {
+    if (isRecording) return;
+    isRecording = true;
+    fullText = ''; interim = ''; parsed = null;
+    updateTranscript('');
+    renderTags(null); renderItems(null);
+    setApplyEnabled(false);
+    document.getElementById('rec-hint').style.display = 'block';
+    setStatus('Ouvindo… fale agora', 'var(--error)');
+    setWave(true); setPulse(true);
+    const mic = document.getElementById('rec-mic-icon');
+    if (mic) { mic.setAttribute('data-lucide','square'); lucide.createIcons(); }
+    recognition = buildRecognition();
+    if (recognition) { recognition.start(); }
+    else { setStatus('Ouvindo… (simulação)', 'var(--warning)'); runSimulation(); }
+  }
+
+  function stop() {
+    if (!isRecording) return;
+    isRecording = false;
+    if (recognition) { try { recognition.stop(); } catch(_) {} recognition = null; }
+    setWave(false); setPulse(false);
+    setStatus(fullText.trim() ? 'Gravação concluída — revise os itens abaixo.' : 'Gravação encerrada.', 'var(--success)');
+    const mic = document.getElementById('rec-mic-icon');
+    if (mic) { mic.setAttribute('data-lucide','mic'); lucide.createIcons(); }
+  }
+
+  function toggle() { isRecording ? stop() : start(); }
+
+  /* ── Apply to proposal ── */
+  function applyToProposal() {
+    close(); // sempre fechar o popover primeiro, independente do estado
+    if (!parsed) return;
+    if (parsed.client) {
+      const el = document.getElementById('pCliente');
+      if (el) { el.value = parsed.client; el.dispatchEvent(new Event('input')); }
+    }
+    if (parsed.architect) {
+      const el = document.getElementById('pArquiteto');
+      if (el) el.value = parsed.architect;
+    }
+    if (parsed.discount) {
+      const el = document.getElementById('globalDiscount');
+      if (el) { el.value = parsed.discount; recalculate(); }
+    }
+    parsed.items.forEach(item => {
+      proposalRows.push({ id: ++rowCounter, code: item.product.id, desc: item.product.name, qty: item.qty, price: item.product.price, disc: parsed.discount || 0 });
+    });
+    close();
+    /* Se não estiver na proposta, navega até lá e depois renderiza */
+    const isOnProposal = document.getElementById('view-new-proposal').classList.contains('active');
+    if (!isOnProposal) navigate('new-proposal');
+    renderProposalTable();
+    updateProposalCode();
+    showToast('Proposta preenchida com ' + parsed.items.length + ' item(ns) via voz!', 'success');
+  }
+
+  /* ── Open / Close ── */
+  function open() {
+    const pop = document.getElementById('rec-popover');
+    if (pop) pop.classList.add('open');
+    lucide.createIcons();
+  }
+
+  function close() {
+    stop();
+    const pop = document.getElementById('rec-popover');
+    if (pop) pop.classList.remove('open');
+  }
+
+  /* ── Wire buttons ── */
+  function init() {
+    /* FAB abre o popover */
+    document.getElementById('rec-fab')?.addEventListener('click', () => {
+      const pop = document.getElementById('rec-popover');
+      if (pop?.classList.contains('open')) close();
+      else open();
+    });
+    document.getElementById('btn-rec-close')?.addEventListener('click', close);
+    document.getElementById('btn-rec-cancel')?.addEventListener('click', close);
+    document.getElementById('btn-rec-toggle')?.addEventListener('click', toggle);
+    document.getElementById('btn-rec-apply')?.addEventListener('click', applyToProposal);
+  }
+
+  return { init, close };
+})();
+
+document.addEventListener('DOMContentLoaded', () => { Recorder.init(); });
+
+/* ─── Mobile catalog filter ─── */
+function openMobileFilter() {
+  const fs = document.getElementById('catalog-filter-sidebar');
+  // Move para body para escapar de qualquer stacking context inferior ao overlay
+  if (!fs._movedToBody) {
+    fs._origParent = fs.parentElement;
+    fs._origNext   = fs.nextSibling;
+    document.body.appendChild(fs);
+    fs._movedToBody = true;
+  }
+  fs.classList.add('mobile-open');
+  document.getElementById('mobile-overlay').classList.add('open');
+  lucide.createIcons();
+}
+function closeMobileFilter() {
+  const fs = document.getElementById('catalog-filter-sidebar');
+  fs.classList.remove('mobile-open');
+  // Devolve ao lugar original no DOM
+  if (fs._movedToBody) {
+    if (fs._origNext) fs._origParent.insertBefore(fs, fs._origNext);
+    else fs._origParent.appendChild(fs);
+    fs._movedToBody = false;
+  }
+  if (!document.getElementById('sidebar').classList.contains('mobile-open')) {
+    document.getElementById('mobile-overlay').classList.remove('open');
+  }
+}
+
+/* ─── Mobile drawer ─── */
+function openMobileDrawer() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('mobile-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileDrawer() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('mobile-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-hamburger')?.addEventListener('click', openMobileDrawer);
+  document.getElementById('mobile-overlay')?.addEventListener('click', () => {
+    closeMobileDrawer();
+    closeMobileFilter();
+  });
+
+  // Fechar drawer ao clicar em item de nav no mobile
+  document.querySelectorAll('.nav-item[data-view], .nav-item[id]').forEach(el => {
+    el.addEventListener('click', () => {
+      if (window.innerWidth <= 640) closeMobileDrawer();
+    });
+  });
+
+  // Abas da view de voz no mobile
+  document.querySelectorAll('.voice-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+
+      // Atualizar botões
+      document.querySelectorAll('.voice-tab-btn').forEach(b => {
+        b.style.color = 'var(--text-secondary)';
+        b.style.borderBottom = '2px solid transparent';
+        b.classList.remove('active');
+      });
+      btn.style.color = 'var(--gold)';
+      btn.style.borderBottom = '2px solid var(--gold)';
+      btn.classList.add('active');
+
+      // Mostrar painel alvo
+      ['voice-inbox','voice-center','voice-right'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('tab-active');
+      });
+      document.getElementById(target)?.classList.add('tab-active');
+    });
+  });
+});
+
+/* ─── Global Search Autocomplete ─── */
+const SearchAC = (() => {
+  const MAX_RESULTS = 6;
+  let focusedIdx = -1;
+
+  function fmt(price) {
+    return 'R$ ' + price.toLocaleString('pt-BR');
+  }
+
+  function highlight(text, query) {
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return null; // returns null when no match; caller uses textContent
+    return [text.slice(0, idx), text.slice(idx, idx + query.length), text.slice(idx + query.length)];
+  }
+
+  function buildItem(p, query, index) {
+    const el = document.createElement('div');
+    el.className = 'ac-item';
+    el.setAttribute('data-index', index);
+    el.setAttribute('role', 'option');
+
+    // Thumbnail
+    const img = document.createElement('img');
+    img.className = 'ac-thumb';
+    img.src = p.img;
+    img.alt = p.name;
+    img.loading = 'lazy';
+    el.appendChild(img);
+
+    // Info block
+    const info = document.createElement('div');
+    info.className = 'ac-info';
+
+    const name = document.createElement('div');
+    name.className = 'ac-name';
+    const parts = highlight(p.name, query);
+    if (parts) {
+      const [before, match, after] = parts;
+      const mark = document.createElement('mark');
+      mark.textContent = match;
+      name.appendChild(document.createTextNode(before));
+      name.appendChild(mark);
+      name.appendChild(document.createTextNode(after));
+    } else {
+      name.textContent = p.name;
+    }
+    info.appendChild(name);
+
+    const meta = document.createElement('div');
+    meta.className = 'ac-meta';
+    meta.textContent = p.cat + ' · ' + p.supplier;
+    info.appendChild(meta);
+
+    el.appendChild(info);
+
+    // Price
+    const price = document.createElement('div');
+    price.className = 'ac-price';
+    price.textContent = fmt(p.price);
+    el.appendChild(price);
+
+    el.addEventListener('click', () => selectItem(p));
+    return el;
+  }
+
+  function selectItem(p) {
+    close();
+    const input = document.getElementById('global-search');
+    if (input) input.value = '';
+    navigate('catalog');
+    // After catalog renders, highlight the card
+    setTimeout(() => {
+      const card = document.querySelector('[data-product-id="' + p.id + '"]');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.outline = '2px solid var(--gold)';
+        card.style.outlineOffset = '3px';
+        setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 1800);
+      }
+    }, 180);
+  }
+
+  function render(query) {
+    const dd = document.getElementById('search-dropdown');
+    if (!dd) return;
+    focusedIdx = -1;
+
+    if (!query || query.length < 1) { close(); return; }
+
+    const q = query.toLowerCase();
+    const results = PRODUCTS.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.cat.toLowerCase().includes(q) ||
+      p.supplier.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q)
+    ).slice(0, MAX_RESULTS);
+
+    dd.innerHTML = '';
+
+    if (results.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'ac-empty';
+      empty.textContent = 'Nenhum produto encontrado para "' + query + '"';
+      dd.appendChild(empty);
+      open();
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'ac-header';
+    header.textContent = 'Produtos · ' + results.length + ' resultado' + (results.length > 1 ? 's' : '');
+    dd.appendChild(header);
+
+    results.forEach((p, i) => dd.appendChild(buildItem(p, query, i)));
+
+    const total = PRODUCTS.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.cat.toLowerCase().includes(q) ||
+      p.supplier.toLowerCase().includes(q)
+    ).length;
+
+    if (total > MAX_RESULTS) {
+      const footer = document.createElement('div');
+      footer.className = 'ac-footer';
+      footer.textContent = 'Ver todos os ' + total + ' resultados no Catálogo →';
+      footer.addEventListener('click', () => { close(); navigate('catalog'); });
+      dd.appendChild(footer);
+    }
+
+    open();
+  }
+
+  function open() {
+    document.getElementById('search-dropdown')?.classList.add('open');
+  }
+
+  function close() {
+    const dd = document.getElementById('search-dropdown');
+    if (dd) dd.classList.remove('open');
+    focusedIdx = -1;
+  }
+
+  function moveFocus(dir) {
+    const items = document.querySelectorAll('#search-dropdown .ac-item');
+    if (!items.length) return;
+    items.forEach(el => el.classList.remove('focused'));
+    focusedIdx = Math.max(0, Math.min(items.length - 1, focusedIdx + dir));
+    items[focusedIdx].classList.add('focused');
+    items[focusedIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function init() {
+    const input = document.getElementById('global-search');
+    if (!input) return;
+
+    input.addEventListener('input', () => render(input.value.trim()));
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); moveFocus(1); }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); moveFocus(-1); }
+      if (e.key === 'Escape')     { close(); input.blur(); }
+      if (e.key === 'Enter') {
+        const focused = document.querySelector('#search-dropdown .ac-item.focused');
+        if (focused) focused.click();
+        else if (input.value.trim()) { close(); navigate('catalog'); }
+      }
+    });
+
+    input.addEventListener('focus', () => { if (input.value.trim()) render(input.value.trim()); });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.relative')) close();
+    });
+  }
+
+  return { init };
+})();
+
+document.addEventListener('DOMContentLoaded', () => { SearchAC.init(); });
+
+/* ─── PDF Generation ─── */
+function generatePDF() {
+  if (proposalRows.length === 0) {
+    showToast('Adicione itens à proposta antes de gerar o PDF.', 'error');
+    return;
+  }
+
+  const code    = document.getElementById('proposal-code')?.textContent || '';
+  const cliente = document.getElementById('pCliente')?.value  || '—';
+  const arq     = document.getElementById('pArquiteto')?.value || '—';
+  const vendSel = document.getElementById('pVendedor');
+  const vend    = vendSel?.options[vendSel.selectedIndex]?.text || '—';
+  const pagSel  = document.getElementById('pPagamento');
+  const pag     = pagSel?.options[pagSel.selectedIndex]?.text || '—';
+  const validade = document.getElementById('pValidade')?.value || '';
+  const obs      = document.getElementById('pObs')?.value || '';
+  const gDisc    = parseFloat(document.getElementById('globalDiscount')?.value || 0);
+
+  // Limpar código para exibição (tirar sufixo .CLIENTE se estiver inválido)
+  const codeDisplay = code.replace(/\.CLIENTE$/, '');
+
+  // Meta
+  document.getElementById('pr-codigo').textContent    = codeDisplay;
+  document.getElementById('pr-code-sub').textContent  = codeDisplay;
+  document.getElementById('pr-cliente').textContent   = cliente;
+  document.getElementById('pr-arquiteto').textContent = arq || '—';
+  document.getElementById('pr-vendedor').textContent  = vend;
+  document.getElementById('pr-pagamento').textContent = pag;
+
+  if (validade) {
+    const d = new Date(validade + 'T00:00:00');
+    document.getElementById('pr-validade').textContent =
+      d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    document.getElementById('pr-valid-badge').textContent =
+      'Válida até ' + d.toLocaleDateString('pt-BR');
+  } else {
+    document.getElementById('pr-validade').textContent = '—';
+    document.getElementById('pr-valid-badge').textContent = '';
+  }
+
+  // Observações
+  const obsWrap = document.getElementById('pr-obs-wrap');
+  if (obs.trim()) {
+    document.getElementById('pr-obs-text').textContent = obs;
+    obsWrap.style.display = 'block';
+  } else {
+    obsWrap.style.display = 'none';
+  }
+
+  // Tabela de itens com foto do produto
+  const tbody = document.getElementById('pr-tbody');
+  tbody.textContent = '';
+  let subtotal = 0;
+
+  proposalRows.forEach(r => {
+    const lineTotal = r.qty * r.price * (1 - r.disc / 100);
+    subtotal += lineTotal;
+
+    // Buscar imagem do produto no catálogo
+    const product = PRODUCTS.find(p => p.id === r.code);
+    const imgSrc  = product?.img || '';
+
+    const tr = document.createElement('tr');
+
+    // Célula da foto
+    const tdImg = document.createElement('td');
+    tdImg.style.cssText = 'padding:7px 10px;width:54px';
+    if (imgSrc) {
+      const img = document.createElement('img');
+      img.src = imgSrc;
+      img.className = 'pr-img';
+      img.alt = r.desc;
+      tdImg.appendChild(img);
+    }
+    tr.appendChild(tdImg);
+
+    // Célula do produto (código + nome + fornecedor)
+    const tdProd = document.createElement('td');
+    tdProd.style.cssText = 'padding:7px 10px';
+    const code2 = document.createElement('div');
+    code2.className = 'pr-item-code';
+    code2.textContent = r.code;
+    const name = document.createElement('div');
+    name.className = 'pr-item-name';
+    name.textContent = r.desc;
+    const sub = document.createElement('div');
+    sub.className = 'pr-item-sub';
+    sub.textContent = product ? product.supplier + ' · ' + product.finish : '';
+    tdProd.appendChild(code2);
+    tdProd.appendChild(name);
+    tdProd.appendChild(sub);
+    tr.appendChild(tdProd);
+
+    // Qtd
+    const tdQty = document.createElement('td');
+    tdQty.className = 'pr-num pr-center';
+    tdQty.style.cssText = 'padding:7px 10px';
+    tdQty.textContent = r.qty;
+    tr.appendChild(tdQty);
+
+    // Preço unit.
+    const tdPrice = document.createElement('td');
+    tdPrice.className = 'pr-num pr-right';
+    tdPrice.style.cssText = 'padding:7px 10px';
+    tdPrice.textContent = fmt(r.price);
+    tr.appendChild(tdPrice);
+
+    // Desconto
+    const tdDisc = document.createElement('td');
+    tdDisc.className = 'pr-center';
+    tdDisc.style.cssText = 'padding:7px 10px';
+    if (r.disc > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'pr-disc-badge';
+      badge.textContent = r.disc + '%';
+      tdDisc.appendChild(badge);
+    } else {
+      tdDisc.textContent = '—';
+      tdDisc.style.color = '#A0AEC0';
+    }
+    tr.appendChild(tdDisc);
+
+    // Total da linha
+    const tdTotal = document.createElement('td');
+    tdTotal.className = 'pr-num pr-right';
+    tdTotal.style.cssText = 'padding:7px 10px;font-weight:700;color:#1A202C';
+    tdTotal.textContent = fmt(lineTotal);
+    tr.appendChild(tdTotal);
+
+    tbody.appendChild(tr);
+  });
+
+  // Totals box
+  const totalsInner = document.getElementById('pr-totals-inner');
+  totalsInner.textContent = '';
+  const total = subtotal * (1 - gDisc / 100);
+
+  const addTotalRow = (label, value) => {
+    const row = document.createElement('div');
+    row.className = 'pr-totals-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'pr-totals-label';
+    lbl.textContent = label;
+    const val = document.createElement('div');
+    val.className = 'pr-totals-val';
+    val.textContent = value;
+    row.appendChild(lbl);
+    row.appendChild(val);
+    totalsInner.appendChild(row);
+  };
+
+  addTotalRow('Subtotal', fmt(subtotal));
+  if (gDisc > 0) {
+    const divider = document.createElement('div');
+    divider.className = 'pr-totals-divider';
+    totalsInner.appendChild(divider);
+    addTotalRow('Desconto Global (' + gDisc + '%)', '− ' + fmt(subtotal * gDisc / 100));
+  }
+
+  document.getElementById('pr-total-val').textContent = fmt(total);
+
+  // Assinatura do vendedor
+  document.getElementById('pr-sign-seller').textContent =
+    vend !== '—' && vend !== 'Selecione...' ? vend : 'Assinatura do Vendedor';
+
+  window.print();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-gerar-pdf')?.addEventListener('click', generatePDF);
+});
+</script>
+</body>
+</html>
