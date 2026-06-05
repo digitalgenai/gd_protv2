@@ -44,6 +44,7 @@ from config import (
     TABS_TO_SKIP_KEYWORDS,
     CURRENT_TABLE_KEYWORD,
     SUPPLIER_CODE_MAP,
+    EXCLUIR,
     ANALYSIS_REPORT_PATH,
 )
 
@@ -142,13 +143,41 @@ def authenticate():
 # ---------------------------------------------------------------------------
 
 def normalize(text: str) -> str:
-    """Remove acentos, converte para minúsculas e comprime espaços."""
+    """Remove acentos, converte para minúsculas e comprime espaços.
+
+    Também remove conteúdo entre parênteses (descritores tipo "(ACESSÓRIO)"),
+    quebra barras e colapsa quebras de linha — ruídos que prejudicam o fuzzy.
+    """
     text = str(text).strip().lower()
     text = unicodedata.normalize("NFD", text)
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
-    text = re.sub(r"[_\-/\\]+", " ", text)
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\([^)]*\)", " ", text)          # remove "(...)"
+    text = re.sub(r"[_\-/\\|]+", " ", text)          # separadores → espaço
+    text = re.sub(r"\s+", " ", text)                  # colapsa espaços/quebras
     return text.strip()
+
+
+# Valores que NÃO são SKU de produto (cabeçalhos/decoração comuns nas planilhas)
+SKU_JUNK_VALUES = {
+    "foto", "fotos", "picture", "pictures", "imagem", "imagens", "image",
+    "copia", "copias", "modelo", "modelos", "produto", "produtos",
+    "acessorio", "acessorios", "ref", "referencia", "descricao", "descrição",
+    "nome", "item", "itens", "codigo", "cod", "sku", "obs", "total",
+}
+
+
+def is_junk_sku(norm_value: str) -> bool:
+    """True se o valor normalizado é claramente cabeçalho/decoração, não SKU."""
+    n = norm_value.strip()
+    if not n:
+        return True
+    if n in SKU_JUNK_VALUES:
+        return True
+    # valores tipo "foto / picture", "foto 01", "copia 2" etc.
+    tokens = n.split()
+    if tokens and all(t in SKU_JUNK_VALUES or t.isdigit() for t in tokens):
+        return True
+    return False
 
 
 def is_skip_tab(tab_name: str) -> bool:
@@ -161,6 +190,8 @@ def is_valid_sku(value: str) -> bool:
     if len(v) < 3:
         return False
     if re.match(r"^[\d\s.,]+$", v):
+        return False
+    if is_junk_sku(normalize(v)):
         return False
     return True
 
@@ -183,18 +214,30 @@ def parse_image_name(filename: str) -> tuple[str, str | None]:
         "foto_produto.jpg"           → ("foto produto", None)
     """
     stem = Path(filename).stem
+    # Remove extensão extra que às vezes sobra no nome ("DFL.jpg", "MOO.jpeg")
+    stem = re.sub(r"\.(jpe?g|png|gif|webp|bmp|tiff?|svg|avif)$", "", stem, flags=re.IGNORECASE)
 
-    # Divide no último " - " e verifica se a parte final é um código (2–5 letras maiúsculas)
+    # Divide no último " - ". A parte final é o código se, depois de limpar
+    # pontuação, tiver 2–6 letras (tolera ponto final, minúsculas e nomes curtos
+    # como "MOROSO"/"BTZk"/"ART.").
     parts = stem.rsplit(" - ", 1)
     code = None
     product_raw = stem
 
-    if len(parts) == 2 and re.match(r"^[A-Z]{2,5}$", parts[1].strip()):
-        code = parts[1].strip()
-        product_raw = parts[0]
+    if len(parts) == 2:
+        candidate = re.sub(r"[^A-Za-z&]", "", parts[1].strip())
+        if 2 <= len(candidate) <= 6:
+            code = candidate.upper()
+            product_raw = parts[0]
 
-    # Remove número de sequência ao final: "ARBO1" → "ARBO", "CAJU 1" → "CAJU"
-    product = re.sub(r"\s*\d+$", "", product_raw).strip()
+    # Remove sufixos de variante/sequência ao final:
+    #   "Turtle T04" → "Turtle"  (variante com letra+número, exige espaço antes
+    #    para não quebrar modelos com número colado como "UP50")
+    product = re.sub(r"\s+[A-Za-z]\d+$", "", product_raw)
+    #   "ARBO1" → "ARBO" | "CAJU 1" → "CAJU" | "CLASS 25" → "CLASS"
+    product = re.sub(r"\s*\d+$", "", product).strip()
+    if not product:                      # se sobrou vazio, mantém o original
+        product = product_raw.strip()
 
     return product, code
 
@@ -479,6 +522,19 @@ def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
         product_norm = img["product_norm"]
         mapped_supplier = SUPPLIER_CODE_MAP.get(code) if code else None
 
+        # --- Código marcado para exclusão → descartar (não vai para o S3) ---
+        if mapped_supplier == EXCLUIR:
+            results.append({
+                **img,
+                "fornecedor":      "",
+                "sku_match":       "",
+                "score":           0,
+                "confidence":      "Excluído",
+                "method":          "excluido",
+                "above_threshold": False,
+            })
+            continue
+
         # --- Mapeamento direto ---
         if mapped_supplier:
             indices = supplier_indices.get(mapped_supplier, [])
@@ -486,7 +542,7 @@ def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
                 candidate_norms = [sku_norms[j] for j in indices]
                 matches = process.extract(
                     product_norm, candidate_norms,
-                    scorer=fuzz.token_sort_ratio, limit=2
+                    scorer=fuzz.WRatio, limit=2
                 )
                 best_norm, best_score, best_local_idx = matches[0]
                 best_idx     = indices[best_local_idx]
@@ -504,18 +560,21 @@ def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
                 method = "direto"
                 direct_count += 1
             else:
-                # Fornecedor mapeado mas sem SKUs na planilha → fuzzy geral
-                best_sku = best_supplier = ""
+                # Fornecedor mapeado mas SEM planilha no Drive → usa o fornecedor
+                # do mapa de códigos mesmo sem SKU para casar (agrupa pelo código).
+                best_sku = ""
+                best_supplier = mapped_supplier
                 best_score = 0
                 second_sku = second_supplier = ""
                 second_score = 0
-                method = "sem_skus"
+                method = "mapeado"
+                direct_count += 1
 
         # --- Fuzzy geral ---
         else:
             matches = process.extract(
                 product_norm, sku_norms,
-                scorer=fuzz.token_sort_ratio, limit=2
+                scorer=fuzz.WRatio, limit=2
             )
             if not matches:
                 results.append({**img, "above_threshold": False})
@@ -535,7 +594,7 @@ def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
             method = "fuzzy"
             fuzzy_count += 1
 
-        conf      = confidence_label(best_score)
+        conf      = "Mapeado" if method == "mapeado" else confidence_label(best_score)
         ambiguous = (best_score - second_score) < AMBIGUITY_GAP and bool(second_sku)
 
         results.append({
@@ -548,7 +607,7 @@ def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
             "second_score":     second_score,
             "ambiguous":        ambiguous,
             "method":           method,
-            "above_threshold":  best_score >= SIMILARITY_THRESHOLD or method == "direto",
+            "above_threshold":  best_score >= SIMILARITY_THRESHOLD or method in ("direto", "mapeado"),
         })
 
     log.info(f"Matching concluído: {direct_count} diretos | {fuzzy_count} fuzzy")
@@ -563,6 +622,8 @@ GREEN_FILL  = PatternFill("solid", fgColor="EAF3DE")
 YELLOW_FILL = PatternFill("solid", fgColor="FAEEDA")
 RED_FILL    = PatternFill("solid", fgColor="FCEBEB")
 BLUE_FILL   = PatternFill("solid", fgColor="E6F1FB")
+PURPLE_FILL = PatternFill("solid", fgColor="EDE7F6")  # mapeado sem planilha
+GREY_FILL   = PatternFill("solid", fgColor="ECECEC")  # excluído
 HEADER_FILL = PatternFill("solid", fgColor="D3D1C7")
 THIN_BORDER = Border(
     left=Side(style="thin", color="CCCCCC"),
@@ -583,6 +644,10 @@ def style_header(ws, row_num: int, col_count: int):
 
 
 def row_fill_for(confidence: str, ambiguous: bool, method: str) -> PatternFill:
+    if method == "excluido":
+        return GREY_FILL
+    if method == "mapeado":
+        return PURPLE_FILL
     if method == "direto":
         return BLUE_FILL
     if ambiguous:
@@ -646,9 +711,13 @@ def generate_report(results: list[dict], output_path: str,
     wb = openpyxl.Workbook()
 
     all_valid  = [r for r in results if r.get("above_threshold")]
+    # "Para Revisão": só matches de SKU duvidosos (não inclui mapeados sem planilha)
     for_review = [r for r in results if r.get("above_threshold") and
+                  r.get("method") != "mapeado" and
                   (r.get("confidence") != "Alta" or r.get("ambiguous"))]
-    no_match   = [r for r in results if not r.get("above_threshold")]
+    # "Sem Match": abaixo do threshold, exceto os explicitamente excluídos
+    no_match   = [r for r in results if not r.get("above_threshold")
+                  and r.get("method") != "excluido"]
 
     # --- Aba 1: Análise Completa ---
     ws1 = wb.active
@@ -696,14 +765,19 @@ def generate_report(results: list[dict], output_path: str,
     from collections import defaultdict
     summary = defaultdict(lambda: {"total": 0, "direto": 0, "Alta": 0, "Média": 0, "Baixa": 0, "sem_match": 0})
     for r in results:
-        s = r.get("fornecedor") or "Sem fornecedor"
+        if r.get("method") == "excluido":
+            s = "(excluído)"
+        else:
+            s = r.get("fornecedor") or "Sem fornecedor"
         summary[s]["total"] += 1
         if not r.get("above_threshold"):
             summary[s]["sem_match"] += 1
         else:
-            if r.get("method") == "direto":
+            if r.get("method") in ("direto", "mapeado"):
                 summary[s]["direto"] += 1
-            summary[s][r.get("confidence", "Baixa")] += 1
+            conf = r.get("confidence", "Baixa")
+            if conf in ("Alta", "Média", "Baixa"):
+                summary[s][conf] += 1
 
     for supplier, data in sorted(summary.items()):
         ws4.append([supplier, data["total"], data["direto"],
@@ -726,9 +800,13 @@ def generate_report(results: list[dict], output_path: str,
     from config import SUPPLIER_CODE_MAP as CODE_MAP
     for code, count in sorted(code_counts.items()):
         mapped = CODE_MAP.get(code)
-        status = "Mapeado" if mapped else "Pendente — preencha o fornecedor"
-        ws5.append([code, mapped or "", count, status])
-        fill = GREEN_FILL if mapped else YELLOW_FILL
+        if mapped == EXCLUIR:
+            display, status, fill = "Excluir", "Excluído", GREY_FILL
+        elif mapped:
+            display, status, fill = mapped, "Mapeado", GREEN_FILL
+        else:
+            display, status, fill = "", "Pendente — preencha o fornecedor", YELLOW_FILL
+        ws5.append([code, display, count, status])
         for col in range(1, 5):
             cell = ws5.cell(row=ws5.max_row, column=col)
             cell.fill = fill
@@ -745,10 +823,13 @@ def generate_report(results: list[dict], output_path: str,
     # Calcula stats desta execução
     total      = len(results)
     direto     = sum(1 for r in results if r.get("method") == "direto")
+    mapeado    = sum(1 for r in results if r.get("method") == "mapeado")
+    excluido   = sum(1 for r in results if r.get("method") == "excluido")
     alta       = sum(1 for r in results if r.get("confidence") == "Alta" and r.get("above_threshold"))
     media      = sum(1 for r in results if r.get("confidence") == "Média" and r.get("above_threshold"))
     baixa      = sum(1 for r in results if r.get("confidence") == "Baixa" and r.get("above_threshold"))
-    sem_match  = sum(1 for r in results if not r.get("above_threshold"))
+    sem_match  = sum(1 for r in results if not r.get("above_threshold")
+                     and r.get("method") != "excluido")
     ambiguous  = sum(1 for r in results if r.get("ambiguous"))
     run_ts     = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -757,6 +838,8 @@ def generate_report(results: list[dict], output_path: str,
         "data_hora": run_ts,
         "total":     total,
         "direto":    direto,
+        "mapeado":   mapeado,
+        "excluido":  excluido,
         "alta":      alta,
         "media":     media,
         "baixa":     baixa,
@@ -769,10 +852,10 @@ def generate_report(results: list[dict], output_path: str,
     style_header(ws6, 1, 4)
     ws6.freeze_panes = "A2"
 
-    def delta_str(key, current_val):
+    def delta_str(label, current_val):
         if prev_stats is None:
             return "—"
-        prev_val = prev_stats.get(key)
+        prev_val = prev_stats.get(label)
         if prev_val is None:
             return "—"
         try:
@@ -783,11 +866,11 @@ def generate_report(results: list[dict], output_path: str,
         except (ValueError, TypeError):
             return "—"
 
-    def delta_fill(key, current_val, good_direction="up"):
+    def delta_fill(label, current_val, good_direction="up"):
         """Colorir delta: verde se melhorou, vermelho se piorou."""
         if prev_stats is None:
             return None
-        prev_val = prev_stats.get(key)
+        prev_val = prev_stats.get(label)
         if prev_val is None:
             return None
         try:
@@ -803,7 +886,9 @@ def generate_report(results: list[dict], output_path: str,
         ("versão",         "versao",    version_num,  None),
         ("data / hora",    "data_hora", run_ts,       None),
         ("total imagens",  "total",     total,        None),
-        ("mapeam. direto", "direto",    direto,       "up"),
+        ("mapeam. direto (c/ SKU)", "direto",  direto,   "up"),
+        ("mapeado (sem planilha)",  "mapeado", mapeado,  "up"),
+        ("excluídas",      "excluido",  excluido,     None),
         ("confiança Alta", "alta",      alta,         "up"),
         ("confiança Média","media",     media,        None),
         ("confiança Baixa","baixa",     baixa,        "down"),
@@ -812,14 +897,14 @@ def generate_report(results: list[dict], output_path: str,
     ]
 
     for label, key, val, direction in metrics:
-        prev_val = (prev_stats or {}).get(key, "—")
-        d_str  = delta_str(key, val) if direction else "—"
+        prev_val = (prev_stats or {}).get(label, "—")
+        d_str  = delta_str(label, val) if direction else "—"
         ws6.append([label, val, prev_val, d_str])
 
         row_idx = ws6.max_row
         # Colorir delta
         if direction:
-            fill = delta_fill(key, val, direction)
+            fill = delta_fill(label, val, direction)
             if fill:
                 ws6.cell(row=row_idx, column=4).fill = fill
 
