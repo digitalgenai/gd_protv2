@@ -76,6 +76,9 @@ CURRENT_TABLE_KEYWORD = "atuai"
 # Mapeamento direto de código de fornecedor → nome do fornecedor
 # Extraído do padrão "PRODUTO1 - CODIGO.jpg" nos nomes das imagens
 # ---------------------------------------------------------------------------
+# Sentinel para códigos cujas imagens devem ser descartadas (não vão para o S3)
+EXCLUIR = "__EXCLUIR__"
+
 SUPPLIER_CODE_MAP = {
     # Fornecedores confirmados nas planilhas
     "JAL": "Sollos",                   # Jader Almeida — Studio Sollos
@@ -86,65 +89,66 @@ SUPPLIER_CODE_MAP = {
     "DFL": "Dona Flor",                # Dona Flor
     "BCO": "Brazil Contemporaneo",     # Brazil Contemporaneo
 
-    # Outros fornecedores/marcas identificados nas imagens (sem planilha mapeada ainda)
-    # Adicione o nome correto conforme for identificando cada código
-    "API": None,    # desconhecido — 20 imgs em LIVING
-    "ARG": None,    # desconhecido — 3 imgs em *ITALIANOS
-    "ARPER": None,  # Arper (marca italiana) — 4 imgs
-    "ART": None,    # desconhecido — 7 imgs em *ITALIANOS
-    "ATOI": None,   # desconhecido — 2 imgs em IN&OUT
-    "BDE": None,    # desconhecido — 4 imgs em LIVING
-    "BEL": None,    # desconhecido — 9 imgs em OFFICE
-    "BTZE": None,   # desconhecido — 1 img em IN&OUT
-    "BTZK": None,   # desconhecido — 12 imgs em IN&OUT
-    "BUX": None,    # desconhecido — 3 imgs em IN&OUT
-    "DOM": None,    # desconhecido — 3 imgs em LIVING
-    "DRI": None,    # Driade? — 6 imgs em LIVING/*ITALIANOS
-    "EBO": None,    # desconhecido — 1 img em LIVING
-    "ELE": None,    # desconhecido — 2 imgs em LIVING
-    "ESC": None,    # desconhecido — 31 imgs em LIVING
-    "EST": None,    # desconhecido — 3 imgs em LIVING
-    "EVI": None,    # desconhecido — 3 imgs em LIVING
-    "FBR": None,    # desconhecido — 3 imgs em LIVING
-    "FKS": None,    # desconhecido — 8 imgs em LIVING
-    "FOL": None,    # desconhecido — 9 imgs em IN&OUT/LIVING
-    "FOLIO": None,  # desconhecido — 1 img em LIVING
-    "GAB": None,    # Gabriella? — 3 imgs em *ITALIANOS
-    "GBO": None,    # desconhecido — 4 imgs em LIVING
-    "GRH": None,    # desconhecido — 6 imgs em IN&OUT
-    "ITA": None,    # desconhecido — 3 imgs em LIVING
-    "JEL": None,    # desconhecido — 2 imgs em LIVING
-    "JZA": None,    # desconhecido — 10 imgs em LIVING
-    "LBA": None,    # desconhecido — 2 imgs em LIVING
-    "LDS": None,    # desconhecido — 1 img em LIVING
-    "LIN": None,    # desconhecido — 4 imgs em LIVING
-    "LRO": None,    # desconhecido — 27 imgs em LIVING
-    "MAG": None,    # Magis? — 10 imgs em *ITALIANOS
-    "MBO": None,    # desconhecido — 5 imgs em LIVING
-    "MCO": None,    # desconhecido — 7 imgs em LIVING
-    "MOO": None,    # Moooi? — 7 imgs em *ITALIANOS
-    "MOR": None,    # desconhecido — 3 imgs em *ITALIANOS
-    "MPR": None,    # desconhecido — 28 imgs em LIVING
-    "MRM": None,    # desconhecido — 2 imgs em *ITALIANOS
-    "NZU": None,    # desconhecido — 2 imgs em LIVING
-    "ONI": None,    # desconhecido — 2 imgs em LIVING
-    "ONN": None,    # desconhecido — 4 imgs em LIVING
-    "PFR": None,    # desconhecido — 15 imgs em LIVING
-    "PLA": None,    # desconhecido — 10 imgs em LIVING
-    "PMO": None,    # desconhecido — 4 imgs em LIVING
-    "PRO": None,    # desconhecido — 13 imgs em LIVING
-    "PUS": None,    # desconhecido — 4 imgs em LIVING
-    "QEE": None,    # desconhecido — 8 imgs em *ITALIANOS
-    "QFC": None,    # desconhecido — 2 imgs em LIVING
-    "RBA": None,    # desconhecido — 81 imgs em LIVING
-    "RES": None,    # desconhecido — 3 imgs em LIVING
-    "RIZ": None,    # desconhecido — 2 imgs em LIVING
-    "SLI": None,    # Slinq? — 11 imgs em *ITALIANOS
-    "TCU": None,    # desconhecido — 6 imgs em LIVING
-    "TIS": None,    # desconhecido — 26 imgs em LIVING
-    "UNQ": None,    # desconhecido — 2 imgs em IN&OUT
-    "ZAN": None,    # desconhecido — 5 imgs em IN&OUT
+    # Códigos identificados e confirmados na revisão do relatório
+    "API": "Aristeu Pires",
+    "ARG": EXCLUIR,
+    "ARPER": "Arper",
+    "ART": "Artemide",
+    "ATOI": "Atelier Oi",
+    "BDE": "Bell Design",
+    "BEL": EXCLUIR,
+    "BTZE": EXCLUIR,
+    "BTZK": "Butzke",
+    "BUX": "Bux",
+    "DOM": "Domum",
+    "DRI": "Drio",
+    "EBO": "Edu Bortolai",
+    "ELE": "Estudio Legna",
+    "ESC": "Escal",
+    "EST": "Estobel",
+    "EVI": "Estudio Vira",
+    "FBR": "Forma Bruta",
+    "FKS": "Fakazaka",
+    "FOL": "Folio",
+    "FOLIO": "Folio",
+    "GAB": "Gaber",
+    "GBO": "Giorgio Bonaguro",
+    "ITA": "Ita Cadeiras",
+    "JEL": "Jorge Elmor",
+    "JZA": "Jorge Zalszupin",
+    "LBA": "Lara Batista",
+    "LDS": "Luan Del Savio",
+    "LIN": "Linear",
+    "LRO": "Leo Romano",
+    "MAG": "Magis",
+    "MBO": "Mauricio Bonfim",
+    "MCO": "Mauricio Coelho",
+    "MOO": "Moooi",
+    "MOR": "Moroso",
+    "MPR": "Mula Preta",
+    "MRM": "Mr. Maria",
+    "NZU": "Nika Zupanc",
+    "ONI": "Oscar Niemeyer",
+    "ONN": "Onna Móveis",
+    "PFR": "Pedro Franco",
+    "PLA": "Percival Lafer",
+    "PMO": "Punto Mobile",
+    "PRO": "Prototype",
+    "PUS": EXCLUIR,
+    "QEE": "Qeeboo",
+    "QFC": "Quintino Facci",
+    "RBA": "Roberta Banqueri",
+    "RES": EXCLUIR,
+    "RIZ": "Rizzon",
+    "SLI": "Slide",
+    "TCU": "Tiago Curioni",
+    "TIS": "Tissot",
+    "UNQ": "Unique / BTZK",
+    "ZAN": "Zanine",
 }
+
+# Códigos cujas imagens são descartadas no agrupamento/upload
+EXCLUDED_CODES = {c for c, v in SUPPLIER_CODE_MAP.items() if v == EXCLUIR}
 
 # ---------------------------------------------------------------------------
 # Output
