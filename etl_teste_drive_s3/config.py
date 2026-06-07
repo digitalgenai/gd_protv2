@@ -58,12 +58,13 @@ SKU_COLUMN_NAMES = [
 # ---------------------------------------------------------------------------
 # Palavras-chave nas abas que indicam que não contêm dados de produto
 # ---------------------------------------------------------------------------
+# Usar SUBSTRINGS robustas (ex.: "condic" pega "Condição" E "Condições";
+# "atualiza" pega "Atualização" E "Atualizações") — evita o bug de plural.
 TABS_TO_SKIP_KEYWORDS = [
-    "capa", "condição", "condicao", "política", "politica",
-    "financeiro", "acabamento", "tecido fornecido", "classificação",
-    "manutenção", "manutencao", "markup", "metragem", "informação",
-    "atualização", "atualizacao", "plan1", "plan2", "planilha1",
-    "gráf", "graf", "cálculo", "calculo",
+    "capa", "condic", "politic", "garantia", "origem", "mark up", "markup",
+    "financeiro", "acabamento", "tecido fornecido", "classificac",
+    "manutenc", "metragem", "informac", "atualiza",
+    "plan1", "plan2", "planilha1", "gráf", "graf", "cálculo", "calculo",
 ]
 
 # ---------------------------------------------------------------------------
@@ -149,6 +150,26 @@ SUPPLIER_CODE_MAP = {
 
 # Códigos cujas imagens são descartadas no agrupamento/upload
 EXCLUDED_CODES = {c for c, v in SUPPLIER_CODE_MAP.items() if v == EXCLUIR}
+
+# ---------------------------------------------------------------------------
+# Alias de fornecedor
+# ---------------------------------------------------------------------------
+# O fornecedor é derivado do nome da 1ª pasta do caminho no Drive. Quando um
+# fornecedor tem tabelas espalhadas em pastas com nomes diferentes (ex.: Feeling
+# tem "Feeling" e "Feeling Linha Madeira"), o alias garante que TODAS sejam
+# somadas no mesmo fornecedor canônico.
+#
+# Regra: comparação case-insensitive; a pasta que for IGUAL à chave ou COMEÇAR
+# com ela é mapeada para o valor canônico. O valor deve bater com o nome usado
+# em SUPPLIER_CODE_MAP.
+SUPPLIER_ALIASES = {
+    "banqueri": "Roberta Banqueri",     # "PIU MOBILE ROBETA BANQUERI" → Roberta Banqueri
+    "studio sollos": "Sollos",          # LIVING / IN&OUT / LIGHTING "STUDIO SOLLOS" → Sollos
+    "sollos": "Sollos",
+    "feeling": "Feeling",               # "Feeling Linha Madeira" → "Feeling"
+    # adicione outros conforme necessário, ex.:
+    # "dona flor": "Dona Flor",
+}
 
 # ---------------------------------------------------------------------------
 # Output

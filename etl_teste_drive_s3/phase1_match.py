@@ -45,6 +45,7 @@ from config import (
     CURRENT_TABLE_KEYWORD,
     SUPPLIER_CODE_MAP,
     EXCLUIR,
+    SUPPLIER_ALIASES,
     ANALYSIS_REPORT_PATH,
 )
 
@@ -162,6 +163,7 @@ SKU_JUNK_VALUES = {
     "foto", "fotos", "picture", "pictures", "imagem", "imagens", "image",
     "copia", "copias", "modelo", "modelos", "produto", "produtos",
     "acessorio", "acessorios", "ref", "referencia", "descricao", "descrição",
+    "description", "code", "coluna", "colecao", "dimensoes", "dimensions",
     "nome", "item", "itens", "codigo", "cod", "sku", "obs", "total",
 }
 
@@ -190,6 +192,12 @@ def is_valid_sku(value: str) -> bool:
     if len(v) < 3:
         return False
     if re.match(r"^[\d\s.,]+$", v):
+        return False
+    if v.startswith("*"):                     # nota/instrução, não SKU
+        return False
+    if re.match(r"^[\d.,]+\s*[xX×ØøⱭ]", v):    # dimensão tipo "0,50 x 0,50" / "1,10 Ø"
+        return False
+    if len(normalize(v).split()) > 8:          # frase/descrição longa, não SKU
         return False
     if is_junk_sku(normalize(v)):
         return False
@@ -304,24 +312,108 @@ def download_file(service, file_id: str, mime_type: str) -> bytes:
 # Extração de SKUs das planilhas
 # ---------------------------------------------------------------------------
 
+# Cabeçalhos PRIMÁRIOS de nome de produto (vencem sempre que tiverem conteúdo).
+# Só "modelo"/"nome" — NÃO inclui "produto", senão "Descrição do Produto" (uma
+# coluna de descrição) venceria a coluna "Modelo" na Feeling.
+NAME_STRONG_TOKENS = {"modelo", "model", "nome", "name"}
+# Cabeçalhos secundários — podem ser nome OU código dependendo do fornecedor
+# (ex.: "Referência" é o nome na Sollos, mas é código no Brazil Contemporaneo).
+# Entre eles, a escolha é pelo CONTEÚDO (qual coluna tem nomes de verdade).
+NAME_SECONDARY_TOKENS = {
+    "descricao", "description", "produto", "product", "item",
+    "referencia", "ref", "cod", "codigo", "code", "sku", "colecao",
+}
+HEADER_SCAN_ROWS = 40     # cabeçalho pode estar fundo (Dona Flor: linha 13)
+CONTENT_SCAN_ROWS = 400   # quantas linhas amostrar para avaliar o conteúdo da coluna
+
+
+def _header_tokens(cell) -> set:
+    return set(normalize(str(cell)).split()) if cell else set()
+
+
+def _is_namelike(v) -> bool:
+    """True se o valor parece NOME de produto (tem palavra), não código/número/bullet."""
+    if not v or not isinstance(v, str):
+        return False
+    s = v.strip()
+    if len(s) < 3:
+        return False
+    if re.match(r"^[\d.,]+\s*[xX×ØøⱭ]", s):   # dimensão
+        return False
+    return sum(c.isalpha() for c in s) >= 3    # ao menos uma palavra de verdade
+
+
+def _namelike_count(rows: list, idx: int) -> int:
+    n = 0
+    for r in rows:
+        if idx < len(r) and r[idx] is not None and _is_namelike(str(r[idx])):
+            n += 1
+    return n
+
+
 def find_sku_column(rows_sample: list, is_xlsx: bool = True) -> int | None:
     """
-    Tenta identificar a coluna de SKU/produto olhando os primeiros valores.
-    Retorna o índice da coluna ou None se não encontrar.
-    """
-    # Busca por cabeçalho conhecido
-    for row in rows_sample[:10]:
-        for idx, cell in enumerate(row):
-            if cell and normalize(str(cell)) in SKU_COLUMN_NAMES:
-                return idx
+    Identifica a coluna do NOME do produto combinando cabeçalho + CONTEÚDO.
 
-    # Fallback: primeira coluna com strings longas
-    for row in rows_sample[:20]:
+    1) Coluna com cabeçalho FORTE (modelo/produto/nome) que tenha conteúdo de nome.
+       (ex.: Feeling usa 'Modelo'.)
+    2) Senão, entre as colunas com cabeçalho conhecido (descrição/referência/cód/…),
+       escolhe a que MAIS tem valores parecidos com nome de produto.
+       Isso resolve o ambíguo 'Referência': na Sollos ela tem nomes (vence a
+       'Descrição' cheia de '•'); no Brazil Contemporaneo ela tem códigos numéricos
+       (perde para a 'Descrição').
+    3) Fallback: primeira coluna com strings longas.
+    """
+    scan = rows_sample[:HEADER_SCAN_ROWS]
+    content = rows_sample[:CONTENT_SCAN_ROWS]
+
+    strong_cols, known_cols = set(), set()
+    for row in scan:
+        for idx, cell in enumerate(row):
+            toks = _header_tokens(cell)
+            if not toks:
+                continue
+            if toks & NAME_STRONG_TOKENS:
+                strong_cols.add(idx)
+            if toks & (NAME_STRONG_TOKENS | NAME_SECONDARY_TOKENS):
+                known_cols.add(idx)
+
+    # 1) cabeçalho forte com conteúdo de nome
+    cands = [(idx, _namelike_count(content, idx)) for idx in strong_cols]
+    cands = [c for c in cands if c[1] > 0]
+    if cands:
+        return max(cands, key=lambda c: c[1])[0]
+
+    # 2) qualquer cabeçalho conhecido → decide pelo conteúdo
+    cands = [(idx, _namelike_count(content, idx)) for idx in known_cols]
+    cands = [c for c in cands if c[1] > 0]
+    if cands:
+        return max(cands, key=lambda c: c[1])[0]
+
+    # 3) fallback: primeira coluna com strings longas
+    for row in scan:
         for idx, cell in enumerate(row):
             if cell and isinstance(cell, str) and len(cell.strip()) > 4:
                 return idx
 
     return None
+
+
+def parse_collection_name(cell) -> str | None:
+    """Extrai o nome da coleção de um título de seção 'COLEÇÃO <NOME> - <designer>'.
+
+    Planilhas como a Dona Flor organizam os produtos em seções por coleção, e o
+    nome que aparece nas imagens é o da COLEÇÃO (ex.: 'ANA', 'PRAIA BRAVA'), não o
+    tipo na coluna 'Descrição' ('Poltrona', 'Sofá'). Retorna o nome ou None.
+    """
+    if not cell or not isinstance(cell, str):
+        return None
+    m = re.match(r"(?i)\s*cole[çc][aã]o\s+(.+)", cell.strip())
+    if not m:
+        return None
+    # corta no primeiro separador de descritor/designer
+    name = re.split(r"\s*[-–/|]\s*", m.group(1))[0].strip()
+    return name or None
 
 
 def extract_skus_from_xlsx(data: bytes, supplier: str) -> list[tuple]:
@@ -342,20 +434,25 @@ def extract_skus_from_xlsx(data: bytes, supplier: str) -> list[tuple]:
             continue
 
         sku_col = find_sku_column(all_rows)
-        if sku_col is None:
-            log.debug(f"  Aba '{sheet_name}': coluna SKU não identificada, pulando.")
-            continue
 
         count = 0
-        for row in all_rows[1:]:
-            if sku_col < len(row) and row[sku_col]:
+        col_count = 0
+        for row in all_rows:
+            # 1) nome da coluna identificada
+            if sku_col is not None and sku_col < len(row) and row[sku_col]:
                 val = str(row[sku_col]).strip()
                 if is_valid_sku(val):
                     skus.append((normalize(val), val, supplier))
+                    col_count += 1
+            # 2) nome de coleção em títulos de seção (qualquer coluna)
+            for cell in row:
+                name = parse_collection_name(cell)
+                if name and is_valid_sku(name):
+                    skus.append((normalize(name), name, supplier))
                     count += 1
 
-        if count:
-            log.info(f"  Aba '{sheet_name}': {count} SKUs (col {sku_col})")
+        if col_count or count:
+            log.info(f"  Aba '{sheet_name}': {col_count} SKUs (col {sku_col}) + {count} coleções")
 
     wb.close()
     return skus
@@ -399,6 +496,28 @@ def extract_skus_from_xls(data: bytes, supplier: str) -> list[tuple]:
 # Carrega todas as planilhas e constrói o dicionário de SKUs
 # ---------------------------------------------------------------------------
 
+def canonical_supplier(folder_name: str, filename: str = "", full_path: str = "") -> str:
+    """Resolve o fornecedor a partir da pasta + NOME DO ARQUIVO, via SUPPLIER_ALIASES.
+
+    Importante: às vezes o fornecedor real está no NOME DO ARQUIVO, não na pasta —
+    ex.: a linha da Roberta Banqueri vem no arquivo 'PIU MOBILE ROBETA BANQUERI...'
+    dentro da pasta da PiuMobile. Por isso procuramos as chaves de alias como
+    substring no (caminho + arquivo), da mais específica (mais longa) para a menos.
+    """
+    hay = normalize(f"{full_path} {filename}")
+    for key in sorted(SUPPLIER_ALIASES, key=len, reverse=True):
+        if key in hay:
+            return SUPPLIER_ALIASES[key]
+
+    # Fallback: nome da pasta (igual ou começa com uma chave de alias)
+    base = re.sub(r"\s*-\s*\d+\s*$", "", folder_name).strip()
+    key = base.lower()
+    for prefix, canon in SUPPLIER_ALIASES.items():
+        if key == prefix or key.startswith(prefix):
+            return canon
+    return base
+
+
 def load_all_skus(service) -> list[tuple]:
     """Retorna lista de (sku_normalizado, sku_original, fornecedor)."""
     if not DRIVE_SPREADSHEETS_FOLDER_ID:
@@ -425,9 +544,8 @@ def load_all_skus(service) -> list[tuple]:
             continue
         processed.add(f["id"])
 
-        # Extrai nome do fornecedor da primeira pasta do caminho
-        supplier = path.split("/")[0]
-        supplier = re.sub(r"\s*-\s*\d+\s*$", "", supplier).strip()
+        # Extrai nome do fornecedor da primeira pasta do caminho (com alias)
+        supplier = canonical_supplier(path.split("/")[0], f["name"], path)
 
         log.info(f"Processando [{supplier}]: {f['name']}")
         try:
@@ -444,8 +562,20 @@ def load_all_skus(service) -> list[tuple]:
 
         all_skus.extend(skus)
 
-    log.info(f"SKUs totais extraídos: {len(all_skus)}")
-    return all_skus
+    # Deduplica SKUs idênticos do mesmo fornecedor (linhas repetidas na planilha),
+    # principal fonte de "falso ambíguo" no matching.
+    seen = set()
+    deduped = []
+    for norm, original, supplier in all_skus:
+        key = (norm, supplier)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append((norm, original, supplier))
+
+    removed = len(all_skus) - len(deduped)
+    log.info(f"SKUs totais extraídos: {len(all_skus)} | após dedup: {len(deduped)} (-{removed})")
+    return deduped
 
 
 # ---------------------------------------------------------------------------
@@ -488,129 +618,116 @@ def confidence_label(score: int) -> str:
     return "Baixa"
 
 
+def _best_contained(product_tokens: set, product_norm: str, pool: list) -> dict | None:
+    """Dentre os SKUs de `pool` (cada um {tokens, norm, original, supplier}),
+    retorna o que CONTÉM o nome do produto (tokens do produto ⊆ tokens do SKU).
+    Preferência: match exato; senão o SKU mais específico (mais tokens)."""
+    cands = [c for c in pool if product_tokens and product_tokens <= c["tokens"]]
+    if not cands:
+        return None
+    exatos = [c for c in cands if c["norm"] == product_norm]
+    if exatos:
+        return min(exatos, key=lambda c: len(c["original"]))
+    # mais específico = mais tokens (desempate: nome mais longo)
+    return max(cands, key=lambda c: (len(c["tokens"]), len(c["original"])))
+
+
 def match_images_to_skus(images: list[dict], skus: list[tuple]) -> list[dict]:
     """
-    Para cada imagem:
-    1. Se o código do arquivo está mapeado (SUPPLIER_CODE_MAP com valor != None):
-       → mapeamento direto de fornecedor + fuzzy match só contra SKUs desse fornecedor
-    2. Se o código é desconhecido ou não tem código:
-       → fuzzy match contra todos os SKUs
+    MATCH POR CONTENÇÃO + DUPLA CONFIRMAÇÃO (nome do produto + código do fornecedor).
+
+    O nome da imagem é o NÚCLEO do produto; na planilha o SKU costuma vir embrulhado
+    com categoria ("BUFFET TECA") e/ou descritor ("CANDLE HOLDER FOGO"). Por isso o
+    match é por CONTENÇÃO: os tokens do nome da imagem ⊆ tokens do SKU. Havendo vários,
+    pega-se o mais específico.
+
+      - confirmado : tem código → busca SÓ na planilha do fornecedor do código e acha
+                     um SKU que contém o nome (dupla confirmação, pronto p/ S3).
+      - nome       : sem código → nome contido em SKUs de um único fornecedor.
+      - ambiguo    : sem código → nome contido em SKUs de 2+ fornecedores → revisão.
+      - sem_sku    : nenhum SKU contém o nome → fornecedor = código (se houver).
+      - excluido   : código marcado para exclusão.
+
+    Obs.: com código, a busca nunca sai do fornecedor do código → não há "conflito".
     """
     if not skus:
         log.error("Lista de SKUs vazia.")
         return []
 
-    sku_norms     = [s[0] for s in skus]
-    sku_originals = [s[1] for s in skus]
-    sku_suppliers = [s[2] for s in skus]
-
-    # Índices por fornecedor para restringir busca no mapeamento direto
-    supplier_indices: dict[str, list[int]] = {}
-    for idx, (_, _, sup) in enumerate(skus):
-        supplier_indices.setdefault(sup, []).append(idx)
+    # Pré-tokeniza os SKUs; índice por fornecedor + lista global (para imagens sem código)
+    all_sku = []
+    by_supplier: dict[str, list] = {}
+    for norm, original, supplier in skus:
+        if not norm:
+            continue
+        entry = {"tokens": set(norm.split()), "norm": norm, "original": original, "supplier": supplier}
+        all_sku.append(entry)
+        by_supplier.setdefault(supplier, []).append(entry)
 
     results = []
     total = len(images)
-    direct_count = 0
-    fuzzy_count  = 0
+    counts: dict[str, int] = {}
 
     for i, img in enumerate(images, 1):
-        if i % 100 == 0:
+        if i % 200 == 0:
             log.info(f"  Matching {i}/{total}...")
 
-        code         = img.get("supplier_code")
-        product_norm = img["product_norm"]
-        mapped_supplier = SUPPLIER_CODE_MAP.get(code) if code else None
+        code          = img.get("supplier_code")
+        product_norm  = img["product_norm"]
+        product_tokens = set(product_norm.split())
+        code_supplier = SUPPLIER_CODE_MAP.get(code) if code else None
 
-        # --- Código marcado para exclusão → descartar (não vai para o S3) ---
-        if mapped_supplier == EXCLUIR:
-            results.append({
-                **img,
-                "fornecedor":      "",
-                "sku_match":       "",
-                "score":           0,
-                "confidence":      "Excluído",
-                "method":          "excluido",
-                "above_threshold": False,
-            })
-            continue
+        forn = sku = conf = method = second = atype = ""
+        score = 0
+        ambiguous = above = False
 
-        # --- Mapeamento direto ---
-        if mapped_supplier:
-            indices = supplier_indices.get(mapped_supplier, [])
-            if indices:
-                candidate_norms = [sku_norms[j] for j in indices]
-                matches = process.extract(
-                    product_norm, candidate_norms,
-                    scorer=fuzz.WRatio, limit=2
-                )
-                best_norm, best_score, best_local_idx = matches[0]
-                best_idx     = indices[best_local_idx]
-                best_sku     = sku_originals[best_idx]
-                best_supplier = mapped_supplier
+        if code_supplier == EXCLUIR:
+            method, conf = "excluido", "Excluído"
 
-                second_sku = second_supplier = ""
-                second_score = 0
-                if len(matches) > 1:
-                    _, second_score, second_local_idx = matches[1]
-                    second_idx      = indices[second_local_idx]
-                    second_sku      = sku_originals[second_idx]
-                    second_supplier = mapped_supplier
-
-                method = "direto"
-                direct_count += 1
+        elif code_supplier:
+            # COM CÓDIGO → procura só na planilha do fornecedor do código
+            best = _best_contained(product_tokens, product_norm, by_supplier.get(code_supplier, []))
+            if best:
+                method, conf = "confirmado", "Confirmado"
+                forn, sku, score, above = code_supplier, best["original"], 100, True
             else:
-                # Fornecedor mapeado mas SEM planilha no Drive → usa o fornecedor
-                # do mapa de códigos mesmo sem SKU para casar (agrupa pelo código).
-                best_sku = ""
-                best_supplier = mapped_supplier
-                best_score = 0
-                second_sku = second_supplier = ""
-                second_score = 0
-                method = "mapeado"
-                direct_count += 1
+                method, conf = "sem_sku", "Sem SKU"
+                forn, above = code_supplier, True
 
-        # --- Fuzzy geral ---
         else:
-            matches = process.extract(
-                product_norm, sku_norms,
-                scorer=fuzz.WRatio, limit=2
-            )
-            if not matches:
-                results.append({**img, "above_threshold": False})
-                continue
+            # SEM CÓDIGO → procura em todas as planilhas
+            cands = [c for c in all_sku if product_tokens and product_tokens <= c["tokens"]]
+            suppliers = sorted({c["supplier"] for c in cands})
+            if not cands:
+                method, conf = "sem_sku", "Sem SKU"
+            elif len(suppliers) == 1:
+                best = _best_contained(product_tokens, product_norm, by_supplier[suppliers[0]])
+                method, conf = "nome", "Nome"
+                forn, sku, score, above = suppliers[0], best["original"], 100, True
+            else:
+                method, conf = "ambiguo", "Ambíguo"
+                score, ambiguous, atype = 100, True, "fornecedor"
+                vistos = {}
+                for c in cands:
+                    vistos.setdefault(c["supplier"], c["original"])
+                second = "; ".join(f"{o} — {s}" for s, o in sorted(vistos.items()))
 
-            best_norm, best_score, best_idx = matches[0]
-            best_sku      = sku_originals[best_idx]
-            best_supplier = sku_suppliers[best_idx]
-
-            second_sku = second_supplier = ""
-            second_score = 0
-            if len(matches) > 1:
-                _, second_score, second_idx = matches[1]
-                second_sku      = sku_originals[second_idx]
-                second_supplier = sku_suppliers[second_idx]
-
-            method = "fuzzy"
-            fuzzy_count += 1
-
-        conf      = "Mapeado" if method == "mapeado" else confidence_label(best_score)
-        ambiguous = (best_score - second_score) < AMBIGUITY_GAP and bool(second_sku)
-
+        counts[method] = counts.get(method, 0) + 1
         results.append({
             **img,
-            "fornecedor":       best_supplier,
-            "sku_match":        best_sku,
-            "score":            best_score,
+            "fornecedor":       forn,
+            "sku_match":        sku,
+            "score":            score,
             "confidence":       conf,
-            "second_candidate": f"{second_sku} — {second_supplier}" if second_sku else "",
-            "second_score":     second_score,
+            "second_candidate": second,
+            "second_score":     0,
             "ambiguous":        ambiguous,
+            "ambiguity_type":   atype,
             "method":           method,
-            "above_threshold":  best_score >= SIMILARITY_THRESHOLD or method in ("direto", "mapeado"),
+            "above_threshold":  above,
         })
 
-    log.info(f"Matching concluído: {direct_count} diretos | {fuzzy_count} fuzzy")
+    log.info("Matching concluído: " + " | ".join(f"{k}={v}" for k, v in sorted(counts.items())))
     return results
 
 
@@ -644,19 +761,14 @@ def style_header(ws, row_num: int, col_count: int):
 
 
 def row_fill_for(confidence: str, ambiguous: bool, method: str) -> PatternFill:
-    if method == "excluido":
-        return GREY_FILL
-    if method == "mapeado":
-        return PURPLE_FILL
-    if method == "direto":
-        return BLUE_FILL
-    if ambiguous:
-        return YELLOW_FILL
-    if confidence == "Alta":
-        return GREEN_FILL
-    if confidence == "Média":
-        return YELLOW_FILL
-    return RED_FILL
+    return {
+        "confirmado": GREEN_FILL,   # dupla confirmação
+        "nome":       BLUE_FILL,    # só por nome
+        "sem_sku":    PURPLE_FILL,  # fornecedor certo, sem SKU
+        "conflito":   RED_FILL,     # revisão
+        "ambiguo":    YELLOW_FILL,  # revisão
+        "excluido":   GREY_FILL,
+    }.get(method, RED_FILL)
 
 
 def write_data_rows(ws, rows_data, headers):
@@ -667,9 +779,10 @@ def write_data_rows(ws, rows_data, headers):
         fill     = row_fill_for(conf, ambig, method)
         above    = r.get("above_threshold", False)
 
-        default_action = "CONFIRMAR" if above and conf == "Alta" and not ambig else ""
+        default_action = "CONFIRMAR" if method == "confirmado" else ""
 
         row = [
+            r.get("id", ""),
             r["name"],
             r["path"],
             r.get("supplier_code", ""),
@@ -677,10 +790,11 @@ def write_data_rows(ws, rows_data, headers):
             r.get("fornecedor", ""),
             r.get("sku_match", ""),
             r.get("score", 0),
-            conf if above else "Sem match",
+            conf,
             r.get("second_candidate", ""),
             r.get("second_score", 0),
             "Sim" if ambig else "Não",
+            r.get("ambiguity_type", ""),
             default_action,
         ]
         ws.append(row)
@@ -693,11 +807,11 @@ def write_data_rows(ws, rows_data, headers):
 
 
 HEADERS = [
-    "imagem", "caminho_drive", "codigo_fornecedor", "metodo",
+    "drive_id", "imagem", "caminho_drive", "codigo_fornecedor", "metodo",
     "fornecedor", "sku_match", "score", "confiança",
-    "2º candidato", "score_2º", "ambíguo", "ação",
+    "2º candidato", "score_2º", "ambíguo", "tipo_ambig", "ação",
 ]
-COL_WIDTHS = [28, 45, 16, 10, 22, 30, 8, 10, 40, 9, 9, 14]
+COL_WIDTHS = [22, 28, 45, 16, 10, 22, 30, 8, 10, 40, 9, 9, 12, 14]
 
 
 def setup_sheet_columns(ws):
@@ -711,13 +825,11 @@ def generate_report(results: list[dict], output_path: str,
     wb = openpyxl.Workbook()
 
     all_valid  = [r for r in results if r.get("above_threshold")]
-    # "Para Revisão": só matches de SKU duvidosos (não inclui mapeados sem planilha)
-    for_review = [r for r in results if r.get("above_threshold") and
-                  r.get("method") != "mapeado" and
-                  (r.get("confidence") != "Alta" or r.get("ambiguous"))]
-    # "Sem Match": abaixo do threshold, exceto os explicitamente excluídos
-    no_match   = [r for r in results if not r.get("above_threshold")
-                  and r.get("method") != "excluido"]
+    # "Para Revisão": casos que exigem decisão humana (conflito de fornecedor / ambíguo)
+    for_review = [r for r in results if r.get("method") in ("conflito", "ambiguo")]
+    # "Sem Match": sem colocação possível (sem SKU e sem fornecedor pelo código)
+    no_match   = [r for r in results if r.get("method") == "sem_sku"
+                  and not r.get("fornecedor")]
 
     # --- Aba 1: Análise Completa ---
     ws1 = wb.active
@@ -755,34 +867,29 @@ def generate_report(results: list[dict], output_path: str,
     ws3.freeze_panes = "A2"
 
     # --- Aba 4: Resumo por Fornecedor ---
+    cats = ["confirmado", "nome", "sem_sku", "conflito", "ambiguo"]
     ws4 = wb.create_sheet("Resumo por Fornecedor")
-    ws4.append(["fornecedor", "total", "direto", "alta", "média", "baixa", "sem_match"])
-    style_header(ws4, 1, 7)
-    for col in range(1, 8):
-        ws4.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+    ws4.append(["fornecedor", "total"] + cats)
+    style_header(ws4, 1, 2 + len(cats))
+    for col in range(1, 3 + len(cats)):
+        ws4.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
     ws4.freeze_panes = "A2"
 
     from collections import defaultdict
-    summary = defaultdict(lambda: {"total": 0, "direto": 0, "Alta": 0, "Média": 0, "Baixa": 0, "sem_match": 0})
+    summary = defaultdict(lambda: {"total": 0, **{c: 0 for c in cats}})
     for r in results:
-        if r.get("method") == "excluido":
+        m = r.get("method")
+        if m == "excluido":
             s = "(excluído)"
         else:
             s = r.get("fornecedor") or "Sem fornecedor"
         summary[s]["total"] += 1
-        if not r.get("above_threshold"):
-            summary[s]["sem_match"] += 1
-        else:
-            if r.get("method") in ("direto", "mapeado"):
-                summary[s]["direto"] += 1
-            conf = r.get("confidence", "Baixa")
-            if conf in ("Alta", "Média", "Baixa"):
-                summary[s][conf] += 1
+        if m in cats:
+            summary[s][m] += 1
 
     for supplier, data in sorted(summary.items()):
-        ws4.append([supplier, data["total"], data["direto"],
-                    data["Alta"], data["Média"], data["Baixa"], data["sem_match"]])
-        for col in range(1, 8):
+        ws4.append([supplier, data["total"]] + [data[c] for c in cats])
+        for col in range(1, 3 + len(cats)):
             cell = ws4.cell(row=ws4.max_row, column=col)
             cell.font = Font(size=10)
             cell.border = THIN_BORDER
@@ -821,31 +928,17 @@ def generate_report(results: list[dict], output_path: str,
     ws6.column_dimensions["D"].width = 30
 
     # Calcula stats desta execução
-    total      = len(results)
-    direto     = sum(1 for r in results if r.get("method") == "direto")
-    mapeado    = sum(1 for r in results if r.get("method") == "mapeado")
-    excluido   = sum(1 for r in results if r.get("method") == "excluido")
-    alta       = sum(1 for r in results if r.get("confidence") == "Alta" and r.get("above_threshold"))
-    media      = sum(1 for r in results if r.get("confidence") == "Média" and r.get("above_threshold"))
-    baixa      = sum(1 for r in results if r.get("confidence") == "Baixa" and r.get("above_threshold"))
-    sem_match  = sum(1 for r in results if not r.get("above_threshold")
-                     and r.get("method") != "excluido")
-    ambiguous  = sum(1 for r in results if r.get("ambiguous"))
-    run_ts     = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    current_stats = {
-        "versao":    version_num,
-        "data_hora": run_ts,
-        "total":     total,
-        "direto":    direto,
-        "mapeado":   mapeado,
-        "excluido":  excluido,
-        "alta":      alta,
-        "media":     media,
-        "baixa":     baixa,
-        "sem_match": sem_match,
-        "ambiguos":  ambiguous,
-    }
+    def cnt(m): return sum(1 for r in results if r.get("method") == m)
+    total       = len(results)
+    confirmado  = cnt("confirmado")
+    nome        = cnt("nome")
+    sem_sku     = cnt("sem_sku")
+    conflito    = cnt("conflito")
+    ambiguo     = cnt("ambiguo")
+    excluido    = cnt("excluido")
+    # "prontos para o S3" = colocação válida (confirmado + nome + sem_sku com fornecedor)
+    prontos     = sum(1 for r in results if r.get("above_threshold"))
+    run_ts      = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     # Cabeçalho
     ws6.append(["métrica", "valor_atual", "valor_anterior", "delta"])
@@ -883,17 +976,16 @@ def generate_report(results: list[dict], output_path: str,
             return None
 
     metrics = [
-        ("versão",         "versao",    version_num,  None),
-        ("data / hora",    "data_hora", run_ts,       None),
-        ("total imagens",  "total",     total,        None),
-        ("mapeam. direto (c/ SKU)", "direto",  direto,   "up"),
-        ("mapeado (sem planilha)",  "mapeado", mapeado,  "up"),
-        ("excluídas",      "excluido",  excluido,     None),
-        ("confiança Alta", "alta",      alta,         "up"),
-        ("confiança Média","media",     media,        None),
-        ("confiança Baixa","baixa",     baixa,        "down"),
-        ("sem match",      "sem_match", sem_match,    "down"),
-        ("ambíguos",       "ambiguos",  ambiguous,    "down"),
+        ("versão",        "versao",     version_num, None),
+        ("data / hora",   "data_hora",  run_ts,      None),
+        ("total imagens", "total",      total,       None),
+        ("confirmado (nome+código)", "confirmado", confirmado, "up"),
+        ("só por nome",   "nome",       nome,        "up"),
+        ("sem SKU",       "sem_sku",    sem_sku,     None),
+        ("conflito (revisão)",  "conflito", conflito, "down"),
+        ("ambíguo (revisão)",   "ambiguo",  ambiguo,  "down"),
+        ("excluídas",     "excluido",   excluido,    None),
+        ("prontos p/ S3 (válidos)", "prontos", prontos, "up"),
     ]
 
     for label, key, val, direction in metrics:
