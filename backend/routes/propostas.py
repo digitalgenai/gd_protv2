@@ -1,0 +1,205 @@
+from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
+
+from db import get_session
+from models import CatalogoProduto, Proposta, PropostaItem, PropostaVersao, Usuario
+
+bp = Blueprint("propostas", __name__)
+
+# Ver backend/seed_usuarios.py — usuário técnico único usado em toda proposta enquanto
+# não existe autenticação real. O trigger fn_generate_codigo_base_proposta exige um
+# vendedor_id não nulo (grava num contador mensal por vendedor), então não dá pra
+# deixar isso vazio.
+VENDEDOR_PADRAO_EMAIL = "vendedor.padrao@galpaodesign.local"
+
+
+def _get_vendedor_padrao_id(session):
+    vendedor = session.query(Usuario).filter(Usuario.email == VENDEDOR_PADRAO_EMAIL).first()
+    if not vendedor:
+        raise RuntimeError(
+            f'Usuário padrão "{VENDEDOR_PADRAO_EMAIL}" não encontrado — rode "python seed_usuarios.py" primeiro.',
+        )
+    return vendedor.id
+
+# O enum do banco (status_versao_enum) não bate 1:1 com o ProposalStatus do front —
+# "Revisão" não existe como estado de versão no banco (é um fluxo só do front) e
+# "recusada" no banco corresponde a "Reprovada" no front.
+STATUS_DB_TO_FRONT = {
+    "rascunho": "Rascunho",
+    "enviada": "Enviada",
+    "aprovada": "Aprovada",
+    "recusada": "Reprovada",
+}
+
+
+def _map_status(db_status: str) -> str:
+    return STATUS_DB_TO_FRONT.get(db_status, "Rascunho")
+
+
+def _format_date(dt) -> str:
+    return dt.strftime("%d/%m/%Y") if dt else ""
+
+
+@bp.get("/propostas")
+def list_propostas():
+    session = get_session()
+    propostas = (
+        session.query(Proposta)
+        .options(
+            selectinload(Proposta.versoes).selectinload(PropostaVersao.itens),
+            selectinload(Proposta.vendedor),
+        )
+        .order_by(Proposta.id.desc())
+        .all()
+    )
+
+    result = []
+    for proposta in propostas:
+        if not proposta.versoes:
+            continue
+        ultima = max(proposta.versoes, key=lambda v: v.versao_numero)
+        valor = sum(float(item.valor_total or 0) for item in ultima.itens)
+        result.append({
+            "code": ultima.codigo_proposta or proposta.codigo_base or f"GD-{proposta.id}",
+            "cliente": proposta.cliente_nome,
+            "arquiteto": proposta.arquiteto_nome,
+            "vendedor": proposta.vendedor.nome if proposta.vendedor else "",
+            "valor": valor,
+            "data": _format_date(proposta.criado_em),
+            "versao": ultima.versao_numero,
+            "status": _map_status(ultima.status),
+            "pdfGerado": bool(ultima.pdf_path),
+        })
+    return jsonify(result)
+
+
+@bp.get("/propostas/<codigo_proposta>")
+def get_proposta_detail(codigo_proposta):
+    session = get_session()
+    versao = (
+        session.query(PropostaVersao)
+        .options(
+            selectinload(PropostaVersao.itens),
+            selectinload(PropostaVersao.proposta).selectinload(Proposta.versoes),
+            selectinload(PropostaVersao.proposta).selectinload(Proposta.vendedor),
+        )
+        .filter(PropostaVersao.codigo_proposta == codigo_proposta)
+        .first()
+    )
+    if not versao:
+        return jsonify(None), 404
+
+    proposta = versao.proposta
+    valor = sum(float(item.valor_total or 0) for item in versao.itens)
+
+    itens = [
+        {
+            "id": item.id,
+            # ambiente e materiais de outros fornecedores não existem no schema real
+            # ainda — ficam vazios até uma migration adicionar essas colunas.
+            "ambiente": "",
+            "code": item.codigo_produto,
+            "desc": item.nome_produto,
+            "qty": item.quantidade,
+            "price": float(item.preco_unitario_snapshot),
+            "disc": float(item.desconto_percentual),
+            "materiais": [],
+        }
+        for item in versao.itens
+    ]
+
+    versoes = [
+        {
+            "code": v.codigo_proposta or f"{proposta.codigo_base}.v{v.versao_numero}",
+            "versao": v.versao_numero,
+            "status": _map_status(v.status),
+            "data": _format_date(v.criado_em),
+            "pdfGerado": bool(v.pdf_path),
+        }
+        for v in sorted(proposta.versoes, key=lambda v: v.versao_numero)
+    ]
+
+    return jsonify({
+        "code": versao.codigo_proposta,
+        "cliente": proposta.cliente_nome,
+        "arquiteto": proposta.arquiteto_nome,
+        "vendedor": proposta.vendedor.nome if proposta.vendedor else "",
+        "valor": valor,
+        "data": _format_date(proposta.criado_em),
+        "versao": versao.versao_numero,
+        "status": _map_status(versao.status),
+        "pdfGerado": bool(versao.pdf_path),
+        # validade/pagamento/vendaDireta/ambientes: sem coluna correspondente no banco
+        # real ainda (features adicionadas no front antes do backend existir).
+        "validade": "",
+        "pagamento": "",
+        "vendaDireta": False,
+        "observacoes": proposta.observacoes or "",
+        "ambientes": [],
+        "itens": itens,
+        "versoes": versoes,
+    })
+
+
+@bp.post("/propostas")
+def create_proposta():
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+
+    cliente = (data.get("cliente") or "").strip()
+    if not cliente:
+        return jsonify({"error": "Cliente é obrigatório."}), 400
+
+    proposta = Proposta(
+        cliente_nome=cliente,
+        arquiteto_nome=data.get("arquiteto") or None,
+        desconto_geral=data.get("descontoGlobal") or 0,
+        observacoes=data.get("observacoes") or None,
+        vendedor_id=_get_vendedor_padrao_id(session),
+    )
+    session.add(proposta)
+    session.flush()  # dispara o trigger que gera codigo_base
+
+    versao = PropostaVersao(proposta_id=proposta.id, versao_numero=1, status="rascunho")
+    session.add(versao)
+    session.flush()  # dispara o trigger que gera codigo_proposta
+
+    for item in data.get("itens", []):
+        codigo_produto = (item.get("code") or "").strip()
+        produto = None
+        customizacao = None
+        if codigo_produto:
+            produto = (
+                session.query(CatalogoProduto)
+                .options(selectinload(CatalogoProduto.customizacoes))
+                .filter(CatalogoProduto.codigo == codigo_produto)
+                .first()
+            )
+            if produto:
+                customizacao = next((c for c in produto.customizacoes if c.ativo), None)
+
+        # chk_customizacao_identificada: se produto_id não é nulo, o banco exige
+        # customizacao_id OU customizacao_descricao — sem isso o INSERT é rejeitado.
+        session.add(PropostaItem(
+            versao_id=versao.id,
+            produto_id=produto.id if produto else None,
+            customizacao_id=customizacao.id if customizacao else None,
+            customizacao_descricao=None if customizacao else (
+                (item.get("desc") or "Sem customização cadastrada") if produto else None
+            ),
+            codigo_produto=codigo_produto or "—",
+            nome_produto=item.get("desc") or "",
+            preco_unitario_snapshot=item.get("price") or 0,
+            quantidade=item.get("qty") or 1,
+            desconto_percentual=item.get("disc") or 0,
+        ))
+
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        return jsonify({"error": f"Não foi possível salvar a proposta: {exc.orig}"}), 400
+
+    session.refresh(versao)
+    return jsonify({"codigo": versao.codigo_proposta}), 201
