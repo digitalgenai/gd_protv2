@@ -1,0 +1,22 @@
+# Credenciais e variáveis de ambiente
+.env
+credentials.json
+*.json
+
+# Relatório de análise (pode conter dados sensíveis)
+relatorio_analise.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
