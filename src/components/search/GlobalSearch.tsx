@@ -72,7 +72,7 @@ export default function GlobalSearch({ products }: GlobalSearchProps) {
 
   return (
     <div className="relative hidden md:block" ref={wrapRef}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 15, height: 15, color: '#71717A' }} />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 15, height: 15, color: '#979797' }} />
       <input
         id="global-search"
         type="text"

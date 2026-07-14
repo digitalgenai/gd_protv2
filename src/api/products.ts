@@ -1,8 +1,14 @@
-import { apiFetch, ApiUnavailableError } from './client';
-import { MOCK_PRODUCTS, CATALOG_FACETS } from '../data/mockProducts';
+import { apiFetch } from './client';
 import type { FilterState, Product } from '../types';
 
-/** RF-012 a RF-015: listagem, busca textual e filtros de catálogo. */
+interface CatalogFacets {
+  categories: { value: string; count: number }[];
+  suppliers: string[];
+  finishes: string[];
+}
+
+/** RF-012 a RF-015: listagem, busca textual e filtros de catálogo. Sem fallback mockado —
+ * se o backend estiver fora do ar, o erro sobe pra quem chamou mostrar. */
 export async function fetchProducts(filters: Partial<FilterState> = {}): Promise<Product[]> {
   const params = new URLSearchParams();
   if (filters.search) params.set('q', filters.search);
@@ -12,36 +18,20 @@ export async function fetchProducts(filters: Partial<FilterState> = {}): Promise
   if (filters.priceRange && filters.priceRange !== 'all') params.set('faixa_preco', filters.priceRange);
   if (filters.sort) params.set('ordenar', filters.sort);
 
-  try {
-    return await apiFetch<Product[]>(`/produtos?${params.toString()}`);
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    return filterProductsLocally(MOCK_PRODUCTS, filters);
-  }
+  return apiFetch<Product[]>(`/produtos?${params.toString()}`);
 }
 
 /** RF-015: valores disponíveis para cada filtro. */
-export async function fetchCatalogFacets() {
-  try {
-    return await apiFetch<typeof CATALOG_FACETS>('/produtos/filtros');
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    return CATALOG_FACETS;
-  }
+export async function fetchCatalogFacets(): Promise<CatalogFacets> {
+  return apiFetch<CatalogFacets>('/produtos/filtros');
 }
 
 /** RF-017: edição dos dados cadastrados de um produto (nome, categoria, fornecedor, acabamento, preço). */
 export async function updateProduct(id: string, patch: Partial<Product>): Promise<Product> {
-  try {
-    return await apiFetch<Product>(`/produtos/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    });
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    const existing = MOCK_PRODUCTS.find((p) => p.id === id);
-    return { ...(existing ?? { id, name: '', cat: '', supplier: '', finish: '', price: 0, img: '', dimensions: '' }), ...patch };
-  }
+  return apiFetch<Product>(`/produtos/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
 }
 
 export function filterProductsLocally(products: Product[], filters: Partial<FilterState>): Product[] {

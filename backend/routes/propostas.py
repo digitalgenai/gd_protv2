@@ -1,3 +1,5 @@
+import uuid
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -22,6 +24,25 @@ def _get_vendedor_padrao_id(session):
         )
     return vendedor.id
 
+
+def _resolve_vendedor_id(session, vendedor_id_raw):
+    """Usa o vendedor selecionado no front (id real de `usuarios`) quando válido;
+    cai pro vendedor padrão se vier vazio, malformado ou não corresponder a ninguém ativo."""
+    if vendedor_id_raw:
+        try:
+            vendedor_uuid = uuid.UUID(str(vendedor_id_raw))
+        except ValueError:
+            vendedor_uuid = None
+        if vendedor_uuid:
+            vendedor = (
+                session.query(Usuario)
+                .filter(Usuario.id == vendedor_uuid, Usuario.is_active.is_(True))
+                .first()
+            )
+            if vendedor:
+                return vendedor.id
+    return _get_vendedor_padrao_id(session)
+
 # O enum do banco (status_versao_enum) não bate 1:1 com o ProposalStatus do front —
 # "Revisão" não existe como estado de versão no banco (é um fluxo só do front) e
 # "recusada" no banco corresponde a "Reprovada" no front.
@@ -39,6 +60,95 @@ def _map_status(db_status: str) -> str:
 
 def _format_date(dt) -> str:
     return dt.strftime("%d/%m/%Y") if dt else ""
+
+
+@bp.get("/vendedores")
+def list_vendedores():
+    session = get_session()
+    vendedores = (
+        session.query(Usuario)
+        .filter(Usuario.is_active.is_(True))
+        .order_by(Usuario.nome)
+        .all()
+    )
+    return jsonify([
+        {"id": str(v.id), "nome": v.nome, "codigoVendedor": v.codigo_vendedor}
+        for v in vendedores
+    ])
+
+
+@bp.get("/clientes")
+def list_clientes():
+    """Diretório agregado de clientes — não existe tabela própria ainda; cada cliente é
+    derivado dos nomes já usados em propostas reais (RN combinada com o time)."""
+    session = get_session()
+    propostas = (
+        session.query(Proposta)
+        .options(selectinload(Proposta.versoes).selectinload(PropostaVersao.itens))
+        .all()
+    )
+
+    agregados = {}
+    for proposta in propostas:
+        if not proposta.versoes:
+            continue
+        chave = proposta.cliente_nome.strip()
+        if not chave:
+            continue
+        ultima = max(proposta.versoes, key=lambda v: v.versao_numero)
+        valor = sum(float(item.valor_total or 0) for item in ultima.itens)
+
+        entrada = agregados.setdefault(chave, {
+            "nome": chave, "telefone": None, "endereco": None,
+            "propostas": 0, "valorTotal": 0.0, "ultimaProposta": None,
+        })
+        entrada["telefone"] = proposta.cliente_telefone or entrada["telefone"]
+        entrada["endereco"] = proposta.cliente_endereco or entrada["endereco"]
+        entrada["propostas"] += 1
+        entrada["valorTotal"] += valor
+        if not entrada["ultimaProposta"] or proposta.criado_em > entrada["ultimaProposta"]:
+            entrada["ultimaProposta"] = proposta.criado_em
+
+    resultado = sorted(
+        [{**e, "ultimaProposta": _format_date(e["ultimaProposta"])} for e in agregados.values()],
+        key=lambda r: r["nome"].lower(),
+    )
+    return jsonify(resultado)
+
+
+@bp.get("/arquitetos")
+def list_arquitetos():
+    """Mesma lógica de /clientes, para o campo arquiteto_nome (opcional em cada proposta)."""
+    session = get_session()
+    propostas = (
+        session.query(Proposta)
+        .options(selectinload(Proposta.versoes).selectinload(PropostaVersao.itens))
+        .all()
+    )
+
+    agregados = {}
+    for proposta in propostas:
+        if not proposta.versoes:
+            continue
+        chave = (proposta.arquiteto_nome or "").strip()
+        if not chave:
+            continue
+        ultima = max(proposta.versoes, key=lambda v: v.versao_numero)
+        valor = sum(float(item.valor_total or 0) for item in ultima.itens)
+
+        entrada = agregados.setdefault(chave, {
+            "nome": chave, "propostas": 0, "valorTotal": 0.0, "ultimaProposta": None,
+        })
+        entrada["propostas"] += 1
+        entrada["valorTotal"] += valor
+        if not entrada["ultimaProposta"] or proposta.criado_em > entrada["ultimaProposta"]:
+            entrada["ultimaProposta"] = proposta.criado_em
+
+    resultado = sorted(
+        [{**e, "ultimaProposta": _format_date(e["ultimaProposta"])} for e in agregados.values()],
+        key=lambda r: r["nome"].lower(),
+    )
+    return jsonify(resultado)
 
 
 @bp.get("/propostas")
@@ -130,12 +240,14 @@ def get_proposta_detail(codigo_proposta):
         "versao": versao.versao_numero,
         "status": _map_status(versao.status),
         "pdfGerado": bool(versao.pdf_path),
-        # validade/pagamento/vendaDireta/ambientes: sem coluna correspondente no banco
-        # real ainda (features adicionadas no front antes do backend existir).
+        # validade/pagamento/ambientes: sem coluna correspondente no banco real ainda
+        # (features adicionadas no front antes do backend existir).
         "validade": "",
         "pagamento": "",
-        "vendaDireta": False,
         "observacoes": proposta.observacoes or "",
+        "telefoneCliente": proposta.cliente_telefone,
+        "enderecoCliente": proposta.cliente_endereco,
+        "emailCliente": proposta.cliente_email,
         "ambientes": [],
         "itens": itens,
         "versoes": versoes,
@@ -153,10 +265,13 @@ def create_proposta():
 
     proposta = Proposta(
         cliente_nome=cliente,
+        cliente_telefone=data.get("telefoneCliente") or None,
+        cliente_endereco=data.get("enderecoCliente") or None,
+        cliente_email=data.get("emailCliente") or None,
         arquiteto_nome=data.get("arquiteto") or None,
         desconto_geral=data.get("descontoGlobal") or 0,
         observacoes=data.get("observacoes") or None,
-        vendedor_id=_get_vendedor_padrao_id(session),
+        vendedor_id=_resolve_vendedor_id(session, data.get("vendedor")),
     )
     session.add(proposta)
     session.flush()  # dispara o trigger que gera codigo_base

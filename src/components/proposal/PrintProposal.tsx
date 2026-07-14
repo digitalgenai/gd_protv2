@@ -2,15 +2,16 @@ import { Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../../context/ProposalDraftContext';
+import { useVendedores } from '../../context/VendedoresContext';
 import { formatCurrency } from '../../utils/format';
 import { groupByAmbiente, shouldShowAmbienteHeaders, orderGroupsByAmbientList } from '../../utils/groupByAmbiente';
 import { buildHighlightGroups } from '../../utils/proposalHighlight';
-import { vendedorLabel } from '../../data/vendedores';
 
 export default function PrintProposal() {
   const printRoot = document.getElementById('print-root');
   const { header, rows, proposalCode, subtotal, total } = useProposalDraft();
   const { products } = useProducts();
+  const { vendedores } = useVendedores();
 
   if (!printRoot) return null;
 
@@ -24,7 +25,7 @@ export default function PrintProposal() {
   const showHighlightAmbienteHeaders = shouldShowAmbienteHeaders(highlightGroups);
 
   const codeDisplay = proposalCode.replace(/\.CLIENTE$/, '');
-  const vendedorDisplay = vendedorLabel(header.vendedor);
+  const vendedorDisplay = vendedores.find((v) => v.id === header.vendedor)?.nome ?? '—';
   const pagamento = PAYMENT_OPTIONS.includes(header.pagamento) ? header.pagamento : PAYMENT_OPTIONS[0];
   const validadeDate = header.validade ? new Date(`${header.validade}T00:00:00`) : null;
 
@@ -43,16 +44,13 @@ export default function PrintProposal() {
       <div className="pr-meta">
         <div className="pr-meta-item"><label>Código</label><span className="pr-code">{codeDisplay}</span></div>
         <div className="pr-meta-item"><label>Cliente</label><span>{header.cliente || '—'}</span></div>
+        <div className="pr-meta-item"><label>Telefone</label><span>{header.telefoneCliente || '—'}</span></div>
+        <div className="pr-meta-item"><label>E-mail</label><span>{header.emailCliente || '—'}</span></div>
+        <div className="pr-meta-item"><label>Endereço</label><span>{header.enderecoCliente || '—'}</span></div>
         <div className="pr-meta-item"><label>Arquiteto / Escritório</label><span>{header.arquiteto || '—'}</span></div>
         <div className="pr-meta-item"><label>Vendedor</label><span>{vendedorDisplay}</span></div>
         <div className="pr-meta-item"><label>Condição de Pagamento</label><span>{pagamento}</span></div>
         <div className="pr-meta-item"><label>Validade</label><span>{validadeDate ? validadeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}</span></div>
-        <div className="pr-meta-item pr-meta-tipovenda">
-          <label>Tipo de Venda</label>
-          <span className={`pr-tipovenda-badge ${header.vendaDireta ? 'pr-tipovenda-direta' : 'pr-tipovenda-indireta'}`}>
-            {header.vendaDireta ? 'Venda Direta' : 'Intermediada'}
-          </span>
-        </div>
       </div>
 
       <div className="pr-section-title">Itens da Proposta</div>
@@ -85,7 +83,20 @@ export default function PrintProposal() {
                     </td>
                     <td style={{ padding: '7px 10px' }}>
                       <div className="pr-item-code">{r.code}</div>
-                      <div className="pr-item-name">{r.desc}</div>
+                      <div className="pr-item-name">
+                        {r.desc}
+                        {product?.vendaDireta && (
+                          <span
+                            style={{
+                              marginLeft: 6, fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
+                              padding: '1.5px 7px', borderRadius: 20, display: 'inline-block', verticalAlign: 'middle',
+                              background: 'rgba(133,34,40,.1)', color: '#852228', border: '1px solid rgba(133,34,40,.3)',
+                            }}
+                          >
+                            Venda Direta
+                          </span>
+                        )}
+                      </div>
                       <div className="pr-item-sub">{product ? `${product.supplier} · ${product.finish}` : ''}</div>
                       {r.materiais.length > 0 && (
                         <div className="pr-item-sub" style={{ marginTop: 3 }}>
@@ -99,9 +110,9 @@ export default function PrintProposal() {
                     <td className="pr-num pr-center" style={{ padding: '7px 10px' }}>{r.qty}</td>
                     <td className="pr-num pr-right" style={{ padding: '7px 10px' }}>{formatCurrency(r.price)}</td>
                     <td className="pr-center" style={{ padding: '7px 10px' }}>
-                      {r.disc > 0 ? <span className="pr-disc-badge">{r.disc}%</span> : <span style={{ color: '#A1A1AA' }}>—</span>}
+                      {r.disc > 0 ? <span className="pr-disc-badge">{r.disc}%</span> : <span style={{ color: '#979797' }}>—</span>}
                     </td>
-                    <td className="pr-num pr-right" style={{ padding: '7px 10px', fontWeight: 700, color: '#111111' }}>{formatCurrency(lineTotal)}</td>
+                    <td className="pr-num pr-right" style={{ padding: '7px 10px', fontWeight: 700, color: '#343434' }}>{formatCurrency(lineTotal)}</td>
                   </tr>
                 );
               })}
@@ -144,7 +155,7 @@ export default function PrintProposal() {
       <div className="pr-terms">
         <div className="pr-terms-header">Condições Gerais</div>
         <div className="pr-terms-pag">FORMA DE PAGAMENTO: {pagamento}</div>
-        <div className="pr-terms-header" style={{ borderTop: '1px solid #E4E4E7' }}>Observações</div>
+        <div className="pr-terms-header" style={{ borderTop: '1px solid #d3d3d3' }}>Observações</div>
         <div className="pr-terms-row">Orçamento válido por até 48h — provável mudança de tabela.</div>
         <div className="pr-terms-row">O prazo de entrega de peças sob encomenda varia de <strong>90 a 120 dias</strong>.</div>
         <div className="pr-terms-row">O prazo máximo de armazenamento em nosso depósito será de <strong>120 dias corridos</strong> após o recebimento.</div>

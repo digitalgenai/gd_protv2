@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  ChevronDown, FilePlus, FileText, History, LayoutDashboard, Mic,
-  Package, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, Users,
+  ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard, Mic,
+  Package, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -92,7 +92,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
             <Mic className="nav-icon" style={{ width: 16, height: 16 }} />
             <span className="nav-label">Rascunhos de Voz</span>
             {voiceDraftCount > 0 && (
-              <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--error)', color: '#fff', fontSize: 10 }}>
+              <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--error)', color: '#fefefe', fontSize: 10 }}>
                 {voiceDraftCount}
               </span>
             )}
@@ -113,6 +113,18 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
 
         <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} />
         <div className="submenu" style={{ display: gestaoOpen ? 'block' : 'none' }}>
+          <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
+            <Contact className="nav-icon" style={{ width: 16, height: 16 }} />
+            <span className="nav-label">Clientes</span>
+          </NavLink>
+          <NavLink to="/gestao/arquitetos" className={navClass} onClick={onNavigate}>
+            <PencilRuler className="nav-icon" style={{ width: 16, height: 16 }} />
+            <span className="nav-label">Arquitetos</span>
+          </NavLink>
+          <NavLink to="/gestao/fornecedores" className={navClass} onClick={onNavigate}>
+            <Truck className="nav-icon" style={{ width: 16, height: 16 }} />
+            <span className="nav-label">Fornecedores</span>
+          </NavLink>
           <NavLink to="/config?tab=usuarios" className={() => navClass({ isActive: onConfig && configTab !== 'integracoes' })} onClick={onNavigate}>
             <Users className="nav-icon" style={{ width: 16, height: 16 }} />
             <span className="nav-label">Usuários</span>

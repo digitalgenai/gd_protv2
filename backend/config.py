@@ -9,6 +9,9 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "galpaodesign_teste")
+# Assina o cookie de sessão (login). Defina SECRET_KEY no .env em qualquer ambiente real —
+# este fallback é só pra dev local não travar; com ele, reiniciar o servidor derruba as sessões.
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-troque-em-producao")
 UPLOADS_DIR = BASE_DIR / "uploads"
 # Base pública deste servidor Flask — usada para transformar um storage_path local
 # (ex.: "/images/GD-0001/foto.jpg") em URL absoluta consumível pelo front (porta diferente).
@@ -23,7 +26,11 @@ AWS_S3_BUCKET = os.environ.get("S3_BUCKET_NAME") or os.environ.get("AWS_S3_BUCKE
 AWS_S3_PREFIX = os.environ.get("AWS_S3_PREFIX", "uploads")
 
 MIN_IMAGE_DIMENSION = 600
+# As 3 primeiras posições são os slots "curados" fixos (1 = produto isolado, 2/3 = ambiente)
+# mostrados na grade principal do modal — MAX_TOTAL_IMAGES_PER_PRODUCT é o teto geral de
+# upload (inclui essas 3 + as extras enviadas pelo botão "Adicionar mais imagens").
 MAX_IMAGES_PER_PRODUCT = 3
+MAX_TOTAL_IMAGES_PER_PRODUCT = 20
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MIN_IMAGE_SIZE_BYTES = 50 * 1024
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024

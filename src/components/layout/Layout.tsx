@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useProducts } from '../../context/ProductsContext';
+import { useVoz } from '../../context/VozContext';
 import VoiceRecorderFab from '../voice/VoiceRecorderFab';
 import ImageModal from '../catalog/ImageModal';
 
@@ -14,6 +15,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/propostas/revisao': 'Propostas para Revisão',
   '/propostas/historico': 'Histórico de Propostas',
   '/voz': 'Rascunhos de Voz',
+  '/gestao/clientes': 'Clientes',
+  '/gestao/arquitetos': 'Arquitetos',
+  '/gestao/fornecedores': 'Fornecedores',
+  '/perfil': 'Meu Perfil',
   '/config': 'Configurações',
 };
 
@@ -30,6 +35,7 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { products } = useProducts();
+  const { rascunhos } = useVoz();
   const location = useLocation();
 
   const title = getPageTitle(location.pathname);
@@ -51,7 +57,7 @@ export default function Layout() {
         onToggleCollapse={() => setCollapsed((c) => !c)}
         mobileOpen={mobileOpen}
         onNavigate={closeMobile}
-        voiceDraftCount={2}
+        voiceDraftCount={rascunhos.length}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">

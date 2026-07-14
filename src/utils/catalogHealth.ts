@@ -1,5 +1,61 @@
-import type { CatalogQualityReport } from '../data/mockCatalogQuality';
+import type { CatalogQualityReport } from '../api/catalogQuality';
 import type { Product } from '../types';
+
+export interface DuplicateGroup {
+  produtos: Product[];
+  motivo: string;
+}
+
+export interface CatalogHealthSummary {
+  semImagem: Product[];
+  semPreco: Product[];
+  duplicados: DuplicateGroup[];
+  errosImportacao: CatalogQualityReport['errosImportacao'];
+}
+
+function normalizeName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Duplicatas = mesmo nome (normalizado) + mesmo fornecedor entre produtos reais do catálogo.
+ * Heurística conservadora (nome idêntico após normalizar acentos/caixa), calculada aqui porque
+ * o banco não tem tabela/flag própria pra isso — os dados de entrada (nome, fornecedor) são
+ * reais, só a comparação é código novo.
+ */
+function findDuplicates(products: Product[]): DuplicateGroup[] {
+  const groups = new Map<string, Product[]>();
+  products.forEach((p) => {
+    if (!p.name.trim()) return;
+    const key = `${normalizeName(p.name)}::${p.supplier}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(p);
+    groups.set(key, arr);
+  });
+  return Array.from(groups.values())
+    .filter((arr) => arr.length > 1)
+    .map((produtos) => ({ produtos, motivo: `Mesmo nome e fornecedor (${produtos[0].supplier})` }));
+}
+
+/**
+ * "Sem imagem" e "sem preço" vêm do catálogo real (useProducts). "Duplicados" é calculado
+ * aqui a partir do catálogo real. "Erros de importação" vem do relatório real
+ * (fetchCatalogQuality) — não existe mais "imagens rejeitadas": não há coluna/tabela de
+ * rejeição de imagem no banco, então essa dimensão foi removida em vez de inventada.
+ */
+export function buildCatalogHealthSummary(products: Product[], report: CatalogQualityReport | null): CatalogHealthSummary {
+  return {
+    semImagem: products.filter((p) => !p.img),
+    semPreco: products.filter((p) => !p.price),
+    duplicados: findDuplicates(products),
+    errosImportacao: report?.errosImportacao ?? [],
+  };
+}
 
 export interface CatalogHealthProblem {
   id: string;
@@ -10,30 +66,6 @@ export interface CatalogHealthProblem {
   impacto: string;
   actionLabel?: string;
   onAction?: () => void;
-}
-
-export interface CatalogHealthSummary {
-  semImagem: Product[];
-  semPreco: Product[];
-  imagensRejeitadas: CatalogQualityReport['imagensRejeitadas'];
-  duplicados: CatalogQualityReport['duplicados'];
-  errosImportacao: CatalogQualityReport['errosImportacao'];
-}
-
-/**
- * "Sem imagem" e "sem preço" são calculados a partir do catálogo real (via useProducts) —
- * agora que o backend Flask/Postgres está no ar, essas duas dimensões não precisam mais de
- * mock. "Imagens rejeitadas", "Duplicados" e "Erros de importação" continuam vindo do
- * relatório mockado (fetchCatalogQuality) até existir a lógica real por trás (RF-009/010/023).
- */
-export function buildCatalogHealthSummary(products: Product[], report: CatalogQualityReport | null): CatalogHealthSummary {
-  return {
-    semImagem: products.filter((p) => !p.img),
-    semPreco: products.filter((p) => !p.price),
-    imagensRejeitadas: report?.imagensRejeitadas ?? [],
-    duplicados: report?.duplicados ?? [],
-    errosImportacao: report?.errosImportacao ?? [],
-  };
 }
 
 export function buildCatalogHealthProblems(
@@ -68,19 +100,6 @@ export function buildCatalogHealthProblems(
     });
   });
 
-  summary.imagensRejeitadas.forEach((r, i) => {
-    problems.push({
-      id: `img-rejeitada-${r.produto.id}-${i}`,
-      problema: 'Imagem rejeitada',
-      badgeClass: 'badge-error',
-      produto: r.produto.name,
-      fornecedor: r.produto.supplier,
-      impacto: r.motivo,
-      actionLabel: 'Corrigir →',
-      onAction: () => onFix(r.produto, 'imagens'),
-    });
-  });
-
   summary.duplicados.forEach((group, i) => {
     problems.push({
       id: `duplicado-${i}`,
@@ -98,7 +117,7 @@ export function buildCatalogHealthProblems(
       problema: 'Erro de importação',
       badgeClass: 'badge-error',
       produto: e.arquivo,
-      fornecedor: `${e.aba} · linha ${e.linha}`,
+      fornecedor: e.aba ? `${e.aba}${e.linha ? ` · linha ${e.linha}` : ''}` : '',
       impacto: e.mensagem,
     });
   });

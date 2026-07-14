@@ -1,23 +1,16 @@
-import { apiFetch, ApiUnavailableError } from './client';
-import { MOCK_VOICE_DRAFTS } from '../data/mockProposals';
-import type { VoiceDraft } from '../types';
+import { apiFetch } from './client';
+import type { RascunhoVoz } from '../types';
 
-/** RF-059: rascunhos pendentes de revisão gerados pelo webhook de voz. */
-export async function fetchVoiceDrafts(): Promise<VoiceDraft[]> {
-  try {
-    return await apiFetch<VoiceDraft[]>('/proposta-rascunhos');
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    return MOCK_VOICE_DRAFTS;
-  }
+/** RF-059: rascunhos pendentes de revisão gerados por um webhook externo de voz (ainda não
+ * implementado) — lista real, costuma vir vazia até esse webhook existir. Sem fallback mockado. */
+export function fetchRascunhos(): Promise<RascunhoVoz[]> {
+  return apiFetch<RascunhoVoz[]>('/rascunhos');
 }
 
-/** RF-061: confirma o rascunho revisado, convertendo-o em proposta. */
-export async function confirmVoiceDraft(draftId: number): Promise<{ codigo: string }> {
-  try {
-    return await apiFetch<{ codigo: string }>(`/proposta-rascunhos/${draftId}/confirmar`, { method: 'POST' });
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    return { codigo: 'GD-RASCUNHO-LOCAL' };
-  }
+/** RF-061: marca um rascunho como confirmado (virou proposta) ou descartado. */
+export function updateRascunhoStatus(id: number, status: 'confirmado' | 'descartado'): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/rascunhos/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }

@@ -2,7 +2,7 @@ from sqlalchemy import (
     Boolean, Column, FetchedValue, ForeignKey, Integer, BigInteger, Numeric, SmallInteger,
     Text, DateTime,
 )
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import UUID, ENUM, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 
 from config import DB_SCHEMA
@@ -12,6 +12,21 @@ Base = declarative_base()
 status_versao_enum = ENUM(
     "rascunho", "enviada", "aprovada", "recusada",
     name="status_versao_enum", schema=DB_SCHEMA, create_type=False,
+)
+
+status_arquivo_enum = ENUM(
+    "ok", "processando", "erro",
+    name="status_arquivo_enum", schema=DB_SCHEMA, create_type=False,
+)
+
+status_rascunho_enum = ENUM(
+    "aguardando_revisao", "confirmado", "descartado",
+    name="status_rascunho_enum", schema=DB_SCHEMA, create_type=False,
+)
+
+status_item_rascunho_enum = ENUM(
+    "encontrado", "nao_encontrado",
+    name="status_item_rascunho_enum", schema=DB_SCHEMA, create_type=False,
 )
 
 # server_default=FetchedValue() marca colunas com DEFAULT/trigger no próprio Postgres
@@ -113,6 +128,7 @@ class Proposta(Base):
     cliente_nome = Column(Text, nullable=False)
     cliente_telefone = Column(Text)
     cliente_endereco = Column(Text)
+    cliente_email = Column(Text)  # coluna a ser adicionada em produção pela equipe de dados
     arquiteto_nome = Column(Text)
     observacoes = Column(Text)
     desconto_geral = Column(Numeric(5, 2), nullable=False, default=0)
@@ -160,3 +176,67 @@ class PropostaItem(Base):
     customizacao_snapshot = Column(Text)
 
     versao = relationship("PropostaVersao", back_populates="itens")
+
+
+class ArquivoDrive(Base):
+    __tablename__ = "arquivos_drive"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    file_id = Column(Text, nullable=False)
+    fornecedor_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.fornecedores.id"))
+    nome = Column(Text)
+    mime_type = Column(Text)
+    checksum = Column(Text)
+    status = Column(status_arquivo_enum, nullable=False, default="ok")
+    processado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    fornecedor = relationship("Fornecedor")
+
+
+class ErroImportacao(Base):
+    __tablename__ = "erros_importacao"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    arquivo_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.arquivos_drive.id"))
+    aba = Column(Text)
+    linha = Column(Integer)
+    mensagem = Column(Text, nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    arquivo = relationship("ArquivoDrive")
+
+
+class PropostaRascunho(Base):
+    __tablename__ = "proposta_rascunhos"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    transcricao_original = Column(Text, nullable=False)
+    dados_extraidos = Column(JSONB)
+    status = Column(status_rascunho_enum, nullable=False, default="aguardando_revisao")
+    vendedor_id = Column(UUID(as_uuid=True), ForeignKey(f"{DB_SCHEMA}.usuarios.id"))
+    arquiteto = Column(Text)
+    cliente_nome = Column(Text)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+    expira_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    vendedor = relationship("Usuario")
+    itens = relationship("RascunhoItem", back_populates="rascunho")
+
+
+class RascunhoItem(Base):
+    __tablename__ = "rascunho_itens"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    rascunho_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.proposta_rascunhos.id"), nullable=False)
+    codigo_extraido = Column(Text, nullable=False)
+    produto_id = Column(BigInteger, ForeignKey(f"{DB_SCHEMA}.catalogo_produtos.id"))
+    quantidade = Column(Numeric, nullable=False, default=1)
+    desconto = Column(Numeric, nullable=False, default=0)
+    status = Column(status_item_rascunho_enum, nullable=False, default="encontrado")
+
+    rascunho = relationship("PropostaRascunho", back_populates="itens")
+    produto = relationship("CatalogoProduto")

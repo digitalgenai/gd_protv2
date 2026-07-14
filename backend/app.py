@@ -1,18 +1,37 @@
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
-from config import UPLOADS_DIR
+from config import SECRET_KEY, UPLOADS_DIR
 from db import engine
+from routes.auth import bp as auth_bp
+from routes.catalogo_qualidade import bp as catalogo_qualidade_bp
+from routes.dashboard import bp as dashboard_bp
 from routes.produtos import bp as produtos_bp
 from routes.propostas import bp as propostas_bp
+from routes.usuarios import bp as usuarios_bp
+from routes.voz import bp as voz_bp
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173"]}})
+    app.secret_key = SECRET_KEY
+    # SameSite=Lax + HttpOnly: cookie de sessão não é lido por JS (mitiga XSS) e só viaja em
+    # requests same-site (localhost:5173 e :5000 contam como same-site, portas diferentes não
+    # importam pra essa checagem) — navegação cross-site de terceiros não carrega o cookie.
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=False,  # dev local em http — true obrigatório atrás de https em produção
+    )
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173"]}}, supports_credentials=True)
 
     app.register_blueprint(produtos_bp)
     app.register_blueprint(propostas_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(catalogo_qualidade_bp)
+    app.register_blueprint(voz_bp)
+    app.register_blueprint(usuarios_bp)
+    app.register_blueprint(auth_bp)
 
     @app.get("/health")
     def health():

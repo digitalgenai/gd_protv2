@@ -9,6 +9,9 @@ function addDays(base: Date, days: number): string {
 
 interface ProposalHeader {
   cliente: string;
+  telefoneCliente: string;
+  enderecoCliente: string;
+  emailCliente: string;
   arquiteto: string;
   vendedor: string;
   validade: string;
@@ -16,7 +19,6 @@ interface ProposalHeader {
   versao: number;
   observacoes: string;
   globalDiscount: number;
-  vendaDireta: boolean;
   /** Ambientes definidos antecipadamente pelo consultor (ex.: "Sala de Estar", "Cozinha"), na ordem em que foram criados. */
   ambientes: string[];
 }
@@ -47,6 +49,9 @@ const PAYMENT_OPTIONS = ['À vista (5% desc.)', '30/60/90 dias', '10x sem juros 
 
 const DEFAULT_HEADER: ProposalHeader = {
   cliente: '',
+  telefoneCliente: '',
+  enderecoCliente: '',
+  emailCliente: '',
   arquiteto: '',
   vendedor: '',
   validade: addDays(new Date(), 2), // 48h por padrão, a pedido do time comercial
@@ -54,7 +59,6 @@ const DEFAULT_HEADER: ProposalHeader = {
   versao: 1,
   observacoes: '',
   globalDiscount: 0,
-  vendaDireta: false,
   ambientes: [],
 };
 
@@ -65,7 +69,10 @@ export function buildProposalCode(header: ProposalHeader): string {
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const yy = String(now.getFullYear()).slice(2);
   const cli = header.cliente.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 8) || 'CLIENTE';
-  return `GD-${mm}.${yy}.${header.vendedor || '---'}.001.v${header.versao}.${cli}`;
+  // header.vendedor é o id real do vendedor (uuid) — só um trecho curto aqui, é cosmético
+  // (a prévia antes de salvar); o código de verdade é gerado no banco via trigger.
+  const vendedorTag = header.vendedor ? header.vendedor.slice(0, 8).toUpperCase() : '---';
+  return `GD-${mm}.${yy}.${vendedorTag}.001.v${header.versao}.${cli}`;
 }
 
 export function ProposalDraftProvider({ children }: { children: ReactNode }) {
@@ -159,7 +166,7 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
       rowCounter.current += 1;
       return {
         id: rowCounter.current,
-        ambiente: '',
+        ambiente: item.ambiente || '',
         code: item.product.id,
         desc: item.product.name,
         qty: item.qty,
@@ -169,6 +176,13 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
       };
     });
     setRows((r) => [...r, ...newRows]);
+
+    // Qualquer ambiente citado na fala entra na lista de ambientes da proposta (mesma lista
+    // que "+ Estar"/"+ Cozinha" preenchem manualmente), senão o item fica órfão da seção.
+    const ambientesDetectados = Array.from(
+      new Set(result.items.map((i) => i.ambiente).filter((a): a is string => Boolean(a))),
+    );
+    ambientesDetectados.forEach((a) => addAmbiente(a));
   };
 
   const subtotal = useMemo(() => rows.reduce((s, r) => s + r.qty * r.price * (1 - r.disc / 100), 0), [rows]);

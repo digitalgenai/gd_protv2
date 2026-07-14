@@ -75,7 +75,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
       <div className="modal-box modal-box-lg">
         <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>Buscar no Catálogo</div>
+            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>Buscar no Catálogo</div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Adicione itens sem sair da proposta — {rows.length} na proposta agora</div>
           </div>
           <button className="btn btn-ghost btn-sm" aria-label="Fechar catálogo" onClick={onClose}>
@@ -107,7 +107,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
                       background: viewMode === 'grid' ? 'var(--gold)' : 'var(--card)',
-                      color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                      color: viewMode === 'grid' ? '#fefefe' : 'var(--text-secondary)',
                     }}
                     onClick={() => setViewMode('grid')}
                   >
@@ -120,7 +120,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
                       background: viewMode === 'list' ? 'var(--gold)' : 'var(--card)',
-                      color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
+                      color: viewMode === 'list' ? '#fefefe' : 'var(--text-secondary)',
                     }}
                     onClick={() => setViewMode('list')}
                   >
@@ -158,13 +158,13 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                             <td>
                               <div className="flex items-center gap-3">
                                 {p.img ? (
-                                  <img src={p.img} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                                  <img src={p.img} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
                                 ) : (
                                   <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg)', flexShrink: 0 }} />
                                 )}
                                 <div>
                                   <div className="font-medium">{p.name}</div>
-                                  <div className="mono text-xs" style={{ color: 'var(--gold)' }}>{p.id}</div>
+                                  <div className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.id}</div>
                                 </div>
                               </div>
                             </td>

@@ -1,6 +1,5 @@
 import { X } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
-import { CATALOG_CATEGORIES } from '../../data/categories';
 import type { FilterState } from '../../types';
 
 interface FilterSidebarProps {
@@ -26,7 +25,7 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
       <div className="flex items-center justify-between mb-4">
         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Filtros</span>
         <div className="flex items-center gap-2">
-          <button className="text-xs" style={{ color: 'var(--gold)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
+          <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
           <button
             id="btn-close-filter-mobile"
             style={{ display: mobileOpen ? 'flex' : 'none', width: 28, height: 28, border: 'none', background: 'var(--border)', borderRadius: 6, cursor: 'pointer', alignItems: 'center', justifyContent: 'center' }}
@@ -51,19 +50,16 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
 
       <div className="filter-group">
         <div className="filter-label">Categoria</div>
-        {CATALOG_CATEGORIES.map((c) => {
-          const count = facets.categories.find((fc) => fc.value === c)?.count ?? 0;
-          return (
-            <label key={c} className="filter-option">
-              <input
-                type="checkbox"
-                checked={filters.categories.includes(c)}
-                onChange={() => onChange({ categories: toggleValue(filters.categories, c) })}
-              />
-              {c} <span className="ml-auto text-xs" style={{ color: 'var(--text-secondary)' }}>{count}</span>
-            </label>
-          );
-        })}
+        {facets.categories.map(({ value: c, count }) => (
+          <label key={c} className="filter-option">
+            <input
+              type="checkbox"
+              checked={filters.categories.includes(c)}
+              onChange={() => onChange({ categories: toggleValue(filters.categories, c) })}
+            />
+            {c} <span className="ml-auto text-xs" style={{ color: 'var(--text-secondary)' }}>{count}</span>
+          </label>
+        ))}
       </div>
 
       <div className="filter-group">

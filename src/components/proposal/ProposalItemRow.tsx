@@ -70,6 +70,11 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
               ? <img src={matchedProduct.img} alt={matchedProduct.name} className="row-thumb" title={`${matchedProduct.supplier} · ${matchedProduct.finish}`} />
               : <span className="row-thumb-empty" title="Sem produto do catálogo vinculado" />}
             <input className="proposal-input" style={{ width: '100%' }} value={row.desc} onChange={(e) => updateRow(row.id, { desc: e.target.value })} />
+            {matchedProduct?.vendaDireta && (
+              <span className="badge badge-gold" style={{ fontSize: 10, flexShrink: 0 }} title="Este produto pode ser vendido direto">
+                Venda Direta
+              </span>
+            )}
           </div>
         </td>
         <td>
@@ -91,9 +96,9 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
           <button
             className="btn btn-sm"
             style={{
-              background: expanded ? 'rgba(123,29,52,.12)' : 'transparent',
+              background: expanded ? 'rgba(133,34,40,.12)' : 'transparent',
               border: `1.5px solid ${materialCount > 0 || expanded ? 'var(--gold)' : 'var(--border)'}`,
-              color: materialCount > 0 || expanded ? 'var(--gold)' : 'var(--text-secondary)',
+              color: materialCount > 0 || expanded ? 'var(--gold-text)' : 'var(--text-secondary)',
               width: '100%', justifyContent: 'center',
             }}
             aria-expanded={expanded}
@@ -110,9 +115,9 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
             <button
               className="btn btn-sm"
               style={{
-                background: expandedImg ? 'rgba(123,29,52,.12)' : 'transparent',
+                background: expandedImg ? 'rgba(133,34,40,.12)' : 'transparent',
                 border: `1.5px solid ${row.highlightImageId !== undefined || expandedImg ? 'var(--gold)' : 'var(--border)'}`,
-                color: row.highlightImageId !== undefined || expandedImg ? 'var(--gold)' : 'var(--text-secondary)',
+                color: row.highlightImageId !== undefined || expandedImg ? 'var(--gold-text)' : 'var(--text-secondary)',
                 width: '100%', justifyContent: 'center',
               }}
               aria-expanded={expandedImg}
@@ -211,7 +216,7 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
                 className="btn btn-sm"
                 style={{
                   border: `1.5px solid ${row.highlightImageId === undefined ? 'var(--gold)' : 'var(--border)'}`,
-                  color: row.highlightImageId === undefined ? 'var(--gold)' : 'var(--text-secondary)',
+                  color: row.highlightImageId === undefined ? 'var(--gold-text)' : 'var(--text-secondary)',
                 }}
                 onClick={() => updateRow(row.id, { highlightImageId: undefined })}
               >
@@ -235,7 +240,7 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
                   title={`Imagem ${img.posicao}`}
                   style={{
                     padding: 0, width: 52, height: 52, flexShrink: 0, cursor: 'pointer',
-                    borderRadius: 8, overflow: 'hidden',
+                    borderRadius: 8, overflow: 'hidden', background: '#fff',
                     border: `2px solid ${row.highlightImageId === img.id ? 'var(--gold)' : 'var(--border)'}`,
                   }}
                 >

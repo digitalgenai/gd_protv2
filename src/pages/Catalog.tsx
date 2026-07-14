@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CloudUpload, LayoutGrid, List, PackageSearch, Plus, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CloudUpload, LayoutGrid, List, Loader2, PackageSearch, Plus, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { filterProductsLocally } from '../api/products';
 import AmbienteSelectorBar from '../components/catalog/AmbienteSelectorBar';
 import FilterSidebar from '../components/catalog/FilterSidebar';
 import ProductCard from '../components/catalog/ProductCard';
+import ToggleSwitch from '../components/ui/ToggleSwitch';
+import ErrorState from '../components/ui/ErrorState';
 import { useImageModal } from '../context/ImageModalContext';
 import { useProducts } from '../context/ProductsContext';
 import { useProposalDraft } from '../context/ProposalDraftContext';
@@ -23,6 +25,21 @@ const DEFAULT_FILTERS: FilterState = {
   sort: 'relevance',
 };
 
+// Renderizar os 1300+ produtos de uma vez trava a montagem inicial e deixa o scroll pesado —
+// pagina em blocos deste tamanho.
+const PAGE_SIZE = 60;
+
+/** Números de página a mostrar, com "..." quando há mais páginas do que cabe na barra. */
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  if (current > 3) pages.push('...');
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p);
+  if (current < total - 2) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
 export default function Catalog() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -34,13 +51,27 @@ export default function Catalog() {
   // Fonte única de verdade: o catálogo inteiro vem do contexto (já carregado uma vez),
   // filtros/ordenação são derivados na hora — assim uma edição feita no modal de produto
   // (que atualiza o contexto) aparece aqui instantaneamente, sem precisar recarregar.
-  const { products: allProducts } = useProducts();
+  const { products: allProducts, setVendaDireta, loading, error, reload } = useProducts();
   const { header, rows, addProductToProposal } = useProposalDraft();
   const products = useMemo(() => filterProductsLocally(allProducts, filters), [allProducts, filters]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
+  // Se o filtro encolher o resultado enquanto o usuário está numa página alta, volta pra última válida.
+  const page = Math.min(currentPage, totalPages);
+  const pageProducts = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return products.slice(start, start + PAGE_SIZE);
+  }, [products, page]);
 
   useEffect(() => {
     setSelectedAmbiente((prev) => (header.ambientes.includes(prev) ? prev : header.ambientes[header.ambientes.length - 1] ?? ''));
   }, [header.ambientes]);
+
+  // Filtro/ordenação mudou — volta pra página 1, senão a paginação ficaria destravada
+  // num ponto sem sentido pro novo resultado (ex.: filtro com só 1 página, mas na página 5).
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const rowsInSelectedAmbiente = useMemo(() => rows.filter((r) => r.ambiente === selectedAmbiente), [rows, selectedAmbiente]);
   const codesInSelectedAmbiente = useMemo(
@@ -70,7 +101,11 @@ export default function Catalog() {
                 <SlidersHorizontal style={{ width: 14, height: 14 }} /> Filtros
               </button>
               <div id="catalog-count" style={{ fontSize: 13.5, color: 'var(--text-secondary)' }}>
-                {products.length} produto{products.length !== 1 ? 's' : ''}
+                {products.length === 0
+                  ? '0 produtos'
+                  : totalPages > 1
+                    ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, products.length)} de ${products.length}`
+                    : `${products.length} produto${products.length !== 1 ? 's' : ''}`}
               </div>
               <div className="flex items-center" style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <button
@@ -80,7 +115,7 @@ export default function Catalog() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
                     background: viewMode === 'grid' ? 'var(--gold)' : 'var(--card)',
-                    color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                    color: viewMode === 'grid' ? '#fefefe' : 'var(--text-secondary)',
                   }}
                   onClick={() => setViewMode('grid')}
                 >
@@ -93,7 +128,7 @@ export default function Catalog() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
                     background: viewMode === 'list' ? 'var(--gold)' : 'var(--card)',
-                    color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
+                    color: viewMode === 'list' ? '#fefefe' : 'var(--text-secondary)',
                   }}
                   onClick={() => setViewMode('list')}
                 >
@@ -136,10 +171,18 @@ export default function Catalog() {
             onChange={setSelectedAmbiente}
             itemsInSelected={rowsInSelectedAmbiente.map((r) => r.desc || r.code)}
           />
-          {products.length > 0 ? (
-            viewMode === 'grid' ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2" style={{ color: 'var(--text-secondary)' }}>
+              <Loader2 className="spin" style={{ width: 28, height: 28 }} />
+              <div style={{ fontSize: 14 }}>Carregando catálogo...</div>
+            </div>
+          ) : error ? (
+            <ErrorState message="Não foi possível carregar o catálogo — verifique se o backend está no ar." onRetry={reload} />
+          ) : products.length > 0 ? (
+            <>
+            {viewMode === 'grid' ? (
               <div id="catalog-grid" className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {products.map((p) => (
+                {pageProducts.map((p) => (
                   <ProductCard key={p.id} product={p} ambiente={selectedAmbiente} alreadyInAmbiente={codesInSelectedAmbiente.has(p.id.toLowerCase())} />
                 ))}
               </div>
@@ -148,21 +191,21 @@ export default function Catalog() {
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
-                      <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Preço</th><th /></tr>
+                      <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Preço</th><th>Venda Direta</th><th /></tr>
                     </thead>
                     <tbody>
-                      {products.map((p) => (
+                      {pageProducts.map((p) => (
                         <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => openImageModal(p, 'info')}>
                           <td>
                             <div className="flex items-center gap-3">
                               {p.img ? (
-                                <img src={p.img} alt={p.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                                <img src={p.img} alt={p.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
                               ) : (
                                 <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--bg)', flexShrink: 0 }} />
                               )}
                               <div>
                                 <div className="font-medium">{p.name}</div>
-                                <div className="mono text-xs" style={{ color: 'var(--gold)' }}>{p.id}</div>
+                                <div className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.id}</div>
                               </div>
                             </div>
                           </td>
@@ -170,6 +213,15 @@ export default function Catalog() {
                           <td style={{ color: 'var(--text-secondary)' }}>{p.cat || '—'}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{p.finish || '—'}</td>
                           <td className="mono font-semibold">{p.price ? formatCurrency(p.price) : '—'}</td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <ToggleSwitch
+                              checked={Boolean(p.vendaDireta)}
+                              onChange={(checked) => setVendaDireta(p.id, checked)}
+                              onLabel="Sim"
+                              offLabel="Não"
+                              ariaLabel={`Venda direta: ${p.id}`}
+                            />
+                          </td>
                           <td>
                             <button
                               className="btn btn-primary btn-sm"
@@ -192,7 +244,50 @@ export default function Catalog() {
                   </table>
                 </div>
               </div>
-            )
+            )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-5" role="navigation" aria-label="Paginação do catálogo">
+                <button
+                  className="btn btn-outline btn-sm"
+                  aria-label="Página anterior"
+                  disabled={page === 1}
+                  onClick={() => setCurrentPage(page - 1)}
+                >
+                  <ChevronLeft style={{ width: 14, height: 14 }} />
+                </button>
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${i}`} style={{ padding: '0 4px', color: 'var(--text-secondary)', fontSize: 13 }}>···</span>
+                  ) : (
+                    <button
+                      key={p}
+                      className="btn btn-sm"
+                      aria-label={`Página ${p}`}
+                      aria-current={p === page ? 'page' : undefined}
+                      style={{
+                        minWidth: 32,
+                        background: p === page ? 'var(--gold)' : 'var(--card)',
+                        color: p === page ? '#fefefe' : 'var(--text-secondary)',
+                        border: p === page ? 'none' : '1.5px solid var(--border)',
+                        fontWeight: 600,
+                      }}
+                      onClick={() => setCurrentPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
+                <button
+                  className="btn btn-outline btn-sm"
+                  aria-label="Próxima página"
+                  disabled={page === totalPages}
+                  onClick={() => setCurrentPage(page + 1)}
+                >
+                  <ChevronRight style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 gap-2" style={{ color: 'var(--text-secondary)' }}>
               <PackageSearch style={{ width: 40, height: 40, opacity: 0.3 }} />

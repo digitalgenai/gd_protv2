@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, CheckCircle, CloudUpload, Info, Images, Loader2, Save, Star, Trash2, X } from 'lucide-react';
+import { BarChart3, CheckCircle, CloudUpload, Info, Images, Loader2, Plus, Save, Star, X, ZoomIn } from 'lucide-react';
 import { useImageModal, type ImageModalTab } from '../../context/ImageModalContext';
 import { useProducts } from '../../context/ProductsContext';
 import { useToast } from '../../context/ToastContext';
-import { CATALOG_CATEGORIES } from '../../data/categories';
 import { updateProduct } from '../../api/products';
-import { uploadProductImage, deleteProductImage, reorderProductImage } from '../../api/images';
+import { uploadProductImage, reorderProductImage } from '../../api/images';
 import { ApiError } from '../../api/client';
 import { getProductStats } from '../../utils/productStats';
 import { formatCurrencyRounded } from '../../utils/format';
@@ -21,6 +20,9 @@ const TABS: { id: ImageModalTab; label: string; icon: typeof Info }[] = [
 ];
 
 const MAX_IMAGES = 3;
+// Mesmo teto do backend (config.MAX_TOTAL_IMAGES_PER_PRODUCT) — só pra desabilitar o botão
+// "Adicionar mais imagens" no limite, sem precisar de um round-trip pra descobrir isso.
+const MAX_TOTAL_IMAGES = 20;
 
 export default function ImageModal() {
   const { product, isOpen, initialTab, closeImageModal } = useImageModal();
@@ -32,6 +34,8 @@ export default function ImageModal() {
   const [savingInfo, setSavingInfo] = useState(false);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [addingExtra, setAddingExtra] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingSlotRef = useRef<number | null>(null);
 
@@ -40,20 +44,26 @@ export default function ImageModal() {
     setTab(initialTab);
     setForm({ name: product.name, cat: product.cat, supplier: product.supplier, finish: product.finish, price: product.price, dimensions: product.dimensions });
     setImages(product.images ?? []);
+    setLightboxUrl(null);
   }, [isOpen, product, initialTab]);
 
   useEffect(() => {
     if (!isOpen) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeImageModal();
+      if (e.key !== 'Escape') return;
+      if (lightboxUrl) setLightboxUrl(null);
+      else closeImageModal();
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, closeImageModal]);
+  }, [isOpen, closeImageModal, lightboxUrl]);
 
   if (!product) return null;
 
   const stats = getProductStats(product.id);
+  // Fotos legadas de antes do limite de 3 posições por produto (ver MAX_IMAGES_PER_PRODUCT no
+  // backend) — não cabem nos 3 slots principais, mas ficam visíveis aqui num carrossel.
+  const extraImages = images.filter((img) => img.posicao > MAX_IMAGES);
 
   async function handleSaveInfo() {
     if (!product) return;
@@ -73,7 +83,8 @@ export default function ImageModal() {
   async function handleUploadFile(file: File | null | undefined) {
     if (!file || !product) return;
     const slot = pendingSlotRef.current;
-    setUploadingSlot(slot);
+    if (slot) setUploadingSlot(slot);
+    else setAddingExtra(true);
     try {
       const nova = await uploadProductImage(product.id, file);
       setImages((prev) => {
@@ -86,23 +97,8 @@ export default function ImageModal() {
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Não foi possível enviar a imagem — backend indisponível.', 'error');
     } finally {
-      setUploadingSlot(null);
-    }
-  }
-
-  async function handleRemoveImage(imageId: number) {
-    if (!product) return;
-    try {
-      await deleteProductImage(product.id, imageId);
-      setImages((prev) => {
-        const next = prev.filter((img) => img.id !== imageId).sort((a, b) => a.posicao - b.posicao);
-        const principal = next.find((img) => img.posicao === 1);
-        updateProductLocally(product.id, { images: next, img: principal?.url || next[0]?.url || '' });
-        return next;
-      });
-      showToast('Imagem removida.', 'success');
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Não foi possível remover a imagem — backend indisponível.', 'error');
+      if (slot) setUploadingSlot(null);
+      else setAddingExtra(false);
     }
   }
 
@@ -121,6 +117,7 @@ export default function ImageModal() {
   }
 
   return (
+    <>
     <div
       id="modal-images"
       className={`modal-overlay${isOpen ? ' open' : ''}`}
@@ -134,7 +131,7 @@ export default function ImageModal() {
       <div className="modal-box">
         <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <div id="modal-product-name" style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 17 }}>{product.name}</div>
+            <div id="modal-product-name" style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 17 }}>{product.name}</div>
             <div id="modal-product-id" className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{product.id}</div>
           </div>
           <button className="btn btn-ghost btn-sm" aria-label="Fechar modal" onClick={closeImageModal}>
@@ -150,7 +147,7 @@ export default function ImageModal() {
               style={{
                 borderRadius: 0,
                 borderBottom: tab === id ? '2px solid var(--gold)' : '2px solid transparent',
-                color: tab === id ? 'var(--gold)' : 'var(--text-secondary)',
+                color: tab === id ? 'var(--gold-text)' : 'var(--text-secondary)',
                 fontWeight: 700,
               }}
               onClick={() => setTab(id)}
@@ -171,7 +168,10 @@ export default function ImageModal() {
                 <label className="form-label" htmlFor="pi-cat">Categoria</label>
                 <select id="pi-cat" className="form-input" value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))}>
                   <option value="">— Sem categoria —</option>
-                  {CATALOG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {form.cat && !facets.categories.some((fc) => fc.value === form.cat) && (
+                    <option value={form.cat}>{form.cat}</option>
+                  )}
+                  {facets.categories.map(({ value: c }) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -236,31 +236,40 @@ export default function ImageModal() {
                 return (
                   <div key={posicao}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
-                      Imagem {posicao} <span style={{ color: 'var(--gold)' }}>· {posicao === 1 ? 'Produto' : 'Ambiente'}</span>
+                      Imagem {posicao} <span style={{ color: 'var(--gold-text)' }}>· {posicao === 1 ? 'Produto' : 'Ambiente'}</span>
                     </div>
                     {existing ? (
-                      <div className="img-slot">
+                      <div
+                        className="img-slot"
+                        style={{ cursor: 'zoom-in' }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Ampliar imagem ${posicao}`}
+                        onClick={() => setLightboxUrl(existing.url)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLightboxUrl(existing.url); }}
+                      >
                         <img src={existing.url} alt={`Imagem ${posicao} do produto`} />
                         <div className="img-actions">
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: 'rgba(0,0,0,.6)', color: '#fefefe', borderRadius: 8 }}
+                            aria-label={`Ampliar imagem ${posicao}`}
+                            title="Ampliar"
+                            onClick={(e) => { e.stopPropagation(); setLightboxUrl(existing.url); }}
+                          >
+                            <ZoomIn style={{ width: 13, height: 13 }} />
+                          </button>
                           {posicao !== 1 && (
                             <button
                               className="btn btn-sm"
-                              style={{ background: 'rgba(0,0,0,.6)', color: '#fff', borderRadius: 8 }}
+                              style={{ background: 'rgba(0,0,0,.6)', color: '#fefefe', borderRadius: 8 }}
                               aria-label={`Tornar imagem ${posicao} principal`}
                               title="Tornar principal (posição 1)"
-                              onClick={() => handleMakePrimary(existing.id)}
+                              onClick={(e) => { e.stopPropagation(); handleMakePrimary(existing.id); }}
                             >
                               <Star style={{ width: 13, height: 13 }} />
                             </button>
                           )}
-                          <button
-                            className="btn btn-sm"
-                            style={{ background: 'rgba(0,0,0,.6)', color: '#fff', borderRadius: 8 }}
-                            aria-label={`Remover imagem ${posicao}`}
-                            onClick={() => handleRemoveImage(existing.id)}
-                          >
-                            <Trash2 style={{ width: 13, height: 13 }} />
-                          </button>
                         </div>
                         {posicao === 1 && (
                           <div style={{ position: 'absolute', bottom: 6, left: 6 }}>
@@ -303,7 +312,7 @@ export default function ImageModal() {
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
                           {isUploading ? 'Enviando...' : <>Arraste ou clique<br />para adicionar</>}
                         </div>
-                        <div style={{ fontSize: 11, color: '#D4D4D8' }}>Mín. 600×600px</div>
+                        <div style={{ fontSize: 11, color: '#d3d3d3' }}>Mín. 600×600px</div>
                       </div>
                     )}
                     {existing && (
@@ -316,9 +325,53 @@ export default function ImageModal() {
               })}
             </div>
 
+            <div className="mb-5">
+              {extraImages.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                    Mais {extraImages.length} imagem{extraImages.length > 1 ? 'ns' : ''} deste produto <span style={{ color: 'var(--gold-text)' }}>· clique para ampliar</span>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-1" style={{ marginBottom: 12 }}>
+                    {extraImages.map((img) => (
+                      <button
+                        key={img.id}
+                        type="button"
+                        aria-label={`Ampliar imagem extra (posição ${img.posicao})`}
+                        onClick={() => setLightboxUrl(img.url)}
+                        style={{
+                          flexShrink: 0, width: 96, height: 96, borderRadius: 8, overflow: 'hidden',
+                          border: '1.5px solid var(--border)', cursor: 'zoom-in', padding: 0, background: '#fff',
+                        }}
+                      >
+                        <img src={img.url} alt={`Imagem extra do produto, posição ${img.posicao}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={addingExtra || images.length >= MAX_TOTAL_IMAGES}
+                onClick={() => {
+                  pendingSlotRef.current = null;
+                  fileInputRef.current?.click();
+                }}
+              >
+                {addingExtra
+                  ? <Loader2 className="spin" style={{ width: 13, height: 13 }} />
+                  : <Plus style={{ width: 13, height: 13 }} />}
+                {addingExtra
+                  ? 'Enviando...'
+                  : images.length >= MAX_TOTAL_IMAGES
+                    ? `Limite de ${MAX_TOTAL_IMAGES} imagens atingido`
+                    : 'Adicionar mais imagens'}
+              </button>
+            </div>
+
             <div className="p-4 rounded-lg mb-5" style={{ background: 'rgba(56,161,105,.07)', border: '1px solid rgba(56,161,105,.2)' }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--success)', marginBottom: 4 }}>Validação Automática Ativa</div>
-              <div style={{ fontSize: 12.5, color: '#52525B' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--primary)' }}>
                 Imagens abaixo de <strong>600×600px</strong>, fora dos formatos JPEG/PNG/WEBP, ou fora da faixa de{' '}
                 <strong>50 KB – 10 MB</strong> são rejeitadas pelo backend antes de salvar — cada envio/remoção acima já é
                 persistido de imediato, sem precisar de um botão "Salvar" separado.
@@ -354,7 +407,7 @@ export default function ImageModal() {
                 <tbody>
                   {stats.proposals.map((p, i) => (
                     <tr key={`${p.code}-${i}`}>
-                      <td><span className="mono text-xs" style={{ color: 'var(--gold)' }}>{p.code}</span></td>
+                      <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
                       <td>{p.cliente}</td>
                       <td>{p.qty}</td>
                       <td><span className={`badge ${STATUS_BADGE[p.status as ProposalStatus]}`}>{statusBadgeLabel(p.status as ProposalStatus)}</span></td>
@@ -375,5 +428,37 @@ export default function ImageModal() {
         )}
       </div>
     </div>
+
+    {lightboxUrl && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Imagem ampliada"
+        onClick={() => setLightboxUrl(null)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.88)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, cursor: 'zoom-out',
+        }}
+      >
+        <button
+          aria-label="Fechar imagem ampliada"
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'absolute', top: 20, right: 20, width: 38, height: 38, borderRadius: '50%',
+            background: 'rgba(255,255,255,.12)', border: 'none', color: '#fefefe', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <X style={{ width: 20, height: 20 }} />
+        </button>
+        <img
+          src={lightboxUrl}
+          alt="Imagem ampliada do produto"
+          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, cursor: 'default' }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    )}
+    </>
   );
 }

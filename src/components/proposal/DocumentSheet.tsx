@@ -7,11 +7,13 @@ import type { Product, ProposalRow } from '../../types';
 export interface DocumentSheetProps {
   codeDisplay: string;
   cliente: string;
+  telefoneCliente?: string | null;
+  emailCliente?: string | null;
+  enderecoCliente?: string | null;
   arquiteto: string;
   vendedorLabel: string;
   pagamento: string;
   validadeDate: Date | null;
-  vendaDireta: boolean;
   groups: AmbienteGroup<ProposalRow>[];
   showAmbienteHeaders: boolean;
   products: Product[];
@@ -29,7 +31,7 @@ export interface DocumentSheetProps {
  * não usa este componente.
  */
 export default function DocumentSheet({
-  codeDisplay, cliente, arquiteto, vendedorLabel, pagamento, validadeDate, vendaDireta,
+  codeDisplay, cliente, telefoneCliente, emailCliente, enderecoCliente, arquiteto, vendedorLabel, pagamento, validadeDate,
   groups, showAmbienteHeaders, products, subtotal, globalDiscount, total, observacoes,
 }: DocumentSheetProps) {
   const hasItems = groups.some((g) => g.items.length > 0);
@@ -55,25 +57,13 @@ export default function DocumentSheet({
         <div className="prv-meta">
           <div className="prv-meta-item"><label>Código</label><span className="prv-code">{codeDisplay}</span></div>
           <div className="prv-meta-item"><label>Cliente</label><span>{cliente || '—'}</span></div>
+          <div className="prv-meta-item"><label>Telefone</label><span>{telefoneCliente || '—'}</span></div>
+          <div className="prv-meta-item"><label>E-mail</label><span>{emailCliente || '—'}</span></div>
+          <div className="prv-meta-item"><label>Endereço</label><span>{enderecoCliente || '—'}</span></div>
           <div className="prv-meta-item"><label>Arquiteto / Escritório</label><span>{arquiteto || '—'}</span></div>
           <div className="prv-meta-item"><label>Vendedor</label><span>{vendedorLabel}</span></div>
           <div className="prv-meta-item"><label>Condição de Pagamento</label><span>{pagamento}</span></div>
           <div className="prv-meta-item"><label>Validade</label><span>{validadeDate ? validadeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}</span></div>
-          <div className="prv-meta-item prv-tipovenda">
-            <label>Tipo de Venda</label>
-            <span
-              className={`pr-tipovenda-badge ${vendaDireta ? 'pr-tipovenda-direta' : 'pr-tipovenda-indireta'}`}
-              style={{
-                fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em',
-                padding: '2px 9px', borderRadius: 20, display: 'inline-block',
-                ...(vendaDireta
-                  ? { background: 'rgba(123,29,52,.1)', color: '#7B1D34', border: '1px solid rgba(123,29,52,.3)' }
-                  : { background: '#F5F5F5', color: '#71717A', border: '1px solid #E4E4E7' }),
-              }}
-            >
-              {vendaDireta ? 'Venda Direta' : 'Intermediada'}
-            </span>
-          </div>
         </div>
 
         <div className="prv-section-title">Itens da Proposta</div>
@@ -92,7 +82,7 @@ export default function DocumentSheet({
           <tbody>
             {!hasItems && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', color: '#A1A1AA', padding: '22px 0', fontStyle: 'italic' }}>
+                <td colSpan={6} style={{ textAlign: 'center', color: '#979797', padding: '22px 0', fontStyle: 'italic' }}>
                   Nenhum item adicionado ainda — os itens aparecerão aqui.
                 </td>
               </tr>
@@ -110,7 +100,20 @@ export default function DocumentSheet({
                       <td>{product?.img && <img src={product.img} className="prv-img" alt={r.desc} />}</td>
                       <td>
                         <div className="prv-item-code">{r.code}</div>
-                        <div className="prv-item-name">{r.desc || <span style={{ color: '#A1A1AA', fontStyle: 'italic' }}>Sem descrição</span>}</div>
+                        <div className="prv-item-name">
+                          {r.desc || <span style={{ color: '#979797', fontStyle: 'italic' }}>Sem descrição</span>}
+                          {product?.vendaDireta && (
+                            <span
+                              style={{
+                                marginLeft: 6, fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
+                                padding: '1.5px 7px', borderRadius: 20, display: 'inline-block', verticalAlign: 'middle',
+                                background: 'rgba(133,34,40,.1)', color: '#852228', border: '1px solid rgba(133,34,40,.3)',
+                              }}
+                            >
+                              Venda Direta
+                            </span>
+                          )}
+                        </div>
                         <div className="prv-item-sub">{product ? `${product.supplier} · ${product.finish}` : ''}</div>
                         {r.materiais.filter((m) => m.descricao.trim()).length > 0 && (
                           <div className="prv-item-sub">
@@ -123,7 +126,7 @@ export default function DocumentSheet({
                       </td>
                       <td className="prv-num prv-center">{r.qty}</td>
                       <td className="prv-num prv-right">{formatCurrency(r.price)}</td>
-                      <td className="prv-center" style={{ fontSize: 10.5, color: r.disc > 0 ? '#DD6B20' : '#A1A1AA', fontWeight: 700 }}>
+                      <td className="prv-center" style={{ fontSize: 10.5, color: r.disc > 0 ? '#DD6B20' : '#979797', fontWeight: 700 }}>
                         {r.disc > 0 ? `${r.disc}%` : '—'}
                       </td>
                       <td className="prv-num prv-right" style={{ fontWeight: 700 }}>{formatCurrency(lineTotal)}</td>
@@ -161,7 +164,7 @@ export default function DocumentSheet({
 
         <div className="prv-terms">
           <div className="prv-terms-header">Condições Gerais</div>
-          <div className="prv-terms-row" style={{ fontWeight: 600, color: '#111' }}>FORMA DE PAGAMENTO: {pagamento}</div>
+          <div className="prv-terms-row" style={{ fontWeight: 600, color: '#343434' }}>FORMA DE PAGAMENTO: {pagamento}</div>
           <div className="prv-terms-row">Orçamento válido por até 48h — provável mudança de tabela.</div>
           <div className="prv-terms-row">O prazo de entrega de peças sob encomenda varia de <strong>90 a 120 dias</strong>.</div>
           <div className="prv-terms-row">O prazo máximo de armazenamento em nosso depósito será de <strong>120 dias corridos</strong> após o recebimento.</div>

@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { FileDown, X } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../../context/ProposalDraftContext';
+import { useVendedores } from '../../context/VendedoresContext';
 import { groupByAmbiente, shouldShowAmbienteHeaders, orderGroupsByAmbientList } from '../../utils/groupByAmbiente';
-import { vendedorLabel } from '../../data/vendedores';
 import DocumentSheet from './DocumentSheet';
 
 interface ProposalPreviewProps {
@@ -16,6 +16,7 @@ interface ProposalPreviewProps {
 export default function ProposalPreview({ open, onClose, onGeneratePdf }: ProposalPreviewProps) {
   const { header, rows, proposalCode, subtotal, total } = useProposalDraft();
   const { products } = useProducts();
+  const { vendedores } = useVendedores();
 
   useEffect(() => {
     if (!open) return;
@@ -29,7 +30,7 @@ export default function ProposalPreview({ open, onClose, onGeneratePdf }: Propos
   const groups = orderGroupsByAmbientList(groupByAmbiente(rows), header.ambientes);
   const showAmbienteHeaders = shouldShowAmbienteHeaders(groups);
   const codeDisplay = proposalCode.replace(/\.CLIENTE$/, '');
-  const vendedorDisplay = vendedorLabel(header.vendedor);
+  const vendedorDisplay = vendedores.find((v) => v.id === header.vendedor)?.nome ?? '—';
   const pagamento = PAYMENT_OPTIONS.includes(header.pagamento) ? header.pagamento : PAYMENT_OPTIONS[0];
   const validadeDate = header.validade ? new Date(`${header.validade}T00:00:00`) : null;
 
@@ -46,12 +47,12 @@ export default function ProposalPreview({ open, onClose, onGeneratePdf }: Propos
       <div className="preview-sheet">
         <div className="preview-toolbar">
           <span className="preview-toolbar-title">Prévia do documento</span>
-          <span style={{ fontSize: 11.5, color: '#A1A1AA' }}>É assim que o cliente vai receber</span>
+          <span style={{ fontSize: 11.5, color: '#979797' }}>É assim que o cliente vai receber</span>
           <div className="ml-auto flex items-center gap-2">
             <button className="btn btn-gold btn-sm" onClick={onGeneratePdf}>
               <FileDown style={{ width: 13, height: 13 }} /> Gerar PDF
             </button>
-            <button className="btn btn-ghost btn-sm" style={{ color: '#A1A1AA' }} aria-label="Fechar prévia" onClick={onClose}>
+            <button className="btn btn-ghost btn-sm" style={{ color: '#979797' }} aria-label="Fechar prévia" onClick={onClose}>
               <X style={{ width: 16, height: 16 }} />
             </button>
           </div>
@@ -60,11 +61,13 @@ export default function ProposalPreview({ open, onClose, onGeneratePdf }: Propos
         <DocumentSheet
           codeDisplay={codeDisplay}
           cliente={header.cliente}
+          telefoneCliente={header.telefoneCliente}
+          emailCliente={header.emailCliente}
+          enderecoCliente={header.enderecoCliente}
           arquiteto={header.arquiteto}
           vendedorLabel={vendedorDisplay}
           pagamento={pagamento}
           validadeDate={validadeDate}
-          vendaDireta={header.vendaDireta}
           groups={groups}
           showAmbienteHeaders={showAmbienteHeaders}
           products={products}

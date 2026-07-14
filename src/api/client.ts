@@ -19,12 +19,14 @@ interface RequestOptions extends RequestInit {
 
 /**
  * Wrapper fino sobre fetch para os endpoints REST descritos em requirements_v2.md.
- * Cada função em src/api/*.ts captura ApiUnavailableError e recorre aos mocks locais
- * quando o backend Flask não está no ar — mas um erro real (400/404/500) do backend
- * ativo vira ApiError, propagada como está, para não mascarar o problema com um mock.
+ * Backend fora do ar (rede caiu, timeout) vira ApiUnavailableError; um erro real do
+ * backend ativo (400/404/500) vira ApiError — quem chama trata cada caso e mostra
+ * um estado de erro/retry, nunca cai em dado mockado.
  */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { timeoutMs = 4000, ...init } = options;
+  // 1012 produtos reais com joins de fornecedor/customização/imagens já passam de 2s sozinhos;
+  // 4s estourava fácil sob concorrência (várias telas buscando ao mesmo tempo).
+  const { timeoutMs = 15000, ...init } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -35,6 +37,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     res = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       signal: controller.signal,
+      credentials: 'include', // manda/recebe o cookie de sessão do login (porta diferente do front)
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...init.headers,

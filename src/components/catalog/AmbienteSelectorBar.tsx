@@ -28,10 +28,10 @@ export default function AmbienteSelectorBar({ ambientes, selected, onChange, ite
 
   return (
     <div
-      style={{ background: 'rgba(123,29,52,.06)', border: '1px solid rgba(123,29,52,.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 14 }}
+      style={{ background: 'rgba(133,34,40,.06)', border: '1px solid rgba(133,34,40,.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 14 }}
     >
       <div className="flex items-center gap-2 flex-wrap" style={{ fontSize: 13 }}>
-        <Home style={{ width: 13, height: 13, color: 'var(--gold)', flexShrink: 0 }} />
+        <Home style={{ width: 13, height: 13, color: 'var(--gold-text)', flexShrink: 0 }} />
         <span style={{ fontWeight: 600 }}>Adicionando itens para:</span>
         <select
           className="form-input"

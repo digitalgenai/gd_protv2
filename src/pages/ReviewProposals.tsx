@@ -59,8 +59,8 @@ export default function ReviewProposals() {
               <div className="kpi-value mono" style={{ fontSize: 22 }}>{formatCurrencyRounded(totalValor)}</div>
               <div className="kpi-label">Valor total em revisão</div>
             </div>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(123,29,52,.12)' }}>
-              <Banknote style={{ width: 20, height: 20, color: 'var(--gold)' }} />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(133,34,40,.12)' }}>
+              <Banknote style={{ width: 20, height: 20, color: 'var(--gold-text)' }} />
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function ReviewProposals() {
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="relative flex-1" style={{ minWidth: 200 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#71717A' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#979797' }} />
           <input
             type="text"
             placeholder="Buscar por código, cliente..."
@@ -120,7 +120,7 @@ export default function ReviewProposals() {
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.code}>
-                  <td><span className="mono text-xs" style={{ color: 'var(--gold)' }}>{p.code}</span></td>
+                  <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
                   <td className="font-medium">{p.cliente}</td>
                   <td style={{ color: 'var(--text-secondary)' }}>{p.arquiteto || '—'}</td>
                   <td style={{ fontSize: 13 }}>{p.vendedor}</td>
@@ -161,7 +161,7 @@ export default function ReviewProposals() {
                         className="btn btn-ghost btn-sm"
                         title="Enviar proposta"
                         aria-label={`Enviar ${p.cliente}`}
-                        style={{ color: 'var(--gold)' }}
+                        style={{ color: 'var(--gold-text)' }}
                         onClick={() => showToast('Proposta enviada por e-mail!', 'success')}
                       >
                         <Send style={{ width: 14, height: 14 }} />

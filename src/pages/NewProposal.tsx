@@ -1,24 +1,37 @@
-import { Fragment, useState } from 'react';
-import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Package, Plus, Save, Send, X } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, X } from 'lucide-react';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
+import { useVendedores } from '../context/VendedoresContext';
 import { useToast } from '../context/ToastContext';
 import { createProposal } from '../api/proposals';
-import { formatCurrency, parseClamped } from '../utils/format';
+import { formatCurrency, formatPhoneBR, parseClamped } from '../utils/format';
+import { buildWhatsAppShareLink } from '../utils/whatsapp';
+import { buildMailtoShareLink } from '../utils/email';
 import { groupByAmbiente, shouldShowAmbienteHeaders, orderGroupsByAmbientList, AMBIENTE_SUGGESTIONS } from '../utils/groupByAmbiente';
 import ProposalItemRow from '../components/proposal/ProposalItemRow';
 import ProposalPreview from '../components/proposal/ProposalPreview';
 import CatalogPickerModal from '../components/catalog/CatalogPickerModal';
-import ToggleSwitch from '../components/ui/ToggleSwitch';
-import { VENDEDOR_OPTIONS } from '../data/vendedores';
 
 export default function NewProposal() {
   const { header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente, proposalCode, subtotal, total } = useProposalDraft();
   const { products: allProducts } = useProducts();
+  const { vendedores } = useVendedores();
   const { showToast } = useToast();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [novoAmbiente, setNovoAmbiente] = useState('');
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const sendMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sendMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (sendMenuRef.current && !sendMenuRef.current.contains(e.target as Node)) setSendMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [sendMenuOpen]);
   const groups = orderGroupsByAmbientList(groupByAmbiente(rows), header.ambientes);
   const showAmbienteHeaders = shouldShowAmbienteHeaders(groups);
 
@@ -63,19 +76,25 @@ export default function NewProposal() {
 
   async function handleSave() {
     if (!validateHeader()) return;
-    await createProposal({
-      cliente: header.cliente,
-      arquiteto: header.arquiteto || null,
-      vendedor: header.vendedor,
-      validade: header.validade,
-      pagamento: header.pagamento,
-      versao: header.versao,
-      observacoes: header.observacoes,
-      descontoGlobal: header.globalDiscount,
-      vendaDireta: header.vendaDireta,
-      itens: rows,
-    });
-    showToast('Rascunho salvo!', 'success');
+    try {
+      await createProposal({
+        cliente: header.cliente,
+        telefoneCliente: header.telefoneCliente || null,
+        enderecoCliente: header.enderecoCliente || null,
+        emailCliente: header.emailCliente || null,
+        arquiteto: header.arquiteto || null,
+        vendedor: header.vendedor,
+        validade: header.validade,
+        pagamento: header.pagamento,
+        versao: header.versao,
+        observacoes: header.observacoes,
+        descontoGlobal: header.globalDiscount,
+        itens: rows,
+      });
+      showToast('Rascunho salvo!', 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível salvar a proposta — backend indisponível.', 'error');
+    }
   }
 
   function handlePdf() {
@@ -86,13 +105,44 @@ export default function NewProposal() {
     window.print();
   }
 
-  function handleSend() {
-    if (!validateHeader()) return;
+  function podeEnviar(): boolean {
+    if (!validateHeader()) return false;
     if (rows.length === 0) {
       showToast('Adicione itens à proposta antes de enviar.', 'error');
-      return;
+      return false;
     }
-    showToast('Proposta enviada por e-mail!', 'success');
+    return true;
+  }
+
+  function handleSendWhatsApp() {
+    setSendMenuOpen(false);
+    if (!podeEnviar()) return;
+    const mensagem = [
+      `Olá${header.cliente.trim() ? ', ' + header.cliente.trim() : ''}! Segue a proposta *${proposalCode}* da Galpão Design.`,
+      '',
+      `Valor total: ${formatCurrency(total)}`,
+      '',
+      'Qualquer dúvida, estou à disposição!',
+    ].join('\n');
+    window.open(buildWhatsAppShareLink(header.telefoneCliente, mensagem), '_blank', 'noopener,noreferrer');
+    showToast('Anexe o PDF da proposta manualmente na conversa do WhatsApp.', 'info');
+  }
+
+  function handleSendEmail() {
+    setSendMenuOpen(false);
+    if (!podeEnviar()) return;
+    const assunto = `Proposta Comercial ${proposalCode} — Galpão Design`;
+    const corpo = [
+      `Olá${header.cliente.trim() ? ', ' + header.cliente.trim() : ''}!`,
+      '',
+      `Segue a proposta ${proposalCode} da Galpão Design.`,
+      '',
+      `Valor total: ${formatCurrency(total)}`,
+      '',
+      'Qualquer dúvida, estou à disposição!',
+    ].join('\n');
+    window.location.href = buildMailtoShareLink(header.emailCliente, assunto, corpo);
+    showToast('Anexe o PDF da proposta manualmente no e-mail.', 'info');
   }
 
   return (
@@ -111,7 +161,7 @@ export default function NewProposal() {
               {proposalCode}
               <button
                 className="btn btn-ghost btn-sm"
-                style={{ padding: '2px 6px', color: '#71717A' }}
+                style={{ padding: '2px 6px', color: '#979797' }}
                 aria-label="Copiar código da proposta"
                 title="Copiar código"
                 onClick={() => {
@@ -135,7 +185,7 @@ export default function NewProposal() {
             <div className="proposal-hero-total-label">Total da proposta</div>
             <div className="proposal-hero-total"><span key={total} className="total-pop">{formatCurrency(total)}</span></div>
             {header.globalDiscount > 0 && (
-              <div style={{ fontSize: 11.5, color: '#A0354D', fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, color: '#AA3A41', fontWeight: 600, marginTop: 2 }}>
                 com {header.globalDiscount}% de desconto global
               </div>
             )}
@@ -150,6 +200,34 @@ export default function NewProposal() {
             <input id="pCliente" type="text" placeholder="Nome do cliente" className="form-input" value={header.cliente} onChange={(e) => setHeaderField('cliente', e.target.value)} />
           </div>
           <div>
+            <label className="form-label" htmlFor="pTelefone">Telefone do Cliente</label>
+            <input
+              id="pTelefone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="(00) 00000-0000"
+              maxLength={15}
+              className="form-input"
+              value={header.telefoneCliente}
+              onChange={(e) => setHeaderField('telefoneCliente', formatPhoneBR(e.target.value))}
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="pEmail">E-mail do Cliente</label>
+            <input
+              id="pEmail"
+              type="email"
+              placeholder="cliente@email.com"
+              className="form-input"
+              value={header.emailCliente}
+              onChange={(e) => setHeaderField('emailCliente', e.target.value)}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="form-label" htmlFor="pEndereco">Endereço do Cliente</label>
+            <input id="pEndereco" type="text" placeholder="Rua, número, bairro, cidade, CEP" className="form-input" value={header.enderecoCliente} onChange={(e) => setHeaderField('enderecoCliente', e.target.value)} />
+          </div>
+          <div>
             <label className="form-label" htmlFor="pArquiteto">Arquiteto / Escritório</label>
             <input id="pArquiteto" type="text" placeholder="Nome do arquiteto" className="form-input" value={header.arquiteto} onChange={(e) => setHeaderField('arquiteto', e.target.value)} />
           </div>
@@ -157,7 +235,7 @@ export default function NewProposal() {
             <label className="form-label" htmlFor="pVendedor">Vendedor *</label>
             <select id="pVendedor" className="form-input" value={header.vendedor} onChange={(e) => setHeaderField('vendedor', e.target.value)}>
               <option value="">Selecione...</option>
-              {VENDEDOR_OPTIONS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+              {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
             </select>
           </div>
           <div>
@@ -174,22 +252,13 @@ export default function NewProposal() {
             <label className="form-label" htmlFor="pVersion">Versão</label>
             <input id="pVersion" type="number" min={1} className="form-input" value={header.versao} onChange={(e) => setHeaderField('versao', Math.round(parseClamped(e.target.value, 1, 99)))} />
           </div>
-          <div>
-            <label className="form-label">Venda Direta</label>
-            <ToggleSwitch
-              checked={header.vendaDireta}
-              onChange={(checked) => setHeaderField('vendaDireta', checked)}
-              badgeLabel="Venda Direta"
-              ariaLabel="Venda Direta"
-            />
-          </div>
         </div>
       </div>
 
       <div className="card p-5 mb-5 rise-in" style={{ animationDelay: '.09s' }}>
         <div className="flex items-center gap-2 mb-1">
-          <Home style={{ width: 15, height: 15, color: 'var(--gold)' }} />
-          <span style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 14 }}>Ambientes desta proposta</span>
+          <Home style={{ width: 15, height: 15, color: 'var(--gold-text)' }} />
+          <span style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 14 }}>Ambientes desta proposta</span>
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 12 }}>
           Defina os ambientes (sala de estar, cozinha, suíte 1...) antes de adicionar os itens — cada produto será relacionado a um deles.
@@ -206,7 +275,7 @@ export default function NewProposal() {
                 {a}
                 <button
                   className="btn btn-ghost btn-sm"
-                  style={{ padding: 2, color: 'var(--gold)' }}
+                  style={{ padding: 2, color: 'var(--gold-text)' }}
                   aria-label={`Remover ambiente ${a}`}
                   title="Remover ambiente"
                   onClick={() => removeAmbiente(a)}
@@ -254,7 +323,7 @@ export default function NewProposal() {
 
       <div className="card overflow-hidden mb-4 rise-in" style={{ animationDelay: '.12s' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <span style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15 }}>Itens da Proposta</span>
+          <span style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 15 }}>Itens da Proposta</span>
           <div className="flex gap-2">
             <button className="btn btn-outline btn-sm" onClick={() => setCatalogOpen(true)}>
               <Package style={{ width: 13, height: 13 }} /> Buscar no Catálogo
@@ -293,7 +362,7 @@ export default function NewProposal() {
                           <td colSpan={11} className="ambiente-bar">
                             <div className="flex items-center justify-between">
                               <span>{group.ambiente}</span>
-                              <button className="btn btn-ghost btn-sm" style={{ color: '#fff' }} onClick={() => addEmptyRow(group.ambiente === 'Itens Gerais' ? '' : group.ambiente)}>
+                              <button className="btn btn-ghost btn-sm" style={{ color: '#fefefe' }} onClick={() => addEmptyRow(group.ambiente === 'Itens Gerais' ? '' : group.ambiente)}>
                                 <Plus style={{ width: 12, height: 12 }} /> Item neste ambiente
                               </button>
                             </div>
@@ -314,9 +383,9 @@ export default function NewProposal() {
         ) : (
           <div className="flex flex-col items-center justify-center py-14 gap-2" style={{ color: 'var(--text-secondary)' }}>
             <FilePlus style={{ width: 38, height: 38, opacity: 0.3 }} />
-            <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--primary)' }}>Comece a montar a proposta</div>
+            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--primary)' }}>Comece a montar a proposta</div>
             <div style={{ fontSize: 13, maxWidth: 380, textAlign: 'center' }}>
-              Adicione móveis do catálogo, digite um código (ex.: <span className="mono" style={{ color: 'var(--gold)' }}>GD-CAD-001</span>) ou use o microfone para ditar os itens.
+              Adicione móveis do catálogo, digite um código (ex.: <span className="mono" style={{ color: 'var(--gold-text)' }}>GD-CAD-001</span>) ou use o microfone para ditar os itens.
             </div>
             <div className="flex gap-2 mt-2">
               <button className="btn btn-outline btn-sm" onClick={() => setCatalogOpen(true)}>
@@ -329,7 +398,7 @@ export default function NewProposal() {
       </div>
 
       <div className="card p-5 mb-5 rise-in" style={{ animationDelay: '.15s' }}>
-        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Checklist de Validação</div>
+        <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Checklist de Validação</div>
         <div className="space-y-2.5">
           {validationChecklist.map((item) => (
             <div key={item.label} className="flex items-center gap-2" style={{ fontSize: 13.5 }}>
@@ -369,7 +438,7 @@ export default function NewProposal() {
             <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
               <div className="flex justify-between items-center">
                 <span style={{ fontWeight: 700, fontSize: 15 }}>Total</span>
-                <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)' }}>{formatCurrency(total)}</span>
+                <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold-text)' }}>{formatCurrency(total)}</span>
               </div>
             </div>
           </div>
@@ -383,9 +452,30 @@ export default function NewProposal() {
             <button className="btn btn-outline flex-1" onClick={handlePdf}>
               <FileDown style={{ width: 14, height: 14 }} /> PDF
             </button>
-            <button className="btn btn-gold flex-1" onClick={handleSend}>
-              <Send style={{ width: 14, height: 14 }} /> Enviar
-            </button>
+            <div className="relative flex-1" ref={sendMenuRef}>
+              <button
+                className="btn btn-gold w-full"
+                aria-expanded={sendMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setSendMenuOpen((v) => !v)}
+              >
+                <Send style={{ width: 14, height: 14 }} /> Enviar
+              </button>
+              {sendMenuOpen && (
+                <div
+                  className="card"
+                  role="menu"
+                  style={{ position: 'absolute', right: 0, bottom: 'calc(100% + 8px)', width: 200, padding: 6, zIndex: 30 }}
+                >
+                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={handleSendWhatsApp}>
+                    <MessageCircle style={{ width: 14, height: 14 }} /> Via WhatsApp
+                  </button>
+                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={handleSendEmail}>
+                    <Mail style={{ width: 14, height: 14 }} /> Via E-mail
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

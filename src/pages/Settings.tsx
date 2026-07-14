@@ -1,19 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle, Cloud, CloudUpload, Database, Mic, RefreshCw, Settings as SettingsIcon, Users, UserPlus,
+  AlertTriangle, CheckCircle, Cloud, CloudUpload, Database, Loader2, Mic, Power, RefreshCw, Users, UserPlus, X,
 } from 'lucide-react';
 import { checkBackendHealth } from '../api/health';
+import { createUsuario, fetchUsuarios, setUsuarioAtivo, type PerfilUsuario, type Usuario } from '../api/usuarios';
+import ErrorState from '../components/ui/ErrorState';
 import { useToast } from '../context/ToastContext';
 
 type Tab = 'usuarios' | 'integracoes';
 
-const USERS = [
-  { nome: 'Marcos E. Silva', codigo: 'MES', email: 'marcos@galpaodesign.com.br', perfil: 'Vendedor Sênior', ativo: true },
-  { nome: 'Carolina A. Rocha', codigo: 'CAR', email: 'carolina@galpaodesign.com.br', perfil: 'Vendedor', ativo: true },
-  { nome: 'Rodrigo Santos', codigo: 'ROD', email: 'rodrigo@galpaodesign.com.br', perfil: 'Vendedor', ativo: true },
-  { nome: 'Ana Paula Melo', codigo: 'ANA', email: 'ana@galpaodesign.com.br', perfil: 'Vendedor', ativo: false },
-];
+const PERFIS: PerfilUsuario[] = ['Administrador', 'Supervisor', 'Vendedor'];
+
+const EMPTY_FORM = { nome: '', email: '', senha: '', perfil: 'Vendedor' as PerfilUsuario, setor: 'Vendas' };
 
 const IMPORT_LOGS = [
   { titulo: 'Import automático — Hoje 09:14', detalhe: '18 imagens importadas · 0 erros · Pasta: /catalogo-maio-2026', status: 'Sucesso' as const },
@@ -32,9 +31,29 @@ export default function Settings() {
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'integracoes' ? 'integracoes' : 'usuarios');
   const [dbOnline, setDbOnline] = useState<boolean | null>(null);
 
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(true);
+  const [errorUsuarios, setErrorUsuarios] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  const loadUsuarios = useCallback(() => {
+    setLoadingUsuarios(true);
+    setErrorUsuarios(false);
+    fetchUsuarios()
+      .then(setUsuarios)
+      .catch(() => setErrorUsuarios(true))
+      .finally(() => setLoadingUsuarios(false));
+  }, []);
+
   useEffect(() => {
     checkBackendHealth().then(setDbOnline);
   }, []);
+
+  useEffect(() => {
+    loadUsuarios();
+  }, [loadUsuarios]);
 
   useEffect(() => {
     const t = searchParams.get('tab');
@@ -44,6 +63,49 @@ export default function Settings() {
   function selectTab(next: Tab) {
     setTab(next);
     setSearchParams({ tab: next });
+  }
+
+  function openNewUserModal() {
+    setForm(EMPTY_FORM);
+    setModalOpen(true);
+  }
+
+  async function handleSaveUsuario() {
+    const nome = form.nome.trim();
+    const email = form.email.trim();
+    if (!nome) {
+      showToast('Informe o nome do usuário.', 'warning');
+      return;
+    }
+    if (!email) {
+      showToast('Informe o e-mail do usuário.', 'warning');
+      return;
+    }
+    if (form.senha.length < 4) {
+      showToast('A senha deve ter pelo menos 4 caracteres.', 'warning');
+      return;
+    }
+    setSaving(true);
+    try {
+      await createUsuario({ nome, email, senha: form.senha, perfil: form.perfil, setor: form.setor.trim() || undefined });
+      showToast('Usuário criado com sucesso!', 'success');
+      setModalOpen(false);
+      loadUsuarios();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível criar o usuário.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleToggleAtivo(u: Usuario) {
+    try {
+      await setUsuarioAtivo(u.id, !u.isActive);
+      showToast(`${u.nome} agora está ${u.isActive ? 'inativo' : 'ativo'}.`, 'success');
+      loadUsuarios();
+    } catch {
+      showToast('Não foi possível atualizar o status do usuário.', 'error');
+    }
   }
 
   return (
@@ -56,7 +118,7 @@ export default function Settings() {
             style={{
               borderRadius: 0,
               borderBottom: tab === id ? '2px solid var(--gold)' : '2px solid transparent',
-              color: tab === id ? 'var(--gold)' : 'var(--text-secondary)',
+              color: tab === id ? 'var(--gold-text)' : 'var(--text-secondary)',
               fontWeight: 700,
             }}
             onClick={() => selectTab(id)}
@@ -69,39 +131,87 @@ export default function Settings() {
       {tab === 'usuarios' && (
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-            <span style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15 }}>Gestão de Usuários</span>
-            <button className="btn btn-primary btn-sm" onClick={() => showToast('Cadastro de usuários disponível quando o backend estiver conectado (RF-044).', 'info')}>
+            <span style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 15 }}>Gestão de Usuários</span>
+            <button className="btn btn-primary btn-sm" onClick={openNewUserModal}>
               <UserPlus style={{ width: 13, height: 13 }} /> Novo Usuário
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead><tr><th>Nome</th><th>Código</th><th>E-mail</th><th>Perfil</th><th>Status</th><th /></tr></thead>
-              <tbody>
-                {USERS.map((u) => (
-                  <tr key={u.codigo}>
-                    <td className="font-medium">{u.nome}</td>
-                    <td><span className="mono badge badge-gold">{u.codigo}</span></td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
-                    <td>{u.perfil}</td>
-                    <td><span className={`badge ${u.ativo ? 'badge-success' : 'badge-draft'}`}>{u.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                    <td>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        aria-label={`Configurar ${u.nome}`}
-                        title={`Configurar ${u.nome}`}
-                        onClick={() => showToast(`Edição de ${u.nome} disponível quando o backend estiver conectado.`, 'info')}
-                      >
-                        <SettingsIcon style={{ width: 13, height: 13 }} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loadingUsuarios ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2" style={{ color: 'var(--text-secondary)' }}>
+              <Loader2 className="spin" style={{ width: 28, height: 28 }} />
+              <div style={{ fontSize: 14 }}>Carregando usuários...</div>
+            </div>
+          ) : errorUsuarios ? (
+            <ErrorState message="Não foi possível carregar os usuários — verifique se o backend está no ar." onRetry={loadUsuarios} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead><tr><th>Nome</th><th>Código</th><th>E-mail</th><th>Perfil</th><th>Status</th><th /></tr></thead>
+                <tbody>
+                  {usuarios.map((u) => (
+                    <tr key={u.id}>
+                      <td className="font-medium">{u.nome}</td>
+                      <td><span className="mono badge badge-gold">{u.codigoVendedor ?? '—'}</span></td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
+                      <td>{u.perfil}</td>
+                      <td><span className={`badge ${u.isActive ? 'badge-success' : 'badge-draft'}`}>{u.isActive ? 'Ativo' : 'Inativo'}</span></td>
+                      <td>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          aria-label={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
+                          title={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
+                          onClick={() => handleToggleAtivo(u)}
+                        >
+                          <Power style={{ width: 13, height: 13, color: u.isActive ? 'var(--success)' : 'var(--text-secondary)' }} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
+
+      <div className={`modal-overlay${modalOpen ? ' open' : ''}`} role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
+        <div className="modal-box" style={{ width: 460 }}>
+          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>Novo Usuário</div>
+            <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setModalOpen(false)}>
+              <X style={{ width: 18, height: 18 }} />
+            </button>
+          </div>
+          <div className="p-6">
+            <div className="mb-4">
+              <label className="form-label" htmlFor="user-nome">Nome *</label>
+              <input id="user-nome" className="form-input" value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} />
+            </div>
+            <div className="mb-4">
+              <label className="form-label" htmlFor="user-email">E-mail *</label>
+              <input id="user-email" type="email" className="form-input" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="mb-4">
+              <label className="form-label" htmlFor="user-senha">Senha *</label>
+              <input id="user-senha" type="password" className="form-input" value={form.senha} onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))} />
+            </div>
+            <div className="mb-4">
+              <label className="form-label" htmlFor="user-perfil">Perfil (nível de acesso) *</label>
+              <select id="user-perfil" className="form-input" value={form.perfil} onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilUsuario }))}>
+                {PERFIS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="mb-2">
+              <label className="form-label" htmlFor="user-setor">Setor</label>
+              <input id="user-setor" className="form-input" value={form.setor} onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))} />
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
+              <button className="btn btn-gold" onClick={handleSaveUsuario} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {tab === 'integracoes' && (
         <div className="grid gap-5">
@@ -129,8 +239,8 @@ export default function Settings() {
           <div className="card p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(123,29,52,.12)' }}>
-                  <Cloud style={{ width: 18, height: 18, color: 'var(--gold)' }} />
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(133,34,40,.12)' }}>
+                  <Cloud style={{ width: 18, height: 18, color: 'var(--gold-text)' }} />
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>Amazon S3</div>
@@ -182,7 +292,7 @@ export default function Settings() {
           </div>
 
           <div className="card p-5">
-            <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Logs de Importação (Google Drive → S3)</div>
+            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Logs de Importação (Google Drive → S3)</div>
             <div className="space-y-3">
               {IMPORT_LOGS.map((log) => (
                 <div key={log.titulo} className="flex items-center gap-4 p-3 rounded-lg" style={{ border: '1px solid var(--border)' }}>

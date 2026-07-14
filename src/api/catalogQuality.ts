@@ -1,12 +1,18 @@
-import { apiFetch, ApiUnavailableError } from './client';
-import { MOCK_CATALOG_QUALITY, type CatalogQualityReport } from '../data/mockCatalogQuality';
+import { apiFetch } from './client';
 
-/** RF-009/RF-052/RF-054: monitoramento da qualidade do catálogo e erros de importação. */
-export async function fetchCatalogQuality(): Promise<CatalogQualityReport> {
-  try {
-    return await apiFetch<CatalogQualityReport>('/catalogo/qualidade');
-  } catch (err) {
-    if (!(err instanceof ApiUnavailableError)) throw err;
-    return MOCK_CATALOG_QUALITY;
-  }
+export interface ImportError {
+  arquivo: string;
+  aba: string;
+  linha: number | null;
+  mensagem: string;
+}
+
+export interface CatalogQualityReport {
+  errosImportacao: ImportError[];
+}
+
+/** RF-009/RF-052/RF-054: erros de importação reais (tabela `erros_importacao`).
+ * Sem fallback mockado — costuma vir vazio até que uma importação falhe de verdade. */
+export function fetchCatalogQuality(): Promise<CatalogQualityReport> {
+  return apiFetch<CatalogQualityReport>('/catalogo/qualidade');
 }

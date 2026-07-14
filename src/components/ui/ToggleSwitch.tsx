@@ -23,7 +23,7 @@ export default function ToggleSwitch({
       >
         <span className="toggle-switch-thumb" />
       </button>
-      <span style={{ fontSize: 14, fontWeight: 600, color: checked ? 'var(--gold)' : 'var(--text-secondary)' }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: checked ? 'var(--gold-text)' : 'var(--text-secondary)' }}>
         {checked ? onLabel : offLabel}
       </span>
       {badgeLabel && checked && <span className="badge badge-gold">{badgeLabel}</span>}

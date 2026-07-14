@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, Mic, PencilRuler, Square, User, X } from 'lucide-react';
+import { Check, Home, Mic, PencilRuler, Square, User, X } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useToast } from '../../context/ToastContext';
@@ -90,7 +90,7 @@ export default function VoiceRecorderFab() {
         title="Criar proposta por voz"
         onClick={() => setPopoverOpen((o) => !o)}
       >
-        <Mic style={{ width: 24, height: 24, color: '#fff', pointerEvents: 'none' }} />
+        <Mic style={{ width: 24, height: 24, color: '#fefefe', pointerEvents: 'none' }} />
       </button>
 
       <div id="rec-popover" className={`rec-popover${popoverOpen ? ' open' : ''}`} role="dialog" aria-label="Gravação de voz">
@@ -98,7 +98,7 @@ export default function VoiceRecorderFab() {
           <div className="flex items-center gap-2">
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: isRecording ? 'var(--error)' : 'var(--text-secondary)', transition: 'background .3s' }} />
             <div>
-              <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>{isRecording ? 'Gravando…' : 'Criar Proposta por Voz'}</div>
+              <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>{isRecording ? 'Gravando…' : 'Criar Proposta por Voz'}</div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.2 }}>{subtitle}</div>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function VoiceRecorderFab() {
               aria-label="Iniciar / parar gravação"
               onClick={() => (isRecording ? stop() : start())}
             >
-              {isRecording ? <Square style={{ width: 22, height: 22, color: '#fff' }} /> : <Mic style={{ width: 22, height: 22, color: '#fff' }} />}
+              {isRecording ? <Square style={{ width: 22, height: 22, color: '#fefefe' }} /> : <Mic style={{ width: 22, height: 22, color: '#fefefe' }} />}
             </button>
 
             <div className="flex-1">
@@ -145,6 +145,9 @@ export default function VoiceRecorderFab() {
                 {parsed?.client && <span className="extracted-tag tag-client"><User style={{ width: 11, height: 11 }} />{parsed.client}</span>}
                 {parsed?.architect && <span className="extracted-tag tag-client"><PencilRuler style={{ width: 11, height: 11 }} />Arq. {parsed.architect}</span>}
                 {Boolean(parsed?.discount) && <span className="extracted-tag tag-discount">{parsed?.discount}% desconto</span>}
+                {Array.from(new Set(parsed?.items.map((i) => i.ambiente).filter((a): a is string => Boolean(a)))).map((ambiente) => (
+                  <span key={ambiente} className="extracted-tag tag-client"><Home style={{ width: 11, height: 11 }} />{ambiente}</span>
+                ))}
                 {parsed?.items.map((item, i) => (
                   <span key={i} className="extracted-tag tag-product">{item.qty}× {item.product.name}</span>
                 ))}
@@ -160,25 +163,28 @@ export default function VoiceRecorderFab() {
                   <div key={i} className="flex items-center gap-3 p-3 rounded-lg" style={{ border: '1px solid var(--border)' }}>
                     <div className="flex-1">
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{item.product.id} · {item.product.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Qtd: {item.qty} · {formatCurrency(item.product.price)} cada</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        Qtd: {item.qty} · {formatCurrency(item.product.price)} cada
+                        {item.ambiente && <> · <Home style={{ width: 10, height: 10, display: 'inline', verticalAlign: -1 }} /> {item.ambiente}</>}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="p-3 rounded-lg mt-3" style={{ background: 'rgba(123,29,52,.08)', border: '1px solid rgba(123,29,52,.3)' }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gold)', marginBottom: 2 }}>Valor estimado</div>
+              <div className="p-3 rounded-lg mt-3" style={{ background: 'rgba(133,34,40,.08)', border: '1px solid rgba(133,34,40,.3)' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gold-text)', marginBottom: 2 }}>Valor estimado</div>
                 <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency(estimatedTotal)}</div>
               </div>
             </div>
           )}
 
           {!hasContent && (
-            <div id="rec-hint" style={{ background: 'rgba(123,29,52,.07)', border: '1px solid rgba(123,29,52,.25)', borderRadius: 8, padding: '10px 12px' }}>
-              <div style={{ fontSize: 11.5, color: '#7B1D34', fontWeight: 600, marginBottom: 4 }}>Exemplos</div>
-              <ul style={{ fontSize: 11.5, color: '#5C1627', lineHeight: 1.75, listStyle: 'disc', paddingLeft: 16 }}>
+            <div id="rec-hint" style={{ background: 'rgba(133,34,40,.07)', border: '1px solid rgba(133,34,40,.25)', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11.5, color: '#852228', fontWeight: 600, marginBottom: 4 }}>Exemplos</div>
+              <ul style={{ fontSize: 11.5, color: '#641A1E', lineHeight: 1.75, listStyle: 'disc', paddingLeft: 16 }}>
                 <li>&quot;<em>Três cadeiras barcelona, cliente Studio Lima</em>&quot;</li>
-                <li>&quot;<em>Duas mesas carrara, desconto dez por cento</em>&quot;</li>
-                <li>&quot;<em>Um sofá modulare cinza, arquiteto Beatriz</em>&quot;</li>
+                <li>&quot;<em>Duas mesas carrara para a sala de jantar, desconto dez por cento</em>&quot;</li>
+                <li>&quot;<em>Um sofá modulare cinza para a sala de estar, arquiteto Beatriz</em>&quot;</li>
               </ul>
             </div>
           )}

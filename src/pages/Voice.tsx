@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Check, CheckCircle2, Mic, Package, Search, Square, Trash2,
 } from 'lucide-react';
-import { fetchVoiceDrafts } from '../api/voice';
+import { updateRascunhoStatus } from '../api/voice';
 import { filterProductsLocally } from '../api/products';
 import { useProposalDraft } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
+import { useVendedores } from '../context/VendedoresContext';
+import { useVoz } from '../context/VozContext';
 import { useToast } from '../context/ToastContext';
 import { useVoiceRecognition } from '../components/voice/useVoiceRecognition';
 import { parseVoiceText } from '../components/voice/voiceParser';
 import { formatCurrency } from '../utils/format';
-import { VENDEDOR_OPTIONS } from '../data/vendedores';
-import type { ParsedVoiceResult, Product, VoiceDraft, VoiceDraftItem, VoiceNotFoundItem } from '../types';
+import type { ParsedVoiceResult, Product, VoiceDraftItem, VoiceNotFoundItem } from '../types';
 
 const STEP_LABELS = ['Cliente & Partes', 'Produtos Encontrados', 'Itens não Encontrados', 'Descontos & Obs.', 'Criar Proposta'];
 
@@ -23,23 +24,23 @@ interface DisplayDraft {
   meta: string;
   parsed: ParsedVoiceResult;
   transcricao: string;
+  /** Presente só nos rascunhos reais (vindos do backend) — usado pra confirmar/descartar. */
+  rascunhoId?: number;
+  vendedorId?: string | null;
 }
 
 function emptyParsed(): ParsedVoiceResult {
   return { client: null, architect: null, discount: 0, items: [], notFound: [] };
 }
 
-function guessVendedorCode(nome: string): string {
-  return VENDEDOR_OPTIONS.find((v) => v.label.startsWith(nome))?.value ?? '';
-}
-
 export default function Voice() {
   const navigate = useNavigate();
   const { products } = useProducts();
+  const { vendedores } = useVendedores();
+  const { rascunhos, reload: reloadRascunhos } = useVoz();
   const { applyVoiceResult, setHeaderField } = useProposalDraft();
   const { showToast } = useToast();
 
-  const [mockDrafts, setMockDrafts] = useState<VoiceDraft[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
@@ -59,10 +60,6 @@ export default function Voice() {
 
   const wasRecordingRef = useRef(false);
 
-  useEffect(() => {
-    fetchVoiceDrafts().then(setMockDrafts);
-  }, []);
-
   const { isRecording, start, stop } = useVoiceRecognition(setLiveTranscript, (msg) => showToast(msg, 'error'));
 
   useEffect(() => {
@@ -80,17 +77,31 @@ export default function Voice() {
     [liveTranscript, products],
   );
 
-  const mockDisplayDrafts: DisplayDraft[] = useMemo(() => mockDrafts.map((d) => {
-    const parsed = parseVoiceText(d.transcricao, products);
-    return {
-      key: `mock-${d.id}`,
-      code: `VOZ-${String(2025)}-${String(100 + d.id).padStart(3, '0')}`,
-      label: parsed.client || d.vendedor,
-      meta: d.criadoEm,
-      parsed,
-      transcricao: d.transcricao,
+  // Rascunhos reais (tabela proposta_rascunhos) — chegam via webhook externo de voz (RF-059),
+  // já vêm com os itens estruturados (encontrado/não encontrado), sem precisar reparsear a transcrição.
+  const realDisplayDrafts: DisplayDraft[] = useMemo(() => rascunhos.map((r) => {
+    const parsed: ParsedVoiceResult = {
+      client: r.clienteNome,
+      architect: r.arquiteto,
+      discount: r.descontoGlobal,
+      items: r.itens
+        .filter((i) => i.status === 'encontrado' && i.produto)
+        .map((i) => ({ product: i.produto as Product, qty: i.quantidade })),
+      notFound: r.itens
+        .filter((i) => i.status === 'nao_encontrado')
+        .map((i) => ({ phrase: i.codigoExtraido, suggestion: null })),
     };
-  }), [mockDrafts, products]);
+    return {
+      key: `real-${r.id}`,
+      code: `VOZ-${r.id}`,
+      label: r.clienteNome || r.vendedorNome || 'Rascunho de voz',
+      meta: new Date(r.criadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      parsed,
+      transcricao: r.transcricaoOriginal,
+      rascunhoId: r.id,
+      vendedorId: r.vendedorId,
+    };
+  }), [rascunhos]);
 
   const liveDisplayDraft: DisplayDraft | null = liveTranscript.trim() ? {
     key: 'live',
@@ -101,13 +112,13 @@ export default function Voice() {
     transcricao: liveTranscript,
   } : null;
 
-  const allDrafts = liveDisplayDraft ? [liveDisplayDraft, ...mockDisplayDrafts] : mockDisplayDrafts;
+  const allDrafts = liveDisplayDraft ? [liveDisplayDraft, ...realDisplayDrafts] : realDisplayDrafts;
   const selectedDraft = allDrafts.find((d) => d.key === selectedKey) ?? null;
 
-  function loadDraftIntoForm(draft: DisplayDraft, mockSource?: VoiceDraft) {
+  function loadDraftIntoForm(draft: DisplayDraft) {
     setCliente(draft.parsed.client || '');
     setArquiteto(draft.parsed.architect || '');
-    setVendedor(mockSource ? guessVendedorCode(mockSource.vendedor) : '');
+    setVendedor(draft.vendedorId ?? '');
     setDiscount(draft.parsed.discount || 0);
     setObservacoes('');
     setItems(draft.parsed.items);
@@ -120,12 +131,12 @@ export default function Voice() {
     if (liveDisplayDraft && selectedKey !== 'live') {
       setSelectedKey('live');
       loadDraftIntoForm(liveDisplayDraft);
-    } else if (!selectedKey && mockDisplayDrafts.length > 0) {
-      setSelectedKey(mockDisplayDrafts[0].key);
-      loadDraftIntoForm(mockDisplayDrafts[0], mockDrafts[0]);
+    } else if (!selectedKey && realDisplayDrafts.length > 0) {
+      setSelectedKey(realDisplayDrafts[0].key);
+      loadDraftIntoForm(realDisplayDrafts[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(liveDisplayDraft), mockDisplayDrafts.length]);
+  }, [Boolean(liveDisplayDraft), realDisplayDrafts.length]);
 
   // Ao parar de gravar, sincroniza o formulário com a transcrição final (enquanto grava, o usuário só observa).
   useEffect(() => {
@@ -138,8 +149,7 @@ export default function Voice() {
 
   function selectDraft(draft: DisplayDraft) {
     setSelectedKey(draft.key);
-    const mockSource = draft.key.startsWith('mock-') ? mockDrafts.find((d) => `mock-${d.id}` === draft.key) : undefined;
-    loadDraftIntoForm(draft, mockSource);
+    loadDraftIntoForm(draft);
   }
 
   function useSuggestion(entry: VoiceNotFoundItem) {
@@ -166,12 +176,22 @@ export default function Voice() {
 
   const total = items.reduce((s, it) => s + it.qty * it.product.price, 0) * (1 - discount / 100);
 
-  function handleCreateProposal() {
+  async function handleCreateProposal() {
     const result: ParsedVoiceResult = { client: cliente || null, architect: arquiteto || null, discount, items, notFound: [] };
     applyVoiceResult(result);
     if (vendedor) setHeaderField('vendedor', vendedor);
     if (observacoes) setHeaderField('observacoes', observacoes);
-    showToast('Proposta criada com sucesso!', 'success');
+
+    const rascunhoId = selectedDraft?.rascunhoId;
+    if (rascunhoId) {
+      try {
+        await updateRascunhoStatus(rascunhoId, 'confirmado');
+        reloadRascunhos();
+      } catch {
+        // segue mesmo se o PATCH falhar — os dados já foram aplicados ao rascunho local da proposta.
+      }
+    }
+    showToast('Dados aplicados — revise e salve a proposta.', 'success');
     navigate('/propostas/nova');
   }
 
@@ -191,7 +211,7 @@ export default function Voice() {
             <button
               className="btn btn-sm w-full mt-2"
               style={{
-                background: isRecording ? 'var(--error)' : 'var(--gold)', color: '#fff', justifyContent: 'center',
+                background: isRecording ? 'var(--error)' : 'var(--gold)', color: '#fefefe', justifyContent: 'center',
               }}
               onClick={() => (isRecording ? stop() : start())}
             >
@@ -271,7 +291,7 @@ export default function Voice() {
                         className="btn btn-sm"
                         style={{
                           background: active ? 'var(--gold)' : done ? 'rgba(56,161,105,.1)' : 'var(--card)',
-                          color: active ? '#fff' : done ? 'var(--success)' : 'var(--text-secondary)',
+                          color: active ? '#fefefe' : done ? 'var(--success)' : 'var(--text-secondary)',
                           border: active ? 'none' : '1px solid var(--border)',
                           fontWeight: 600, fontSize: 12,
                         }}
@@ -302,7 +322,7 @@ export default function Voice() {
                         <label className="form-label" htmlFor="voz-vend">Vendedor</label>
                         <select id="voz-vend" className="form-input" value={vendedor} onChange={(e) => setVendedor(e.target.value)}>
                           <option value="">Selecione...</option>
-                          {VENDEDOR_OPTIONS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+                          {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
                         </select>
                       </div>
                     </div>
@@ -325,11 +345,14 @@ export default function Voice() {
                         {items.map((item, i) => (
                           <div key={`${item.product.id}-${i}`} className="flex items-center gap-3 p-3 rounded-lg" style={{ border: '1px solid var(--border)' }}>
                             {item.product.img
-                              ? <img src={item.product.img} alt={item.product.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                              ? <img src={item.product.img} alt={item.product.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
                               : <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--bg)', flexShrink: 0 }} />}
                             <div className="flex-1">
                               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{item.product.name}</div>
-                              <div className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{item.product.id} · Qtd {item.qty} · {formatCurrency(item.product.price)}</div>
+                              <div className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                                {item.product.id} · Qtd {item.qty} · {formatCurrency(item.product.price)}
+                              </div>
+                              {item.ambiente && <div style={{ fontSize: 11.5, color: 'var(--gold-text)', marginTop: 2 }}>{item.ambiente}</div>}
                             </div>
                             <span className="badge badge-success" style={{ fontSize: 10.5 }}>
                               <CheckCircle2 style={{ width: 11, height: 11 }} /> Encontrado
@@ -367,7 +390,7 @@ export default function Voice() {
                             </div>
                             <div className="flex gap-2 mt-2 flex-wrap">
                               {entry.suggestion && (
-                                <button className="btn btn-sm" style={{ background: 'var(--gold)', color: '#fff' }} onClick={() => useSuggestion(entry)}>
+                                <button className="btn btn-sm" style={{ background: 'var(--gold)', color: '#fefefe' }} onClick={() => useSuggestion(entry)}>
                                   Usar sugestão
                                 </button>
                               )}

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Eye, FileSearch, Search } from 'lucide-react';
+import { Copy, Eye, FileSearch, Loader2, Search } from 'lucide-react';
 import { fetchProposals } from '../api/proposals';
+import ErrorState from '../components/ui/ErrorState';
 import { useToast } from '../context/ToastContext';
 import { formatCurrencyRounded } from '../utils/format';
 import { STATUS_BADGE, statusBadgeLabel } from '../utils/proposalStatus';
@@ -27,12 +28,23 @@ export default function History() {
   const [statusFilter, setStatusFilter] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
   const [periodDays, setPeriodDays] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchProposals().then(setProposals);
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    fetchProposals()
+      .then(setProposals)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const vendedores = useMemo(() => Array.from(new Set(proposals.map((p) => p.vendedor))), [proposals]);
 
@@ -73,7 +85,7 @@ export default function History() {
             style={{
               borderRadius: 0,
               borderBottom: statusFilter === key ? '2px solid var(--gold)' : '2px solid transparent',
-              color: statusFilter === key ? 'var(--gold)' : 'var(--text-secondary)',
+              color: statusFilter === key ? 'var(--gold-text)' : 'var(--text-secondary)',
               fontWeight: 700,
             }}
             onClick={() => setStatusFilter(key)}
@@ -83,8 +95,8 @@ export default function History() {
               className="badge"
               style={{
                 marginLeft: 6,
-                background: statusFilter === key ? 'rgba(123,29,52,.12)' : 'var(--bg)',
-                color: statusFilter === key ? 'var(--gold)' : 'var(--text-secondary)',
+                background: statusFilter === key ? 'rgba(133,34,40,.12)' : 'var(--bg)',
+                color: statusFilter === key ? 'var(--gold-text)' : 'var(--text-secondary)',
                 fontSize: 11,
               }}
             >
@@ -96,7 +108,7 @@ export default function History() {
 
       <div className="flex items-center gap-4 mb-5 flex-wrap">
         <div className="relative flex-1" style={{ minWidth: 200 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#71717A' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#979797' }} />
           <input
             type="text"
             placeholder="Buscar por código, cliente..."
@@ -120,7 +132,14 @@ export default function History() {
       </div>
 
       <div className="card overflow-hidden">
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2" style={{ color: 'var(--text-secondary)' }}>
+            <Loader2 className="spin" style={{ width: 28, height: 28 }} />
+            <div style={{ fontSize: 14 }}>Carregando propostas...</div>
+          </div>
+        ) : error ? (
+          <ErrorState message="Não foi possível carregar o histórico de propostas — verifique se o backend está no ar." onRetry={load} />
+        ) : filtered.length > 0 ? (
           <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -134,7 +153,7 @@ export default function History() {
                   style={{ cursor: 'pointer' }}
                   title="Ver detalhe da proposta"
                 >
-                  <td><span className="mono text-xs" style={{ color: 'var(--gold)' }}>{p.code}</span></td>
+                  <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
                   <td className="font-medium">{p.cliente}</td>
                   <td style={{ color: 'var(--text-secondary)' }}>{p.arquiteto || '—'}</td>
                   <td>{p.vendedor}</td>

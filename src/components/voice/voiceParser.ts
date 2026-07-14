@@ -30,6 +30,32 @@ function productKeywords(name: string): string[] {
   return stripDiacritics(name.toLowerCase()).split(' ').filter((w) => w.length > 3);
 }
 
+/**
+ * Vocabulário de ambientes reconhecido na fala, mapeado para os mesmos rótulos usados em
+ * AMBIENTE_SUGGESTIONS (utils/groupByAmbiente.ts) — checados em ordem: frases mais específicas
+ * primeiro, pra "quarto do casal"/"sala de jantar" não caírem no bucket genérico errado
+ * ("Quarto"/"Estar") antes de testar o mais específico.
+ */
+const AMBIENTE_MATCHERS: { label: string; keywords: string[] }[] = [
+  { label: 'Varanda Suíte Master', keywords: ['varanda da suite master', 'varanda da suite', 'sacada da suite'] },
+  { label: 'Suíte Master', keywords: ['suite master', 'quarto do casal', 'master'] },
+  { label: 'Área Externa', keywords: ['area externa', 'quintal', 'jardim'] },
+  { label: 'Hall', keywords: ['hall de entrada', 'hall', 'entrada'] },
+  { label: 'Jantar', keywords: ['sala de jantar', 'jantar'] },
+  { label: 'Estar', keywords: ['sala de estar', 'sala', 'estar', 'living'] },
+  { label: 'Cozinha', keywords: ['cozinha'] },
+  { label: 'Escritório', keywords: ['escritorio'] },
+  { label: 'Home', keywords: ['home theater', 'home'] },
+  { label: 'Quarto', keywords: ['quarto', 'dormitorio'] },
+  { label: 'Varanda', keywords: ['varanda', 'sacada'] },
+  { label: 'Banheiro', keywords: ['banheiro', 'lavabo'] },
+];
+
+function detectAmbiente(chunk: string): string | null {
+  const found = AMBIENTE_MATCHERS.find((m) => m.keywords.some((kw) => chunk.includes(kw)));
+  return found?.label ?? null;
+}
+
 /** Detecta trechos com substantivo de móvel que não bateram com nenhum item já encontrado, sugerindo o produto mais próximo por palavras em comum. */
 function findUnmatchedMentions(text: string, products: Product[], foundProducts: Product[]) {
   const chunks = text.split(/,| e (?=\S)/i).map((c) => c.trim()).filter(Boolean);
@@ -85,19 +111,32 @@ export function parseVoiceText(text: string, products: Product[]): ParsedVoiceRe
     result.discount = parseInt(raw, 10) || wordToNumber(raw) || 0;
   }
 
-  products.forEach((p) => {
-    const keywords = stripDiacritics(p.name.toLowerCase()).split(' ').filter((w) => w.length > 3);
-    const matches = keywords.filter((kw) => t.includes(kw));
-    if (matches.length < Math.min(2, keywords.length)) return;
+  // Percorre a fala em trechos (separados por vírgula ou " e ") pra associar cada produto ao
+  // ambiente citado mais perto dele. Um ambiente mencionado num trecho vale pra esse trecho e
+  // continua valendo nos seguintes até outro ser citado (ex.: "sala de estar: um sofá e duas
+  // poltronas" — as poltronas herdam o ambiente citado antes, mesmo sem repetir).
+  const chunks = t.split(/,| e (?=\S)/i).map((c) => c.trim()).filter(Boolean);
+  let currentAmbiente: string | null = null;
 
-    const prodIdx = t.indexOf(matches[0]);
-    const before = t.slice(Math.max(0, prodIdx - 30), prodIdx);
-    const numMatch = before.match(/(\d+)\s*$/) || before.match(/(um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s*$/i);
-    let qty = 1;
-    if (numMatch) {
-      qty = parseInt(numMatch[1], 10) || wordToNumber(numMatch[1]) || 1;
-    }
-    result.items.push({ product: p, qty });
+  chunks.forEach((chunk) => {
+    currentAmbiente = detectAmbiente(chunk) ?? currentAmbiente;
+
+    products.forEach((p) => {
+      if (result.items.some((it) => it.product.id === p.id)) return;
+
+      const keywords = productKeywords(p.name);
+      const matches = keywords.filter((kw) => chunk.includes(kw));
+      if (matches.length < Math.min(2, keywords.length)) return;
+
+      const prodIdx = chunk.indexOf(matches[0]);
+      const before = chunk.slice(Math.max(0, prodIdx - 30), prodIdx);
+      const numMatch = before.match(/(\d+)\s*$/) || before.match(/(um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s*$/i);
+      let qty = 1;
+      if (numMatch) {
+        qty = parseInt(numMatch[1], 10) || wordToNumber(numMatch[1]) || 1;
+      }
+      result.items.push({ product: p, qty, ambiente: currentAmbiente });
+    });
   });
 
   result.notFound = findUnmatchedMentions(text, products, result.items.map((i) => i.product));

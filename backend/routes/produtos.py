@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
-from config import MAX_IMAGES_PER_PRODUCT
+from config import MAX_IMAGES_PER_PRODUCT, MAX_TOTAL_IMAGES_PER_PRODUCT
 from db import get_session
 from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem
 from utils.s3_storage import delete_image, save_image
@@ -104,6 +104,20 @@ def get_filtros():
     })
 
 
+@bp.get("/fornecedores")
+def list_fornecedores():
+    """Cadastro de fornecedores — só existem nome/ativo/markup no banco hoje; logo, site e
+    contato ainda não têm coluna própria, então voltam nulos até essa parte ser modelada."""
+    session = get_session()
+    fornecedores = (
+        session.query(Fornecedor).filter(Fornecedor.ativo.is_(True)).order_by(Fornecedor.nome).all()
+    )
+    return jsonify([
+        {"id": str(f.id), "nome": f.nome, "logoUrl": None, "site": None, "contato": None}
+        for f in fornecedores
+    ])
+
+
 @bp.patch("/produtos/<codigo>")
 def update_produto(codigo):
     session = get_session()
@@ -171,11 +185,13 @@ def upload_imagem(codigo):
         return jsonify({"error": str(exc)}), 400
 
     existentes = sorted(produto.imagens, key=lambda i: i.posicao)
-    if len(existentes) >= MAX_IMAGES_PER_PRODUCT:
-        return jsonify({"error": f"Este produto já tem o máximo de {MAX_IMAGES_PER_PRODUCT} imagens."}), 400
+    if len(existentes) >= MAX_TOTAL_IMAGES_PER_PRODUCT:
+        return jsonify({"error": f"Este produto já tem o máximo de {MAX_TOTAL_IMAGES_PER_PRODUCT} imagens."}), 400
 
+    # As 3 primeiras posições ficam reservadas pros slots curados (grade principal);
+    # a partir da 4ª, são as imagens extras enviadas pelo botão "Adicionar mais imagens".
     ocupadas = {img.posicao for img in existentes}
-    proxima_posicao = next(p for p in range(1, MAX_IMAGES_PER_PRODUCT + 1) if p not in ocupadas)
+    proxima_posicao = next(p for p in range(1, MAX_TOTAL_IMAGES_PER_PRODUCT + 1) if p not in ocupadas)
 
     storage_path, filename = save_image(codigo, file.filename or "imagem.jpg", data)
 

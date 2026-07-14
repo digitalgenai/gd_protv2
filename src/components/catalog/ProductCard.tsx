@@ -2,8 +2,10 @@ import { Check, Image as ImageIcon, Pencil, Plus } from 'lucide-react';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../utils/format';
 import { useImageModal } from '../../context/ImageModalContext';
+import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useToast } from '../../context/ToastContext';
+import ToggleSwitch from '../ui/ToggleSwitch';
 
 interface ProductCardProps {
   product: Product;
@@ -15,6 +17,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, ambiente, alreadyInAmbiente }: ProductCardProps) {
   const { openImageModal } = useImageModal();
+  const { setVendaDireta } = useProducts();
   const { addProductToProposal } = useProposalDraft();
   const { showToast } = useToast();
 
@@ -26,15 +29,15 @@ export default function ProductCard({ product, ambiente, alreadyInAmbiente }: Pr
       title="Ver detalhes, imagens e analytics do produto"
       onClick={() => openImageModal(product, 'info')}
     >
-      <div style={{ aspectRatio: '1/1', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ aspectRatio: '1/1', overflow: 'hidden', position: 'relative', background: '#fff' }}>
         <img src={product.img} alt={`${product.name} – imagem do produto`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-        <span className="badge" style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(26,32,44,.75)', color: '#fff', fontSize: 10.5, backdropFilter: 'blur(4px)' }}>
+        <span className="badge" style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(26,32,44,.75)', color: '#fefefe', fontSize: 10.5, backdropFilter: 'blur(4px)' }}>
           {product.id}
         </span>
         {alreadyInAmbiente && ambiente && (
           <span
             className="badge"
-            style={{ position: 'absolute', bottom: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 3, background: 'var(--success)', color: '#fff', fontSize: 10.5 }}
+            style={{ position: 'absolute', bottom: 8, left: 8, display: 'inline-flex', alignItems: 'center', gap: 3, background: 'var(--success)', color: '#fefefe', fontSize: 10.5 }}
             title={`Já adicionado ao ambiente "${ambiente}"`}
           >
             <Check style={{ width: 10, height: 10 }} /> Já em {ambiente}
@@ -49,7 +52,7 @@ export default function ProductCard({ product, ambiente, alreadyInAmbiente }: Pr
             openImageModal(product, 'imagens');
           }}
         >
-          <ImageIcon style={{ width: 14, height: 14, color: '#fff', display: 'block' }} />
+          <ImageIcon style={{ width: 14, height: 14, color: '#fefefe', display: 'block' }} />
         </button>
       </div>
       <div style={{ padding: '12px 14px' }}>
@@ -60,6 +63,15 @@ export default function ProductCard({ product, ambiente, alreadyInAmbiente }: Pr
         )}
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
           <Pencil style={{ width: 10, height: 10, flexShrink: 0 }} /> Clique no card para editar informações
+        </div>
+        <div onClick={(e) => e.stopPropagation()} style={{ marginBottom: 4 }}>
+          <ToggleSwitch
+            checked={Boolean(product.vendaDireta)}
+            onChange={(checked) => setVendaDireta(product.id, checked)}
+            onLabel="Venda Direta"
+            offLabel="Venda Direta"
+            ariaLabel={`Venda direta: ${product.id}`}
+          />
         </div>
         <div className="flex items-center justify-between">
           <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency(product.price)}</div>

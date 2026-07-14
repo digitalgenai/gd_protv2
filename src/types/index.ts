@@ -10,6 +10,12 @@ export interface Product {
   dimensions: string;
   /** Até 3 imagens reais do produto (RN-004), por posição — vem do backend real. */
   images?: { id: number; url: string; posicao: number }[];
+  /**
+   * Este produto pode ser vendido direto (sem intermediação) — nem todo produto pode.
+   * Front-only por enquanto (sem coluna própria no banco ainda), guardado por produto e
+   * não mais por proposta inteira, já que uma mesma proposta pode ter itens de ambos os tipos.
+   */
+  vendaDireta?: boolean;
 }
 
 /** Material complementar do item (ex.: tecido, ferragem) vindo de um fornecedor à parte. */
@@ -38,6 +44,44 @@ export interface ProposalRow {
 
 export type ProposalStatus = 'Aprovada' | 'Enviada' | 'Rascunho' | 'Reprovada' | 'Revisão';
 
+/**
+ * Diretório de clientes — hoje é agregado a partir das propostas (uma linha por cliente com
+ * pelo menos 1 proposta), mas o cadastro manual (ver ClienteFormModal) permite criar um cliente
+ * antes de qualquer proposta existir. Só front por enquanto — a fonte de verdade real virá do
+ * CRM da empresa quando a integração existir; `cadastradoManualmente` distingue as duas origens
+ * enquanto isso (registro manual só existe na sessão atual, não é persistido).
+ */
+export interface ClienteSummary {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  endereco: string | null;
+  propostas: number;
+  valorTotal: number;
+  ultimaProposta: string;
+  cadastradoManualmente?: boolean;
+}
+
+/** Mesma ideia de ClienteSummary, para o campo arquiteto (opcional em cada proposta). */
+export interface ArquitetoSummary {
+  id: string;
+  nome: string;
+  escritorio: string | null;
+  propostas: number;
+  valorTotal: number;
+  ultimaProposta: string;
+  cadastradoManualmente?: boolean;
+}
+
+/** Fornecedor — nome/id vêm do banco (tabela `fornecedores`); logo/site/contato ainda são só front-only. */
+export interface FornecedorSummary {
+  id: string;
+  nome: string;
+  logoUrl: string | null;
+  site: string | null;
+  contato: string | null;
+}
+
 export interface ProposalSummary {
   code: string;
   cliente: string;
@@ -63,8 +107,10 @@ export interface ProposalVersion {
 export interface ProposalDetail extends ProposalSummary {
   validade: string;
   pagamento: string;
-  vendaDireta: boolean;
   observacoes: string;
+  telefoneCliente: string | null;
+  enderecoCliente: string | null;
+  emailCliente: string | null;
   ambientes: string[];
   itens: ProposalRow[];
   versoes: ProposalVersion[];
@@ -73,6 +119,8 @@ export interface ProposalDetail extends ProposalSummary {
 export interface VoiceDraftItem {
   product: Product;
   qty: number;
+  /** Ambiente citado perto desse item na fala (ex.: "para a sala de estar"), quando identificado. */
+  ambiente?: string | null;
 }
 
 export interface VoiceNotFoundItem {
@@ -88,14 +136,26 @@ export interface ParsedVoiceResult {
   notFound: VoiceNotFoundItem[];
 }
 
-export interface VoiceDraft {
+export interface RascunhoVozItem {
+  codigoExtraido: string;
+  produto: Product | null;
+  quantidade: number;
+  desconto: number;
+  status: 'encontrado' | 'nao_encontrado';
+}
+
+/** Rascunho de voz real (tabela `proposta_rascunhos`) — chega via um webhook externo
+ * de captação por voz, ainda não implementado; por isso a lista costuma vir vazia. */
+export interface RascunhoVoz {
   id: number;
-  vendedor: string;
+  transcricaoOriginal: string;
+  clienteNome: string | null;
+  arquiteto: string | null;
+  vendedorId: string | null;
+  vendedorNome: string | null;
+  descontoGlobal: number;
   criadoEm: string;
-  transcricao: string;
-  status: 'aguardando_revisao' | 'processado';
-  itensDetectados: number;
-  temErro: boolean;
+  itens: RascunhoVozItem[];
 }
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';

@@ -46,7 +46,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <div id="toast" className={toast.visible ? 'show' : ''} role="status" aria-live="polite">
-        <div id="toast-inner" className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl" style={{ background: '#111111', color: '#fff', minWidth: 240, maxWidth: 360 }}>
+        <div id="toast-inner" className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl" style={{ background: '#381e1e', color: '#fefefe', minWidth: 240, maxWidth: 360 }}>
           <Icon style={{ width: 18, height: 18, flexShrink: 0, color: COLORS[toast.type] }} />
           <span style={{ fontSize: 13.5, fontWeight: 500 }}>{toast.message}</span>
         </div>
