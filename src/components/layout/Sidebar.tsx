@@ -68,7 +68,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3">
+      <nav className="flex-1 overflow-y-auto py-3" style={{ minHeight: 0 }}>
         <NavLink to="/" end className={navClass} onClick={onNavigate}>
           <LayoutDashboard className="nav-icon" />
           <span className="nav-label">Dashboard</span>
