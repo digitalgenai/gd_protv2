@@ -150,6 +150,7 @@ class PropostaVersao(Base):
     status = Column(status_versao_enum, nullable=False, default="rascunho")
     pdf_path = Column(Text)
     xlsx_path = Column(Text)
+    crm_opportunity_id = Column(Text)  # id da Opportunity espelhada no kanban do EngajaCRM (ver utils/crm_client.py)
     criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
     updated_at = Column(DateTime(timezone=True), server_default=FetchedValue())
 

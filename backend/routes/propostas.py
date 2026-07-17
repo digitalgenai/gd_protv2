@@ -1,6 +1,6 @@
 import unicodedata
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +10,8 @@ from db import get_session
 from models import CatalogoProduto, Proposta, PropostaItem, PropostaVersao, Usuario
 from utils.crm_client import (
     CrmError,
+    create_opportunity as crm_create_opportunity,
+    find_account_id_by_nome as crm_find_account_id_by_nome,
     list_arquitetos as crm_list_arquitetos,
     list_opportunities_by_account as crm_list_opportunities_by_account,
 )
@@ -370,4 +372,33 @@ def create_proposta():
         return jsonify({"error": f"Não foi possível salvar a proposta: {exc.orig}"}), 400
 
     session.refresh(versao)
+    _sync_opportunity_no_crm(session, proposta, versao)
     return jsonify({"codigo": versao.codigo_proposta}), 201
+
+
+def _sync_opportunity_no_crm(session, proposta, versao):
+    """Espelha a proposta recém-criada como uma Opportunity no kanban do EngajaCRM — melhor
+    esforço: se o CRM estiver fora do ar ou mal configurado, a proposta já foi salva no nosso
+    banco normalmente, só não aparece lá até uma próxima tentativa manual."""
+    account_id = None
+    if proposta.arquiteto_nome:
+        try:
+            account_id = crm_find_account_id_by_nome(proposta.arquiteto_nome)
+        except CrmError:
+            account_id = None
+
+    total = sum(float(item.valor_total or 0) for item in versao.itens)
+    try:
+        opportunity_id = crm_create_opportunity(
+            nome=f"{versao.codigo_proposta} — {proposta.cliente_nome}",
+            amount=total,
+            status_db=versao.status,
+            account_id=account_id,
+            # App ainda não persiste validade por proposta — usa +48h (padrão comercial da
+            # validade da proposta, ver ProposalDraftContext.tsx) como closeDate no CRM.
+            close_date=(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
+        )
+        versao.crm_opportunity_id = opportunity_id
+        session.commit()
+    except CrmError as exc:
+        print(f"[crm] Falha ao criar Opportunity no EngajaCRM para {versao.codigo_proposta}: {exc}", flush=True)
