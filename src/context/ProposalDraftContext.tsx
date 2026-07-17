@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ParsedVoiceResult, Product, ProposalMaterial, ProposalRow } from '../types';
+import { formatPhoneBR } from '../utils/format';
 
 function addDays(base: Date, days: number): string {
   const d = new Date(base);
@@ -160,6 +161,9 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
 
   const applyVoiceResult = (result: ParsedVoiceResult) => {
     if (result.client) setHeaderField('cliente', result.client);
+    if (result.clientPhone) setHeaderField('telefoneCliente', formatPhoneBR(result.clientPhone));
+    if (result.clientEmail) setHeaderField('emailCliente', result.clientEmail);
+    if (result.clientAddress) setHeaderField('enderecoCliente', result.clientAddress);
     if (result.architect) setHeaderField('arquiteto', result.architect);
     if (result.discount) setHeaderField('globalDiscount', result.discount);
     const newRows = result.items.map((item) => {

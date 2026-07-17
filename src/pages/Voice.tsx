@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Check, CheckCircle2, Mic, Package, Search, Square, Trash2,
+  AlertTriangle, Check, CheckCircle2, Loader2, Mic, Package, Search, Square, Trash2,
 } from 'lucide-react';
-import { updateRascunhoStatus } from '../api/voice';
+import { transcreverAudio, updateRascunhoStatus } from '../api/voice';
 import { filterProductsLocally } from '../api/products';
 import { useProposalDraft } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
 import { useVendedores } from '../context/VendedoresContext';
 import { useVoz } from '../context/VozContext';
 import { useToast } from '../context/ToastContext';
-import { useVoiceRecognition } from '../components/voice/useVoiceRecognition';
-import { parseVoiceText } from '../components/voice/voiceParser';
-import { formatCurrency } from '../utils/format';
+import { useAudioRecorder } from '../components/voice/useAudioRecorder';
+import { formatCurrency, formatPhoneBR } from '../utils/format';
 import type { ParsedVoiceResult, Product, VoiceDraftItem, VoiceNotFoundItem } from '../types';
 
 const STEP_LABELS = ['Cliente & Partes', 'Produtos Encontrados', 'Itens não Encontrados', 'Descontos & Obs.', 'Criar Proposta'];
@@ -29,10 +28,6 @@ interface DisplayDraft {
   vendedorId?: string | null;
 }
 
-function emptyParsed(): ParsedVoiceResult {
-  return { client: null, architect: null, discount: 0, items: [], notFound: [] };
-}
-
 export default function Voice() {
   const navigate = useNavigate();
   const { products } = useProducts();
@@ -44,11 +39,15 @@ export default function Voice() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
-  const [liveTranscript, setLiveTranscript] = useState('');
+  const [liveResult, setLiveResult] = useState<{ transcricao: string; parsed: ParsedVoiceResult } | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef<ReturnType<typeof setInterval>>();
 
   const [cliente, setCliente] = useState('');
+  const [telefoneCliente, setTelefoneCliente] = useState('');
+  const [emailCliente, setEmailCliente] = useState('');
+  const [enderecoCliente, setEnderecoCliente] = useState('');
   const [arquiteto, setArquiteto] = useState('');
   const [vendedor, setVendedor] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -58,9 +57,19 @@ export default function Voice() {
   const [searchOpenFor, setSearchOpenFor] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  const wasRecordingRef = useRef(false);
+  async function handleRecordingStop(blob: Blob) {
+    setProcessing(true);
+    try {
+      const result = await transcreverAudio(blob);
+      setLiveResult(result);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível transcrever o áudio.', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  }
 
-  const { isRecording, start, stop } = useVoiceRecognition(setLiveTranscript, (msg) => showToast(msg, 'error'));
+  const { isRecording, start, stop } = useAudioRecorder(handleRecordingStop, (msg) => showToast(msg, 'error'));
 
   useEffect(() => {
     if (isRecording) {
@@ -71,11 +80,6 @@ export default function Voice() {
     }
     return () => clearInterval(recordTimerRef.current);
   }, [isRecording]);
-
-  const liveParsed = useMemo(
-    () => (liveTranscript.trim() ? parseVoiceText(liveTranscript, products) : emptyParsed()),
-    [liveTranscript, products],
-  );
 
   // Rascunhos reais (tabela proposta_rascunhos) — chegam via webhook externo de voz (RF-059),
   // já vêm com os itens estruturados (encontrado/não encontrado), sem precisar reparsear a transcrição.
@@ -103,13 +107,13 @@ export default function Voice() {
     };
   }), [rascunhos]);
 
-  const liveDisplayDraft: DisplayDraft | null = liveTranscript.trim() ? {
+  const liveDisplayDraft: DisplayDraft | null = liveResult ? {
     key: 'live',
     code: 'Nova Gravação',
-    label: liveParsed.client || 'Gravação atual',
-    meta: isRecording ? `Gravando… ${String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:${String(recordSeconds % 60).padStart(2, '0')}` : `${String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:${String(recordSeconds % 60).padStart(2, '0')}`,
-    parsed: liveParsed,
-    transcricao: liveTranscript,
+    label: liveResult.parsed.client || 'Gravação atual',
+    meta: `${String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:${String(recordSeconds % 60).padStart(2, '0')}`,
+    parsed: liveResult.parsed,
+    transcricao: liveResult.transcricao,
   } : null;
 
   const allDrafts = liveDisplayDraft ? [liveDisplayDraft, ...realDisplayDrafts] : realDisplayDrafts;
@@ -117,6 +121,9 @@ export default function Voice() {
 
   function loadDraftIntoForm(draft: DisplayDraft) {
     setCliente(draft.parsed.client || '');
+    setTelefoneCliente(draft.parsed.clientPhone || '');
+    setEmailCliente(draft.parsed.clientEmail || '');
+    setEnderecoCliente(draft.parsed.clientAddress || '');
     setArquiteto(draft.parsed.architect || '');
     setVendedor(draft.vendedorId ?? '');
     setDiscount(draft.parsed.discount || 0);
@@ -137,15 +144,6 @@ export default function Voice() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(liveDisplayDraft), realDisplayDrafts.length]);
-
-  // Ao parar de gravar, sincroniza o formulário com a transcrição final (enquanto grava, o usuário só observa).
-  useEffect(() => {
-    if (wasRecordingRef.current && !isRecording && selectedKey === 'live' && liveDisplayDraft) {
-      loadDraftIntoForm(liveDisplayDraft);
-    }
-    wasRecordingRef.current = isRecording;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRecording]);
 
   function selectDraft(draft: DisplayDraft) {
     setSelectedKey(draft.key);
@@ -177,7 +175,16 @@ export default function Voice() {
   const total = items.reduce((s, it) => s + it.qty * it.product.price, 0) * (1 - discount / 100);
 
   async function handleCreateProposal() {
-    const result: ParsedVoiceResult = { client: cliente || null, architect: arquiteto || null, discount, items, notFound: [] };
+    const result: ParsedVoiceResult = {
+      client: cliente || null,
+      clientPhone: telefoneCliente || null,
+      clientEmail: emailCliente || null,
+      clientAddress: enderecoCliente || null,
+      architect: arquiteto || null,
+      discount,
+      items,
+      notFound: [],
+    };
     applyVoiceResult(result);
     if (vendedor) setHeaderField('vendedor', vendedor);
     if (observacoes) setHeaderField('observacoes', observacoes);
@@ -212,11 +219,22 @@ export default function Voice() {
               className="btn btn-sm w-full mt-2"
               style={{
                 background: isRecording ? 'var(--error)' : 'var(--gold)', color: '#fefefe', justifyContent: 'center',
+                opacity: processing ? 0.6 : 1, cursor: processing ? 'not-allowed' : 'pointer',
               }}
-              onClick={() => (isRecording ? stop() : start())}
+              disabled={processing}
+              onClick={() => {
+                if (isRecording) {
+                  stop();
+                  return;
+                }
+                setLiveResult(null);
+                start();
+              }}
             >
-              {isRecording ? <Square style={{ width: 13, height: 13 }} /> : <Mic style={{ width: 13, height: 13 }} />}
-              {isRecording ? 'Parar Gravação' : 'Gravar Novo Rascunho'}
+              {processing
+                ? <Loader2 className="spin" style={{ width: 13, height: 13 }} />
+                : isRecording ? <Square style={{ width: 13, height: 13 }} /> : <Mic style={{ width: 13, height: 13 }} />}
+              {processing ? 'Processando…' : isRecording ? 'Parar Gravação' : 'Gravar Novo Rascunho'}
             </button>
           </div>
 
@@ -261,15 +279,16 @@ export default function Voice() {
         </div>
 
         <div className="flex-1 flex flex-col gap-4">
-          {isRecording && (
-            <div className="card p-4" style={{ borderColor: 'var(--error)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--error)' }} />
-                <span style={{ fontWeight: 700, fontSize: 13.5 }}>Ouvindo… fale agora</span>
+          {(isRecording || processing) && (
+            <div className="card p-4" style={{ borderColor: isRecording ? 'var(--error)' : 'var(--border)' }}>
+              <div className="flex items-center gap-2">
+                {isRecording
+                  ? <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--error)' }} />
+                  : <Loader2 className="spin" style={{ width: 14, height: 14, color: 'var(--gold-text)' }} />}
+                <span style={{ fontWeight: 700, fontSize: 13.5 }}>
+                  {isRecording ? 'Ouvindo… fale agora' : 'Transcrevendo e analisando com IA…'}
+                </span>
               </div>
-              <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', minHeight: 20 }}>
-                {liveTranscript || 'A transcrição aparecerá aqui enquanto você fala...'}
-              </p>
             </div>
           )}
 
@@ -317,6 +336,21 @@ export default function Voice() {
                       <div>
                         <label className="form-label" htmlFor="voz-arq">Arquiteto</label>
                         <input id="voz-arq" className="form-input" value={arquiteto} onChange={(e) => setArquiteto(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="form-label" htmlFor="voz-tel">Telefone do Cliente</label>
+                        <input
+                          id="voz-tel" type="tel" inputMode="numeric" maxLength={15} className="form-input"
+                          value={telefoneCliente} onChange={(e) => setTelefoneCliente(formatPhoneBR(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" htmlFor="voz-email">E-mail do Cliente</label>
+                        <input id="voz-email" type="email" className="form-input" value={emailCliente} onChange={(e) => setEmailCliente(e.target.value)} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="form-label" htmlFor="voz-end">Endereço do Cliente</label>
+                        <input id="voz-end" className="form-input" value={enderecoCliente} onChange={(e) => setEnderecoCliente(e.target.value)} />
                       </div>
                       <div className="sm:col-span-2">
                         <label className="form-label" htmlFor="voz-vend">Vendedor</label>

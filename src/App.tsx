@@ -19,8 +19,10 @@ import NewProposal from './pages/NewProposal';
 import ProposalDetail from './pages/ProposalDetail';
 import ReviewProposals from './pages/ReviewProposals';
 import History from './pages/History';
-import Voice from './pages/Voice';
+// Voz: modo de gravação por áudio adiado para a v2 — ver Layout.tsx/Dashboard.tsx/Sidebar.tsx.
+// import Voice from './pages/Voice';
 import Settings from './pages/Settings';
+import Usuarios from './pages/Usuarios';
 import Clientes from './pages/Clientes';
 import Arquitetos from './pages/Arquitetos';
 import Fornecedores from './pages/Fornecedores';
@@ -47,10 +49,11 @@ export default function App() {
                         <Route path="propostas/revisao" element={<ReviewProposals />} />
                         <Route path="propostas/historico" element={<History />} />
                         <Route path="propostas/:codigo" element={<ProposalDetail />} />
-                        <Route path="voz" element={<Voice />} />
+                        {/* <Route path="voz" element={<Voice />} /> — v2 */}
                         <Route path="gestao/clientes" element={<Clientes />} />
                         <Route path="gestao/arquitetos" element={<Arquitetos />} />
                         <Route path="gestao/fornecedores" element={<Fornecedores />} />
+                        <Route path="gestao/usuarios" element={<Usuarios />} />
                         <Route path="perfil" element={<Perfil />} />
                         <Route path="config" element={<Settings />} />
                       </Route>

@@ -18,6 +18,20 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 # URLs já no S3 (https://...) não passam por aqui, seguem como estão.
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:5000")
 
+# EngajaCRM (EspoCRM) — arquitetos são a entidade "Account" de lá (ver mcp-engajacrm/README.md).
+ESPOCRM_BASE_URL = os.environ.get("ESPOCRM_BASE_URL", "").rstrip("/")
+ESPOCRM_API_KEY = os.environ.get("ESPOCRM_API_KEY", "")
+
+# RF-059 — segredo compartilhado que o sistema externo de transcrição de voz (Whisper/OpenAI)
+# deve mandar no header X-Webhook-Secret ao chamar POST /webhook/proposta-voz. Sem isso
+# configurado, o endpoint recusa qualquer chamada (ver routes/voz.py).
+PROPOSTA_VOZ_WEBHOOK_SECRET = os.environ.get("PROPOSTA_VOZ_WEBHOOK_SECRET", "")
+
+# Transcrição (Whisper) + extração estruturada (chat completion) da gravação feita direto no
+# navegador — ver utils/openai_client.py. Casamento de produto usa pg_trgm (já instalado no
+# banco), não embedding — não depende de nenhuma extensão nova.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+
 # AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY não são lidos aqui de propósito — o boto3 já
 # procura essas duas variáveis de ambiente automaticamente (credential chain padrão),
 # então load_dotenv() já é suficiente pra elas chegarem no processo.

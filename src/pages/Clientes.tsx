@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Plus, Search, Users, X } from 'lucide-react';
+import { Loader2, Pencil, Search, Users, X } from 'lucide-react';
 import { fetchClientes } from '../api/clientes';
 import ErrorState from '../components/ui/ErrorState';
 import { useToast } from '../context/ToastContext';
 import { formatCurrencyRounded, formatPhoneBR } from '../utils/format';
 import type { ClienteSummary } from '../types';
 
-const EMPTY_FORM = { nome: '', telefone: '', endereco: '' };
-
 export default function Clientes() {
   const [clientes, setClientes] = useState<ClienteSummary[]>([]);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({ nome: '', telefone: '', endereco: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const { showToast } = useToast();
@@ -37,12 +35,6 @@ export default function Clientes() {
     return clientes.filter((c) => c.nome.toLowerCase().includes(q));
   }, [clientes, search]);
 
-  function openNew() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setModalOpen(true);
-  }
-
   function openEdit(c: ClienteSummary) {
     setEditingId(c.id);
     setForm({ nome: c.nome, telefone: c.telefone ?? '', endereco: c.endereco ?? '' });
@@ -55,33 +47,18 @@ export default function Clientes() {
       showToast('Informe o nome do cliente.', 'warning');
       return;
     }
-    if (editingId) {
-      setClientes((prev) => prev.map((c) => (c.id === editingId
-        ? { ...c, nome, telefone: form.telefone.trim() || null, endereco: form.endereco.trim() || null }
-        : c)));
-      showToast('Cliente atualizado.', 'success');
-    } else {
-      const novo: ClienteSummary = {
-        id: crypto.randomUUID(),
-        nome,
-        telefone: form.telefone.trim() || null,
-        endereco: form.endereco.trim() || null,
-        propostas: 0,
-        valorTotal: 0,
-        ultimaProposta: '—',
-        cadastradoManualmente: true,
-      };
-      setClientes((prev) => [novo, ...prev].sort((a, b) => a.nome.localeCompare(b.nome)));
-      showToast('Cliente cadastrado.', 'success');
-    }
+    setClientes((prev) => prev.map((c) => (c.id === editingId
+      ? { ...c, nome, telefone: form.telefone.trim() || null, endereco: form.endereco.trim() || null }
+      : c)));
+    showToast('Cliente atualizado.', 'success');
     setModalOpen(false);
   }
 
   return (
     <div id="view-clientes" className="view active fade-in p-6" style={{ maxWidth: 1440 }}>
       <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 720 }}>
-        Diretório de clientes — combina quem já tem proposta com quem foi cadastrado manualmente aqui.
-        Cadastro manual ainda é só nesta tela (não persiste no backend); a fonte definitiva será o CRM da empresa quando a integração existir.
+        Diretório de clientes, hoje derivado das propostas já criadas. O cadastro de novos clientes passa a ser feito no CRM da empresa —
+        em breve esta lista vai puxar de lá via integração (MCP).
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
@@ -97,9 +74,6 @@ export default function Clientes() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button className="btn btn-gold btn-sm" onClick={openNew}>
-          <Plus style={{ width: 13, height: 13 }} /> Novo Cliente
-        </button>
       </div>
 
       <div className="card overflow-hidden">
@@ -150,7 +124,7 @@ export default function Clientes() {
         <div className="modal-box" style={{ width: 460 }}>
           <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
-              {editingId ? 'Editar Cliente' : 'Novo Cliente'}
+              Editar Cliente
             </div>
             <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setModalOpen(false)}>
               <X style={{ width: 18, height: 18 }} />

@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, Home, Mic, PencilRuler, Square, User, X } from 'lucide-react';
-import { useProducts } from '../../context/ProductsContext';
+import { Check, Home, Loader2, Mail, MapPin, Mic, PencilRuler, Phone, Square, User, X } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useToast } from '../../context/ToastContext';
-import { parseVoiceText } from './voiceParser';
-import { useVoiceRecognition } from './useVoiceRecognition';
+import { transcreverAudio } from '../../api/voice';
+import { useAudioRecorder } from './useAudioRecorder';
 import { formatCurrency } from '../../utils/format';
 import type { ParsedVoiceResult } from '../../types';
 
@@ -18,7 +17,6 @@ const FAB_ROUTES: Record<string, string> = {
 export default function VoiceRecorderFab() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { products } = useProducts();
   const { applyVoiceResult } = useProposalDraft();
   const { showToast } = useToast();
 
@@ -28,22 +26,25 @@ export default function VoiceRecorderFab() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [parsed, setParsed] = useState<ParsedVoiceResult | null>(null);
-  // Ref evita closure com catálogo desatualizado no callback do hook de reconhecimento,
-  // registrado uma vez em start() e que sobrevive a re-renders.
-  const productsRef = useRef(products);
-  productsRef.current = products;
+  const [processing, setProcessing] = useState(false);
 
-  function processText(text: string) {
-    setTranscript(text.trim());
-    if (!text.trim()) {
-      setParsed(null);
-      return;
+  async function handleStop(blob: Blob) {
+    setProcessing(true);
+    try {
+      const result = await transcreverAudio(blob);
+      setTranscript(result.transcricao);
+      setParsed(result.parsed);
+      setStatus('Gravação processada.');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível transcrever o áudio.', 'error');
+      setStatus('Falha ao processar — tente gravar de novo.');
+    } finally {
+      setProcessing(false);
     }
-    setParsed(parseVoiceText(text, productsRef.current));
   }
 
-  const { isRecording, status, start, stop } = useVoiceRecognition(
-    processText,
+  const { isRecording, status, setStatus, start, stop } = useAudioRecorder(
+    handleStop,
     (message) => showToast(message, 'error'),
   );
 
@@ -77,7 +78,10 @@ export default function VoiceRecorderFab() {
 
   if (!visible) return null;
 
-  const hasContent = Boolean(parsed && (parsed.client || parsed.architect || parsed.discount || parsed.items.length));
+  const hasContent = Boolean(parsed && (
+    parsed.client || parsed.clientPhone || parsed.clientEmail || parsed.clientAddress
+    || parsed.architect || parsed.discount || parsed.items.length
+  ));
   const applyEnabled = Boolean(parsed && (parsed.items.length > 0 || parsed.client));
   const estimatedTotal = parsed ? parsed.items.reduce((s, it) => s + it.qty * it.product.price, 0) * (1 - (parsed.discount || 0) / 100) : 0;
 
@@ -98,7 +102,9 @@ export default function VoiceRecorderFab() {
           <div className="flex items-center gap-2">
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: isRecording ? 'var(--error)' : 'var(--text-secondary)', transition: 'background .3s' }} />
             <div>
-              <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>{isRecording ? 'Gravando…' : 'Criar Proposta por Voz'}</div>
+              <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>
+                {isRecording ? 'Gravando…' : processing ? 'Processando…' : 'Criar Proposta por Voz'}
+              </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.2 }}>{subtitle}</div>
             </div>
           </div>
@@ -112,15 +118,26 @@ export default function VoiceRecorderFab() {
             <button
               id="btn-rec-toggle"
               style={{
-                width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: processing ? 'not-allowed' : 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E53E3E',
                 boxShadow: isRecording ? '0 4px 16px rgba(229,62,62,.55)' : '0 4px 12px rgba(229,62,62,.35)',
-                transition: 'background .2s, box-shadow .2s',
+                transition: 'background .2s, box-shadow .2s', opacity: processing ? 0.6 : 1,
               }}
               aria-label="Iniciar / parar gravação"
-              onClick={() => (isRecording ? stop() : start())}
+              disabled={processing}
+              onClick={() => {
+                if (isRecording) {
+                  stop();
+                  return;
+                }
+                setTranscript('');
+                setParsed(null);
+                start();
+              }}
             >
-              {isRecording ? <Square style={{ width: 22, height: 22, color: '#fefefe' }} /> : <Mic style={{ width: 22, height: 22, color: '#fefefe' }} />}
+              {processing
+                ? <Loader2 className="spin" style={{ width: 22, height: 22, color: '#fefefe' }} />
+                : isRecording ? <Square style={{ width: 22, height: 22, color: '#fefefe' }} /> : <Mic style={{ width: 22, height: 22, color: '#fefefe' }} />}
             </button>
 
             <div className="flex-1">
@@ -134,7 +151,7 @@ export default function VoiceRecorderFab() {
           <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '10px 12px', minHeight: 52, border: '1.5px solid var(--border)', marginBottom: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--text-secondary)', marginBottom: 4 }}>Transcrição</div>
             <p style={{ fontSize: 13, color: 'var(--primary)', lineHeight: 1.55, minHeight: 18 }}>
-              {transcript || <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>A transcrição aparecerá aqui enquanto você fala...</span>}
+              {transcript || <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Grave e a transcrição aparece aqui assim que terminar de processar...</span>}
             </p>
           </div>
 
@@ -143,6 +160,9 @@ export default function VoiceRecorderFab() {
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--text-secondary)', marginBottom: 6 }}>Extraído</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {parsed?.client && <span className="extracted-tag tag-client"><User style={{ width: 11, height: 11 }} />{parsed.client}</span>}
+                {parsed?.clientPhone && <span className="extracted-tag tag-client"><Phone style={{ width: 11, height: 11 }} />{parsed.clientPhone}</span>}
+                {parsed?.clientEmail && <span className="extracted-tag tag-client"><Mail style={{ width: 11, height: 11 }} />{parsed.clientEmail}</span>}
+                {parsed?.clientAddress && <span className="extracted-tag tag-client"><MapPin style={{ width: 11, height: 11 }} />{parsed.clientAddress}</span>}
                 {parsed?.architect && <span className="extracted-tag tag-client"><PencilRuler style={{ width: 11, height: 11 }} />Arq. {parsed.architect}</span>}
                 {Boolean(parsed?.discount) && <span className="extracted-tag tag-discount">{parsed?.discount}% desconto</span>}
                 {Array.from(new Set(parsed?.items.map((i) => i.ambiente).filter((a): a is string => Boolean(a)))).map((ambiente) => (

@@ -1,0 +1,22 @@
+{
+  "name": "mcp-engajacrm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server que conecta o Claude Code ao EngajaCRM (EspoCRM) da Digital College.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

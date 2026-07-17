@@ -1,4 +1,6 @@
+import unicodedata
 import uuid
+from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
@@ -6,8 +8,20 @@ from sqlalchemy.orm import selectinload
 
 from db import get_session
 from models import CatalogoProduto, Proposta, PropostaItem, PropostaVersao, Usuario
+from utils.crm_client import (
+    CrmError,
+    list_arquitetos as crm_list_arquitetos,
+    list_opportunities_by_account as crm_list_opportunities_by_account,
+)
 
 bp = Blueprint("propostas", __name__)
+
+
+def _normaliza_nome(nome: str) -> str:
+    """Minúsculas, sem espaço nas pontas e sem acento — pra "Ana Rocha" bater com "ana rocha "
+    ou "Ana Rôcha" digitado com variação de acento/caixa."""
+    sem_acento = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii")
+    return " ".join(sem_acento.strip().lower().split())
 
 # Ver backend/seed_usuarios.py — usuário técnico único usado em toda proposta enquanto
 # não existe autenticação real. O trigger fn_generate_codigo_base_proposta exige um
@@ -116,9 +130,27 @@ def list_clientes():
     return jsonify(resultado)
 
 
+def _soma_entrada(entrada, count, valor, data):
+    entrada["propostas"] += count
+    entrada["valorTotal"] += valor
+    if data and (not entrada["ultimaProposta"] or data > entrada["ultimaProposta"]):
+        entrada["ultimaProposta"] = data
+
+
 @bp.get("/arquitetos")
 def list_arquitetos():
-    """Mesma lógica de /clientes, para o campo arquiteto_nome (opcional em cada proposta)."""
+    """Diretório de arquitetos: a lista em si vem do EngajaCRM (fonte de verdade de quem são
+    os arquitetos parceiros). Propostas/valorTotal/últimaProposta somam duas fontes:
+    1) negociações (Opportunity) já registradas no CRM, vinculadas por id da Account — conta
+       todo estágio, incluindo negócios perdidos, pra refletir o histórico completo; e
+    2) propostas criadas aqui no nosso sistema, cruzadas pelo texto livre `arquiteto_nome`
+       (não há vínculo por id nessa ponta ainda — só o nome, normalizado)."""
+    try:
+        arquitetos_crm = crm_list_arquitetos()
+        oportunidades_por_account = crm_list_opportunities_by_account()
+    except CrmError as exc:
+        return jsonify({"error": str(exc)}), 502
+
     session = get_session()
     propostas = (
         session.query(Proposta)
@@ -126,28 +158,49 @@ def list_arquitetos():
         .all()
     )
 
-    agregados = {}
+    stats_por_nome = {}
     for proposta in propostas:
         if not proposta.versoes:
             continue
-        chave = (proposta.arquiteto_nome or "").strip()
+        chave = _normaliza_nome(proposta.arquiteto_nome or "")
         if not chave:
             continue
         ultima = max(proposta.versoes, key=lambda v: v.versao_numero)
         valor = sum(float(item.valor_total or 0) for item in ultima.itens)
 
-        entrada = agregados.setdefault(chave, {
-            "nome": chave, "propostas": 0, "valorTotal": 0.0, "ultimaProposta": None,
-        })
-        entrada["propostas"] += 1
-        entrada["valorTotal"] += valor
-        if not entrada["ultimaProposta"] or proposta.criado_em > entrada["ultimaProposta"]:
-            entrada["ultimaProposta"] = proposta.criado_em
+        # .replace(tzinfo=None): criado_em vem com timezone do banco, mas o createdAt do CRM
+        # chega naive (sem tz) — precisam do mesmo tipo pra dar pra comparar com ">" mais abaixo.
+        data_criacao = proposta.criado_em.replace(tzinfo=None) if proposta.criado_em else None
+        entrada = stats_por_nome.setdefault(chave, {"propostas": 0, "valorTotal": 0.0, "ultimaProposta": None})
+        _soma_entrada(entrada, 1, valor, data_criacao)
 
-    resultado = sorted(
-        [{**e, "ultimaProposta": _format_date(e["ultimaProposta"])} for e in agregados.values()],
-        key=lambda r: r["nome"].lower(),
-    )
+    resultado = []
+    for arquiteto in arquitetos_crm:
+        entrada = {"propostas": 0, "valorTotal": 0.0, "ultimaProposta": None}
+
+        for oportunidade in oportunidades_por_account.get(arquiteto["id"], []):
+            data = None
+            if oportunidade["createdAt"]:
+                try:
+                    data = datetime.strptime(oportunidade["createdAt"], "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    data = None
+            _soma_entrada(entrada, 1, oportunidade["amount"], data)
+
+        stats_locais = stats_por_nome.get(_normaliza_nome(arquiteto["nome"]))
+        if stats_locais:
+            _soma_entrada(entrada, stats_locais["propostas"], stats_locais["valorTotal"], stats_locais["ultimaProposta"])
+
+        resultado.append({
+            "id": arquiteto["id"],
+            "nome": arquiteto["nome"],
+            "escritorio": arquiteto["escritorio"],
+            "propostas": entrada["propostas"],
+            "valorTotal": entrada["valorTotal"],
+            "ultimaProposta": _format_date(entrada["ultimaProposta"]),
+        })
+
+    resultado.sort(key=lambda r: r["nome"].lower())
     return jsonify(resultado)
 
 

@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, PencilRuler, Plus, Search, X, Pencil } from 'lucide-react';
+import { Loader2, PencilRuler, Search } from 'lucide-react';
 import { fetchArquitetos } from '../api/clientes';
 import ErrorState from '../components/ui/ErrorState';
-import { useToast } from '../context/ToastContext';
 import { formatCurrencyRounded } from '../utils/format';
 import type { ArquitetoSummary } from '../types';
-
-const EMPTY_FORM = { nome: '', escritorio: '' };
 
 export default function Arquitetos() {
   const [arquitetos, setArquitetos] = useState<ArquitetoSummary[]>([]);
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const { showToast } = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -37,50 +30,12 @@ export default function Arquitetos() {
     return arquitetos.filter((a) => a.nome.toLowerCase().includes(q));
   }, [arquitetos, search]);
 
-  function openNew() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setModalOpen(true);
-  }
-
-  function openEdit(a: ArquitetoSummary) {
-    setEditingId(a.id);
-    setForm({ nome: a.nome, escritorio: a.escritorio ?? '' });
-    setModalOpen(true);
-  }
-
-  function handleSave() {
-    const nome = form.nome.trim();
-    if (!nome) {
-      showToast('Informe o nome do arquiteto.', 'warning');
-      return;
-    }
-    if (editingId) {
-      setArquitetos((prev) => prev.map((a) => (a.id === editingId
-        ? { ...a, nome, escritorio: form.escritorio.trim() || null }
-        : a)));
-      showToast('Arquiteto atualizado.', 'success');
-    } else {
-      const novo: ArquitetoSummary = {
-        id: crypto.randomUUID(),
-        nome,
-        escritorio: form.escritorio.trim() || null,
-        propostas: 0,
-        valorTotal: 0,
-        ultimaProposta: '—',
-        cadastradoManualmente: true,
-      };
-      setArquitetos((prev) => [novo, ...prev].sort((a, b) => a.nome.localeCompare(b.nome)));
-      showToast('Arquiteto cadastrado.', 'success');
-    }
-    setModalOpen(false);
-  }
-
   return (
     <div id="view-arquitetos" className="view active fade-in p-6" style={{ maxWidth: 1440 }}>
       <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 720 }}>
-        Diretório de arquitetos/escritórios — combina quem já tem proposta com quem foi cadastrado manualmente aqui.
-        Cadastro manual ainda é só nesta tela (não persiste no backend); a fonte definitiva será o CRM da empresa quando a integração existir.
+        Diretório de arquitetos/escritórios parceiros, sincronizado a partir do CRM da empresa (EngajaCRM).
+        O cadastro de novos arquitetos é feito lá. Propostas/valor total somam as negociações já registradas no CRM
+        com as propostas criadas aqui no nosso sistema.
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
@@ -96,9 +51,6 @@ export default function Arquitetos() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button className="btn btn-gold btn-sm" onClick={openNew}>
-          <Plus style={{ width: 13, height: 13 }} /> Novo Arquiteto
-        </button>
       </div>
 
       <div className="card overflow-hidden">
@@ -108,29 +60,21 @@ export default function Arquitetos() {
             <div style={{ fontSize: 14 }}>Carregando arquitetos...</div>
           </div>
         ) : error ? (
-          <ErrorState message="Não foi possível carregar os arquitetos — verifique se o backend está no ar." onRetry={load} />
+          <ErrorState message="Não foi possível carregar os arquitetos — verifique se o backend e o CRM estão no ar." onRetry={load} />
         ) : filtered.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
-                <tr><th>Arquiteto</th><th>Escritório</th><th>Propostas</th><th>Valor Total</th><th>Última Proposta</th><th /></tr>
+                <tr><th>Arquiteto</th><th>Escritório</th><th>Propostas</th><th>Valor Total</th><th>Última Proposta</th></tr>
               </thead>
               <tbody>
                 {filtered.map((a) => (
                   <tr key={a.id}>
-                    <td className="font-medium">
-                      {a.nome}
-                      {a.cadastradoManualmente && <span className="badge badge-draft" style={{ marginLeft: 8, fontSize: 10 }}>Cadastro manual</span>}
-                    </td>
+                    <td className="font-medium">{a.nome}</td>
                     <td style={{ color: 'var(--text-secondary)' }}>{a.escritorio || '—'}</td>
                     <td><span className="badge badge-gold">{a.propostas}</span></td>
                     <td><span className="mono font-semibold">{formatCurrencyRounded(a.valorTotal)}</span></td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{a.ultimaProposta}</td>
-                    <td>
-                      <button className="btn btn-ghost btn-sm" aria-label={`Editar ${a.nome}`} onClick={() => openEdit(a)}>
-                        <Pencil style={{ width: 13, height: 13 }} />
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -142,33 +86,6 @@ export default function Arquitetos() {
             <div style={{ fontSize: 14 }}>Nenhum arquiteto encontrado.</div>
           </div>
         )}
-      </div>
-
-      <div className={`modal-overlay${modalOpen ? ' open' : ''}`} role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-        <div className="modal-box" style={{ width: 460 }}>
-          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
-              {editingId ? 'Editar Arquiteto' : 'Novo Arquiteto'}
-            </div>
-            <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setModalOpen(false)}>
-              <X style={{ width: 18, height: 18 }} />
-            </button>
-          </div>
-          <div className="p-6">
-            <div className="mb-4">
-              <label className="form-label" htmlFor="arq-nome">Nome *</label>
-              <input id="arq-nome" className="form-input" value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} />
-            </div>
-            <div className="mb-2">
-              <label className="form-label" htmlFor="arq-esc">Escritório</label>
-              <input id="arq-esc" className="form-input" value={form.escritorio} onChange={(e) => setForm((f) => ({ ...f, escritorio: e.target.value }))} />
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-gold" onClick={handleSave}>Salvar</button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

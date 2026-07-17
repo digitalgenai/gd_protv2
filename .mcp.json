@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "engajacrm": {
+      "command": "npm",
+      "args": ["run", "dev"],
+      "cwd": "mcp-engajacrm"
+    }
+  }
+}

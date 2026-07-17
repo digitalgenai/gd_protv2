@@ -3,8 +3,10 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useProducts } from '../../context/ProductsContext';
-import { useVoz } from '../../context/VozContext';
-import VoiceRecorderFab from '../voice/VoiceRecorderFab';
+import { useAuth } from '../../context/AuthContext';
+// Voz: modo de gravação por áudio adiado para a v2 — ver App.tsx/Dashboard.tsx/Sidebar.tsx.
+// import { useVoz } from '../../context/VozContext';
+// import VoiceRecorderFab from '../voice/VoiceRecorderFab';
 import ImageModal from '../catalog/ImageModal';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -14,10 +16,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/propostas/nova': 'Nova Proposta',
   '/propostas/revisao': 'Propostas para Revisão',
   '/propostas/historico': 'Histórico de Propostas',
-  '/voz': 'Rascunhos de Voz',
+  // '/voz': 'Rascunhos de Voz', — v2
   '/gestao/clientes': 'Clientes',
   '/gestao/arquitetos': 'Arquitetos',
   '/gestao/fornecedores': 'Fornecedores',
+  '/gestao/usuarios': 'Usuários',
   '/perfil': 'Meu Perfil',
   '/config': 'Configurações',
 };
@@ -35,7 +38,8 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { products } = useProducts();
-  const { rascunhos } = useVoz();
+  const { usuario } = useAuth();
+  const isAdmin = usuario?.perfil === 'Administrador';
   const location = useLocation();
 
   const title = getPageTitle(location.pathname);
@@ -57,7 +61,7 @@ export default function Layout() {
         onToggleCollapse={() => setCollapsed((c) => !c)}
         mobileOpen={mobileOpen}
         onNavigate={closeMobile}
-        voiceDraftCount={rascunhos.length}
+        isAdmin={isAdmin}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -67,7 +71,7 @@ export default function Layout() {
         </div>
       </main>
 
-      <VoiceRecorderFab />
+      {/* <VoiceRecorderFab /> — v2 */}
       <ImageModal />
     </div>
   );

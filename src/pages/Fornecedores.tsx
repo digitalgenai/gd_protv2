@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Loader2, Pencil, Plus, Search, Upload, X } from 'lucide-react';
+import { Building2, Loader2, Pencil, Search, Upload, X } from 'lucide-react';
 import { fetchFornecedores } from '../api/fornecedores';
 import ErrorState from '../components/ui/ErrorState';
 import { useToast } from '../context/ToastContext';
 import type { FornecedorSummary } from '../types';
-
-const EMPTY_FORM = { nome: '', logoUrl: '', site: '', contato: '' };
 
 /**
  * Edição/cadastro ainda é front-only (sem coluna de logo/site/contato no banco), mas a lista
@@ -53,7 +51,7 @@ export default function Fornecedores() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({ nome: '', logoUrl: '', site: '', contato: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const { showToast } = useToast();
@@ -84,12 +82,6 @@ export default function Fornecedores() {
     return fornecedores.filter((f) => f.nome.toLowerCase().includes(q));
   }, [fornecedores, search]);
 
-  function openNew() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setModalOpen(true);
-  }
-
   function openEdit(f: FornecedorSummary) {
     setEditingId(f.id);
     setForm({ nome: f.nome, logoUrl: f.logoUrl ?? '', site: f.site ?? '', contato: f.contato ?? '' });
@@ -110,29 +102,20 @@ export default function Fornecedores() {
     }
     const patch = { nome, logoUrl: form.logoUrl.trim() || null, site: form.site.trim() || null, contato: form.contato.trim() || null };
 
-    if (editingId) {
-      const atualizado = fornecedores.map((f) => (f.id === editingId ? { ...f, ...patch } : f));
-      setFornecedores(atualizado.sort((a, b) => a.nome.localeCompare(b.nome)));
+    const atualizado = fornecedores.map((f) => (f.id === editingId ? { ...f, ...patch } : f));
+    setFornecedores(atualizado.sort((a, b) => a.nome.localeCompare(b.nome)));
 
-      const overrides = loadJSON<Record<string, Partial<FornecedorSummary>>>(OVERRIDES_KEY, {});
-      overrides[editingId] = patch;
-      localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+    const overrides = loadJSON<Record<string, Partial<FornecedorSummary>>>(OVERRIDES_KEY, {});
+    overrides[editingId as string] = patch;
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
 
-      const manual = loadJSON<FornecedorSummary[]>(MANUAL_KEY, []);
-      const idx = manual.findIndex((m) => m.id === editingId);
-      if (idx >= 0) {
-        manual[idx] = { ...manual[idx], ...patch };
-        localStorage.setItem(MANUAL_KEY, JSON.stringify(manual));
-      }
-      showToast('Fornecedor atualizado.', 'success');
-    } else {
-      const novo: FornecedorSummary = { id: crypto.randomUUID(), ...patch };
-      setFornecedores((prev) => [novo, ...prev].sort((a, b) => a.nome.localeCompare(b.nome)));
-
-      const manual = loadJSON<FornecedorSummary[]>(MANUAL_KEY, []);
-      localStorage.setItem(MANUAL_KEY, JSON.stringify([...manual, novo]));
-      showToast('Fornecedor cadastrado.', 'success');
+    const manual = loadJSON<FornecedorSummary[]>(MANUAL_KEY, []);
+    const idx = manual.findIndex((m) => m.id === editingId);
+    if (idx >= 0) {
+      manual[idx] = { ...manual[idx], ...patch };
+      localStorage.setItem(MANUAL_KEY, JSON.stringify(manual));
     }
+    showToast('Fornecedor atualizado.', 'success');
     setModalOpen(false);
   }
 
@@ -140,6 +123,7 @@ export default function Fornecedores() {
     <div id="view-fornecedores" className="view active fade-in p-6" style={{ maxWidth: 1440 }}>
       <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 720 }}>
         Fornecedores cadastrados no banco. Logo, site e contato ainda ficam salvos só neste navegador (não persistem no backend ainda).
+        O cadastro de novos fornecedores passa a ser feito no CRM da empresa — em breve esta lista vai puxar de lá via integração (MCP).
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
@@ -155,9 +139,6 @@ export default function Fornecedores() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button className="btn btn-gold btn-sm" onClick={openNew}>
-          <Plus style={{ width: 13, height: 13 }} /> Novo Fornecedor
-        </button>
       </div>
 
       <div className="card overflow-hidden">
@@ -205,7 +186,7 @@ export default function Fornecedores() {
         <div className="modal-box" style={{ width: 460 }}>
           <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
-              {editingId ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+              Editar Fornecedor
             </div>
             <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setModalOpen(false)}>
               <X style={{ width: 18, height: 18 }} />

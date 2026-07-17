@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
-  ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard, Mic,
+  ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard,
   Package, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
 } from 'lucide-react';
 
@@ -10,7 +10,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   mobileOpen: boolean;
   onNavigate: () => void;
-  voiceDraftCount: number;
+  isAdmin: boolean;
 }
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -49,14 +49,11 @@ function GroupHeader({
   );
 }
 
-export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, voiceDraftCount }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
   const [comercialOpen, setComercialOpen] = useState(true);
   const [catalogoOpen, setCatalogoOpen] = useState(true);
   const [gestaoOpen, setGestaoOpen] = useState(false);
   const [sistemaOpen, setSistemaOpen] = useState(false);
-  const location = useLocation();
-  const configTab = new URLSearchParams(location.search).get('tab');
-  const onConfig = location.pathname === '/config';
 
   return (
     <aside
@@ -88,15 +85,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
             <History className="nav-icon" style={{ width: 16, height: 16 }} />
             <span className="nav-label">Propostas</span>
           </NavLink>
-          <NavLink to="/voz" className={navClass} onClick={onNavigate}>
-            <Mic className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Rascunhos de Voz</span>
-            {voiceDraftCount > 0 && (
-              <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--error)', color: '#fefefe', fontSize: 10 }}>
-                {voiceDraftCount}
-              </span>
-            )}
-          </NavLink>
+          {/* Rascunhos de Voz — modo de gravação por áudio adiado para a v2 */}
         </div>
 
         <GroupHeader icon={Package} label="Catálogo" open={catalogoOpen} onToggle={() => setCatalogoOpen((o) => !o)} />
@@ -111,33 +100,37 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
           </NavLink>
         </div>
 
-        <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} />
-        <div className="submenu" style={{ display: gestaoOpen ? 'block' : 'none' }}>
-          <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
-            <Contact className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Clientes</span>
-          </NavLink>
-          <NavLink to="/gestao/arquitetos" className={navClass} onClick={onNavigate}>
-            <PencilRuler className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Arquitetos</span>
-          </NavLink>
-          <NavLink to="/gestao/fornecedores" className={navClass} onClick={onNavigate}>
-            <Truck className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Fornecedores</span>
-          </NavLink>
-          <NavLink to="/config?tab=usuarios" className={() => navClass({ isActive: onConfig && configTab !== 'integracoes' })} onClick={onNavigate}>
-            <Users className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Usuários</span>
-          </NavLink>
-        </div>
+        {isAdmin && (
+          <>
+            <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} />
+            <div className="submenu" style={{ display: gestaoOpen ? 'block' : 'none' }}>
+              <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
+                <Contact className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Clientes</span>
+              </NavLink>
+              <NavLink to="/gestao/arquitetos" className={navClass} onClick={onNavigate}>
+                <PencilRuler className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Arquitetos</span>
+              </NavLink>
+              <NavLink to="/gestao/fornecedores" className={navClass} onClick={onNavigate}>
+                <Truck className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Fornecedores</span>
+              </NavLink>
+              <NavLink to="/gestao/usuarios" className={navClass} onClick={onNavigate}>
+                <Users className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Usuários</span>
+              </NavLink>
+            </div>
 
-        <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} />
-        <div className="submenu" style={{ display: sistemaOpen ? 'block' : 'none' }}>
-          <NavLink to="/config?tab=integracoes" className={() => navClass({ isActive: onConfig && configTab === 'integracoes' })} onClick={onNavigate}>
-            <Settings className="nav-icon" style={{ width: 16, height: 16 }} />
-            <span className="nav-label">Configurações</span>
-          </NavLink>
-        </div>
+            <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} />
+            <div className="submenu" style={{ display: sistemaOpen ? 'block' : 'none' }}>
+              <NavLink to="/config" className={navClass} onClick={onNavigate}>
+                <Settings className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Configurações</span>
+              </NavLink>
+            </div>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-white/10 p-3">

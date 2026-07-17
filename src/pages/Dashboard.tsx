@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CloudUpload, DollarSign, FileText, Loader2, Mic, Package, Percent, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-react';
+import { CloudUpload, DollarSign, FileText, Loader2, Package, Percent, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-react';
 import { fetchCatalogQuality } from '../api/catalogQuality';
 import { fetchDashboardKpis, type DashboardKpis } from '../api/dashboard';
 import { fetchProposals } from '../api/proposals';
 import ErrorState from '../components/ui/ErrorState';
 import { useProducts } from '../context/ProductsContext';
-import { useVoz } from '../context/VozContext';
+// Voz: modo de gravação por áudio adiado para a v2 — ver App.tsx/Layout.tsx/Sidebar.tsx.
+// import { useVoz } from '../context/VozContext';
 import { buildCatalogHealthSummary } from '../utils/catalogHealth';
 import { formatCurrencyRounded } from '../utils/format';
 import type { CatalogQualityReport } from '../api/catalogQuality';
@@ -42,7 +43,6 @@ function Delta({ delta }: { delta: { text: string; up: boolean } | null }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { products } = useProducts();
-  const { rascunhos } = useVoz();
   const [qualityReport, setQualityReport] = useState<CatalogQualityReport | null>(null);
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
   const [proposals, setProposals] = useState<ProposalSummary[]>([]);
@@ -185,6 +185,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Rascunhos de Voz — modo de gravação por áudio adiado para a v2
           <div className="card p-5" style={{ borderColor: 'rgba(133,34,40,.3)' }}>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(133,34,40,.12)' }}>
@@ -201,6 +202,7 @@ export default function Dashboard() {
               Revisar Agora
             </button>
           </div>
+          */}
 
           <div className="card p-5">
             <div className="flex items-center gap-2 mb-3">

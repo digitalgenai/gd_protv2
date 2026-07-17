@@ -5,6 +5,8 @@ import { useProducts } from '../context/ProductsContext';
 import { useVendedores } from '../context/VendedoresContext';
 import { useToast } from '../context/ToastContext';
 import { createProposal } from '../api/proposals';
+import { fetchArquitetos } from '../api/clientes';
+import type { ArquitetoSummary } from '../types';
 import { formatCurrency, formatPhoneBR, parseClamped } from '../utils/format';
 import { buildWhatsAppShareLink } from '../utils/whatsapp';
 import { buildMailtoShareLink } from '../utils/email';
@@ -23,6 +25,12 @@ export default function NewProposal() {
   const [novoAmbiente, setNovoAmbiente] = useState('');
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
+  const [arquitetosCrm, setArquitetosCrm] = useState<ArquitetoSummary[]>([]);
+
+  useEffect(() => {
+    // Sugestões pro campo Arquiteto vêm do CRM — se falhar, o campo segue como texto livre normal.
+    fetchArquitetos().then(setArquitetosCrm).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!sendMenuOpen) return;
@@ -229,7 +237,15 @@ export default function NewProposal() {
           </div>
           <div>
             <label className="form-label" htmlFor="pArquiteto">Arquiteto / Escritório</label>
-            <input id="pArquiteto" type="text" placeholder="Nome do arquiteto" className="form-input" value={header.arquiteto} onChange={(e) => setHeaderField('arquiteto', e.target.value)} />
+            <select id="pArquiteto" className="form-input" value={header.arquiteto} onChange={(e) => setHeaderField('arquiteto', e.target.value)}>
+              <option value="">— Nenhum —</option>
+              {header.arquiteto && !arquitetosCrm.some((a) => a.nome === header.arquiteto) && (
+                <option value={header.arquiteto}>{header.arquiteto}</option>
+              )}
+              {arquitetosCrm.map((a) => (
+                <option key={a.id} value={a.nome}>{a.escritorio ? `${a.nome} — ${a.escritorio}` : a.nome}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="form-label" htmlFor="pVendedor">Vendedor *</label>

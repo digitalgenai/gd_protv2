@@ -134,6 +134,10 @@ export interface ParsedVoiceResult {
   discount: number;
   items: VoiceDraftItem[];
   notFound: VoiceNotFoundItem[];
+  /** Dados de contato do cliente citados na fala (ex.: "o telefone dela é..."), quando identificados. */
+  clientPhone?: string | null;
+  clientEmail?: string | null;
+  clientAddress?: string | null;
 }
 
 export interface RascunhoVozItem {
