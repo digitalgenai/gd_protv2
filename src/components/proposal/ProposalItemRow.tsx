@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image as ImageIcon, Layers, Plus, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, ImageOff, Layers, Plus, Trash2 } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useProducts } from '../../context/ProductsContext';
 import { MATERIAL_SUGGESTIONS_BY_CATEGORY } from '../../data/materialSuggestions';
@@ -129,7 +129,13 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
               Destaque
             </button>
           ) : (
-            <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>—</span>
+            <span
+              className="flex items-center gap-1"
+              style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}
+              title="Este produto não tem foto de ambiente cadastrada — não vai aparecer na página &quot;Itens em Destaque&quot; do PDF"
+            >
+              <ImageOff style={{ width: 13, height: 13, flexShrink: 0 }} /> Sem foto
+            </span>
           )}
         </td>
         <td>
