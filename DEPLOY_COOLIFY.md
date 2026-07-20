@@ -109,9 +109,11 @@ servido pelo nginx.
    assim que subir (confirma que a rede/VPN até `192.168.23.130` está mesmo acessível
    a partir do servidor do Coolify).
 
-## Pendências que não fazem parte deste guia (do relatório anterior)
+## Sobre o banco em produção
 
-- Nenhuma rota do backend verifica autenticação (achado crítico ainda em aberto).
-- Sem framework de migration (Alembic) para o schema do banco.
+O schema do Postgres não é gerenciado por migration automática no deploy — segue o mesmo
+processo manual de sempre. Se o servidor de produção apontar pra um banco novo/diferente do
+de dev, rode `python -m alembic stamp head` nele antes (ver `backend/migrations/README.md`)
+pra alinhar com o schema atual sem tentar recriar nada.
 
 Nenhuma delas bloqueia o deploy, mas valem a pena resolver logo depois de colocar no ar.
