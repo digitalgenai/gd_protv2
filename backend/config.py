@@ -33,6 +33,9 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # EngajaCRM (EspoCRM) — arquitetos são a entidade "Account" de lá (ver mcp-engajacrm/README.md).
+# Em produção, ESPOCRM_BASE_URL aponta pro nome do container dele na rede Docker "engajacrm-net"
+# (ver docker-compose.yml e DEPLOY_COOLIFY.md > Gotcha #3) — o domínio público redireciona pra
+# uma porta errada (cai num pfSense, não no CRM) e não está sob nosso controle pra corrigir.
 ESPOCRM_BASE_URL = os.environ.get("ESPOCRM_BASE_URL", "").rstrip("/")
 ESPOCRM_API_KEY = os.environ.get("ESPOCRM_API_KEY", "")
 

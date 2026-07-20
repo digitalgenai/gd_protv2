@@ -25,7 +25,13 @@ export default function PrintProposal() {
   const showHighlightAmbienteHeaders = shouldShowAmbienteHeaders(highlightGroups);
 
   const codeDisplay = proposalCode.replace(/\.CLIENTE$/, '');
-  const vendedorDisplay = vendedores.find((v) => v.id === header.vendedor)?.nome ?? '—';
+  const vendedorPrincipal = vendedores.find((v) => v.id === header.vendedor)?.nome ?? '—';
+  const coVendedoresNomes = header.vendedoresConjuntos
+    .map((id) => vendedores.find((v) => v.id === id)?.nome)
+    .filter((nome): nome is string => Boolean(nome));
+  const vendedorDisplay = coVendedoresNomes.length > 0
+    ? `${vendedorPrincipal} + ${coVendedoresNomes.join(', ')}`
+    : vendedorPrincipal;
   const pagamento = PAYMENT_OPTIONS.includes(header.pagamento) ? header.pagamento : PAYMENT_OPTIONS[0];
   const validadeDate = header.validade ? new Date(`${header.validade}T00:00:00`) : null;
 

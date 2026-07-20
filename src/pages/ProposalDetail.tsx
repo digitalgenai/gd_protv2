@@ -106,6 +106,7 @@ export default function ProposalDetail() {
         observacoes: detail!.observacoes,
         globalDiscount: 0,
         ambientes: detail!.ambientes,
+        vendedoresConjuntos: (detail!.vendedoresConjuntos ?? []).map((v) => v.id),
       },
       detail!.itens,
       detail!.code,
@@ -192,7 +193,11 @@ export default function ProposalDetail() {
             </div>
             <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 19 }}>{detail.cliente}</div>
             <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {detail.arquiteto ? `${detail.arquiteto} · ` : ''}Vendedor: {detail.vendedor} · {detail.data}
+              {detail.arquiteto ? `${detail.arquiteto} · ` : ''}Vendedor: {detail.vendedor}
+              {(detail.vendedoresConjuntos?.length ?? 0) > 0 && (
+                <> (venda em conjunto com {detail.vendedoresConjuntos.map((v) => v.nome).join(', ')})</>
+              )}
+              {' · '}{detail.data}
             </div>
             {(detail.telefoneCliente || detail.emailCliente || detail.enderecoCliente) && (
               <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
@@ -335,7 +340,11 @@ export default function ProposalDetail() {
               emailCliente={detail.emailCliente}
               enderecoCliente={detail.enderecoCliente}
               arquiteto={detail.arquiteto ?? ''}
-              vendedorLabel={detail.vendedor}
+              vendedorLabel={
+                (detail.vendedoresConjuntos?.length ?? 0) > 0
+                  ? `${detail.vendedor} + ${detail.vendedoresConjuntos.map((v) => v.nome).join(', ')}`
+                  : detail.vendedor
+              }
               pagamento={detail.pagamento}
               validadeDate={validadeDate}
               groups={groups}

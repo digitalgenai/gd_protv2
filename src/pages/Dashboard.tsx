@@ -172,7 +172,18 @@ export default function Dashboard() {
                 <tr key={p.code}>
                   <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
                   <td>{p.cliente}</td>
-                  <td>{p.vendedor}</td>
+                  <td>
+                    {p.vendedor}
+                    {(p.vendedoresConjuntos?.length ?? 0) > 0 && (
+                      <span
+                        className="badge badge-gold"
+                        style={{ marginLeft: 6, fontSize: 10.5 }}
+                        title={`Venda em conjunto com ${p.vendedoresConjuntos.map((v) => v.nome).join(', ')}`}
+                      >
+                        +{p.vendedoresConjuntos.length}
+                      </span>
+                    )}
+                  </td>
                   <td><span className="mono">{formatCurrencyRounded(p.valor)}</span></td>
                   <td><span className={`badge ${STATUS_BADGE[p.status]}`}>{p.status}</span></td>
                 </tr>

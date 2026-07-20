@@ -6,6 +6,14 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+    # Rede do container real do EngajaCRM nesse mesmo servidor Coolify — sem isso, a chamada
+    # ao CRM só tem o caminho público (crm.galpaodesign.digitalgenai.com.br), que redireciona
+    # pra uma porta errada (cai no pfSense, não no CRM) e trava em SSL. Por dentro dessa rede,
+    # o CRM é alcançado direto por nome de container, sem passar por firewall/redirect nenhum.
+    # Ver ESPOCRM_BASE_URL no .env: precisa ser o nome do container, não o domínio público.
+    networks:
+      - default
+      - engajacrm-net
 
   frontend:
     build:
@@ -18,3 +26,11 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+networks:
+  # external: já existe (é a rede do container do EngajaCRM, criada pelo docker-compose DELE,
+  # não pelo nosso) — se o recurso do CRM for excluído/recriado no Coolify, esse nome de rede
+  # muda e precisa atualizar aqui (ver docker inspect nos containers "engajacrm-*").
+  engajacrm-net:
+    external: true
+    name: w26b01n9jesh1dqq5p1x1r9p_engajacrm-net

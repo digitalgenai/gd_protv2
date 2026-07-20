@@ -1,11 +1,11 @@
 import type { ProposalDetail, ProposalSummary } from '../types';
 
 export const MOCK_PROPOSALS: ProposalSummary[] = [
-  { code: 'GD-05.26.MES.001.v1', cliente: 'Família Mendes',   arquiteto: 'Arq. Beatriz Costa', vendedor: 'Marcos E.',   valor: 47200,  data: '07/05/2026', versao: 1, status: 'Aprovada', pdfGerado: true },
-  { code: 'GD-05.26.CAR.002.v2', cliente: 'Ricardo Campos',   arquiteto: null,                 vendedor: 'Carolina R.', valor: 23850,  data: '05/05/2026', versao: 2, status: 'Enviada', pdfGerado: true },
-  { code: 'GD-05.26.MES.003.v1', cliente: 'BRK Advocacia',    arquiteto: 'Arq. Fábio Lima',     vendedor: 'Marcos E.',   valor: 91400,  data: '04/05/2026', versao: 1, status: 'Rascunho', pdfGerado: false },
-  { code: 'GD-04.26.ROD.004.v1', cliente: 'Hotel Palmeiras',  arquiteto: 'Arq. Marina V.',      vendedor: 'Rodrigo S.',  valor: 138000, data: '22/04/2026', versao: 1, status: 'Reprovada', pdfGerado: true },
-  { code: 'GD-05.26.ANA.005.v1', cliente: 'Studio Ateliê',    arquiteto: null,                 vendedor: 'Ana Paula M.',valor: 19300,  data: '08/05/2026', versao: 1, status: 'Revisão', pdfGerado: true },
+  { code: 'GD-05.26.MES.001.v1', cliente: 'Família Mendes',   arquiteto: 'Arq. Beatriz Costa', vendedor: 'Marcos E.',   vendedoresConjuntos: [], valor: 47200,  data: '07/05/2026', versao: 1, status: 'Aprovada', pdfGerado: true },
+  { code: 'GD-05.26.CAR.002.v2', cliente: 'Ricardo Campos',   arquiteto: null,                 vendedor: 'Carolina R.', vendedoresConjuntos: [], valor: 23850,  data: '05/05/2026', versao: 2, status: 'Enviada', pdfGerado: true },
+  { code: 'GD-05.26.MES.003.v1', cliente: 'BRK Advocacia',    arquiteto: 'Arq. Fábio Lima',     vendedor: 'Marcos E.',   vendedoresConjuntos: [], valor: 91400,  data: '04/05/2026', versao: 1, status: 'Rascunho', pdfGerado: false },
+  { code: 'GD-04.26.ROD.004.v1', cliente: 'Hotel Palmeiras',  arquiteto: 'Arq. Marina V.',      vendedor: 'Rodrigo S.',  vendedoresConjuntos: [], valor: 138000, data: '22/04/2026', versao: 1, status: 'Reprovada', pdfGerado: true },
+  { code: 'GD-05.26.ANA.005.v1', cliente: 'Studio Ateliê',    arquiteto: null,                 vendedor: 'Ana Paula M.',vendedoresConjuntos: [], valor: 19300,  data: '08/05/2026', versao: 1, status: 'Revisão', pdfGerado: true },
 ];
 
 const CAR_002_VERSOES = [

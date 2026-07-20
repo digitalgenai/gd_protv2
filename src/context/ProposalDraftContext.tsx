@@ -22,6 +22,8 @@ interface ProposalHeader {
   globalDiscount: number;
   /** Ambientes definidos antecipadamente pelo consultor (ex.: "Sala de Estar", "Cozinha"), na ordem em que foram criados. */
   ambientes: string[];
+  /** Ids dos vendedores adicionais da venda em conjunto (RF-039) — nunca inclui `vendedor` (o principal). */
+  vendedoresConjuntos: string[];
 }
 
 interface ProposalDraftContextValue {
@@ -38,6 +40,9 @@ interface ProposalDraftContextValue {
   addAmbiente: (name: string) => void;
   removeAmbiente: (name: string) => void;
   renameAmbiente: (oldName: string, newName: string) => void;
+  /** Venda em conjunto (RF-039): adiciona/remove um vendedor adicional pelo id. */
+  addCoVendedor: (vendedorId: string) => void;
+  removeCoVendedor: (vendedorId: string) => void;
   applyVoiceResult: (result: ParsedVoiceResult) => void;
   /** Carrega um rascunho pré-existente (ex.: "Editar como nova versão" a partir do histórico).
    * `originalCode`, quando informado, marca que o próximo save deve virar uma versão nova da
@@ -69,6 +74,7 @@ const DEFAULT_HEADER: ProposalHeader = {
   observacoes: '',
   globalDiscount: 0,
   ambientes: [],
+  vendedoresConjuntos: [],
 };
 
 const ProposalDraftContext = createContext<ProposalDraftContextValue | null>(null);
@@ -159,6 +165,18 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
     setRows((r) => r.map((row) => (row.ambiente === oldName ? { ...row, ambiente: trimmed } : row)));
   };
 
+  const addCoVendedor = (vendedorId: string) => {
+    if (!vendedorId) return;
+    setHeader((h) => {
+      if (vendedorId === h.vendedor || h.vendedoresConjuntos.includes(vendedorId)) return h;
+      return { ...h, vendedoresConjuntos: [...h.vendedoresConjuntos, vendedorId] };
+    });
+  };
+
+  const removeCoVendedor = (vendedorId: string) => {
+    setHeader((h) => ({ ...h, vendedoresConjuntos: h.vendedoresConjuntos.filter((id) => id !== vendedorId) }));
+  };
+
   const loadDraft = (newHeader: Partial<ProposalHeader>, newRows: ProposalRow[], newOriginalCode?: string) => {
     const maxRowId = newRows.reduce((m, row) => Math.max(m, row.id), 0);
     const maxMaterialId = newRows.reduce((m, row) => Math.max(m, ...row.materiais.map((mat) => mat.id)), 0);
@@ -216,6 +234,7 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
       value={{
         header, rows, setHeaderField, addProductToProposal, addEmptyRow, updateRow, removeRow,
         addMaterial, updateMaterial, removeMaterial, addAmbiente, removeAmbiente, renameAmbiente,
+        addCoVendedor, removeCoVendedor,
         applyVoiceResult, loadDraft, resetDraft, originalCode, proposalCode, subtotal, total,
       }}
     >

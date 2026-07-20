@@ -44,6 +44,12 @@ export interface ProposalRow {
 
 export type ProposalStatus = 'Aprovada' | 'Enviada' | 'Rascunho' | 'Reprovada' | 'Revisão';
 
+/** Vendedor adicional numa venda em conjunto (RF-039) — vale pra proposta inteira, não por versão. */
+export interface VendedorConjunto {
+  id: string;
+  nome: string;
+}
+
 /**
  * Diretório de clientes — hoje é agregado a partir das propostas (uma linha por cliente com
  * pelo menos 1 proposta), mas o cadastro manual (ver ClienteFormModal) permite criar um cliente
@@ -87,6 +93,8 @@ export interface ProposalSummary {
   cliente: string;
   arquiteto: string | null;
   vendedor: string;
+  /** Vendedores adicionais da venda em conjunto (RF-039), além do `vendedor` principal acima. */
+  vendedoresConjuntos: VendedorConjunto[];
   valor: number;
   data: string;
   versao: number;

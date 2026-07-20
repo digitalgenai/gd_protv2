@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from db import get_session
-from models import CatalogoProduto, Proposta, PropostaItem, PropostaVersao, Usuario
+from models import CatalogoProduto, Proposta, PropostaConjunta, PropostaItem, PropostaVersao, Usuario
 from utils.auth import login_required
 from utils.crm_client import (
     CrmError,
@@ -61,6 +61,41 @@ def _resolve_vendedor_id(session, vendedor_id_raw):
             if vendedor:
                 return vendedor.id
     return _get_vendedor_padrao_id(session)
+
+
+def _resolve_co_vendedores_ids(session, raw_ids, vendedor_principal_id):
+    """Valida a lista de ids de co-vendedores da venda em conjunto (RF-039): ignora ids
+    inválidos/inexistentes/inativos e nunca deixa o vendedor principal se duplicar como
+    co-vendedor da própria proposta. Ordem não importa — dedup por set."""
+    if not raw_ids:
+        return []
+    vistos = set()
+    validos = []
+    for raw_id in raw_ids:
+        try:
+            vendedor_uuid = uuid.UUID(str(raw_id))
+        except (ValueError, TypeError):
+            continue
+        if vendedor_uuid == vendedor_principal_id or vendedor_uuid in vistos:
+            continue
+        vistos.add(vendedor_uuid)
+        validos.append(vendedor_uuid)
+    if not validos:
+        return []
+    ativos = (
+        session.query(Usuario.id)
+        .filter(Usuario.id.in_(validos), Usuario.is_active.is_(True))
+        .all()
+    )
+    ativos_ids = {row.id for row in ativos}
+    return [vid for vid in validos if vid in ativos_ids]
+
+
+def _serialize_co_vendedores(proposta) -> list[dict]:
+    return [
+        {"id": str(cv.vendedor_id), "nome": cv.vendedor.nome if cv.vendedor else ""}
+        for cv in proposta.co_vendedores
+    ]
 
 # O enum do banco (status_versao_enum) não bate 1:1 com o ProposalStatus do front —
 # "Revisão" não existe como estado de versão no banco (é um fluxo só do front) e
@@ -222,6 +257,7 @@ def list_propostas():
         .options(
             selectinload(Proposta.versoes).selectinload(PropostaVersao.itens),
             selectinload(Proposta.vendedor),
+            selectinload(Proposta.co_vendedores).selectinload(PropostaConjunta.vendedor),
         )
         .order_by(Proposta.id.desc())
         .all()
@@ -238,6 +274,7 @@ def list_propostas():
             "cliente": proposta.cliente_nome,
             "arquiteto": proposta.arquiteto_nome,
             "vendedor": proposta.vendedor.nome if proposta.vendedor else "",
+            "vendedoresConjuntos": _serialize_co_vendedores(proposta),
             "valor": valor,
             "data": _format_date(proposta.criado_em),
             "versao": ultima.versao_numero,
@@ -257,6 +294,9 @@ def get_proposta_detail(codigo_proposta):
             selectinload(PropostaVersao.itens),
             selectinload(PropostaVersao.proposta).selectinload(Proposta.versoes),
             selectinload(PropostaVersao.proposta).selectinload(Proposta.vendedor),
+            selectinload(PropostaVersao.proposta)
+            .selectinload(Proposta.co_vendedores)
+            .selectinload(PropostaConjunta.vendedor),
         )
         .filter(PropostaVersao.codigo_proposta == codigo_proposta)
         .first()
@@ -299,6 +339,7 @@ def get_proposta_detail(codigo_proposta):
         "cliente": proposta.cliente_nome,
         "arquiteto": proposta.arquiteto_nome,
         "vendedor": proposta.vendedor.nome if proposta.vendedor else "",
+        "vendedoresConjuntos": _serialize_co_vendedores(proposta),
         "valor": valor,
         "data": _format_date(proposta.criado_em),
         "versao": versao.versao_numero,
@@ -360,6 +401,16 @@ def create_proposta():
     proposta.observacoes = data.get("observacoes") or None
     proposta.vendedor_id = _resolve_vendedor_id(session, data.get("vendedor"))
     session.flush()  # numa proposta nova, dispara o trigger que gera codigo_base
+
+    # Venda em conjunto (RF-039): substitui a lista inteira de co-vendedores pela recebida do
+    # front a cada save — vale pra proposta inteira (não por versão), então uma nova versão já
+    # nasce herdando os mesmos, e o front os reenvia (editáveis) tanto ao criar quanto ao editar.
+    session.query(PropostaConjunta).filter(PropostaConjunta.proposta_id == proposta.id).delete()
+    co_vendedores_ids = _resolve_co_vendedores_ids(
+        session, data.get("vendedoresConjuntos"), proposta.vendedor_id,
+    )
+    for co_vendedor_id in co_vendedores_ids:
+        session.add(PropostaConjunta(proposta_id=proposta.id, vendedor_id=co_vendedor_id))
 
     proximo_numero = 1
     if is_nova_versao:

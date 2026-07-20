@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, X } from 'lucide-react';
+import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, Users, X } from 'lucide-react';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
 import { useVendedores } from '../context/VendedoresContext';
@@ -16,13 +16,17 @@ import ProposalPreview from '../components/proposal/ProposalPreview';
 import CatalogPickerModal from '../components/catalog/CatalogPickerModal';
 
 export default function NewProposal() {
-  const { header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente, originalCode, proposalCode, subtotal, total } = useProposalDraft();
+  const {
+    header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente,
+    addCoVendedor, removeCoVendedor, originalCode, proposalCode, subtotal, total,
+  } = useProposalDraft();
   const { products: allProducts } = useProducts();
   const { vendedores } = useVendedores();
   const { showToast } = useToast();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [novoAmbiente, setNovoAmbiente] = useState('');
+  const [novoCoVendedor, setNovoCoVendedor] = useState('');
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
   const [arquitetosCrm, setArquitetosCrm] = useState<ArquitetoSummary[]>([]);
@@ -98,6 +102,7 @@ export default function NewProposal() {
         observacoes: header.observacoes,
         descontoGlobal: header.globalDiscount,
         itens: rows,
+        vendedoresConjuntos: header.vendedoresConjuntos,
         propostaOriginalCodigo: originalCode ?? undefined,
       });
       showToast(originalCode ? `Versão v${header.versao} salva!` : 'Rascunho salvo!', 'success');
@@ -270,6 +275,67 @@ export default function NewProposal() {
             <input id="pVersion" type="number" min={1} className="form-input" value={header.versao} onChange={(e) => setHeaderField('versao', Math.round(parseClamped(e.target.value, 1, 99)))} />
           </div>
         </div>
+
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Users style={{ width: 14, height: 14, color: 'var(--gold-text)' }} />
+            <span className="form-label" style={{ marginBottom: 0 }}>Venda em Conjunto (opcional)</span>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 10 }}>
+            Adicione outros vendedores que participaram dessa venda junto com {header.vendedor ? (vendedores.find((v) => v.id === header.vendedor)?.nome ?? 'o vendedor principal') : 'o vendedor principal'}.
+          </div>
+
+          {header.vendedoresConjuntos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {header.vendedoresConjuntos.map((id) => {
+                const nome = vendedores.find((v) => v.id === id)?.nome ?? '—';
+                return (
+                  <span
+                    key={id}
+                    className="badge badge-gold"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, padding: '4px 6px 4px 12px' }}
+                  >
+                    {nome}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: 2, color: 'var(--gold-text)' }}
+                      aria-label={`Remover ${nome} da venda em conjunto`}
+                      title="Remover co-vendedor"
+                      onClick={() => removeCoVendedor(id)}
+                    >
+                      <X style={{ width: 11, height: 11 }} />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              addCoVendedor(novoCoVendedor);
+              setNovoCoVendedor('');
+            }}
+          >
+            <select
+              className="form-input"
+              style={{ maxWidth: 260 }}
+              aria-label="Selecionar co-vendedor"
+              value={novoCoVendedor}
+              onChange={(e) => setNovoCoVendedor(e.target.value)}
+            >
+              <option value="">Selecione um vendedor...</option>
+              {vendedores
+                .filter((v) => v.id !== header.vendedor && !header.vendedoresConjuntos.includes(v.id))
+                .map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+            </select>
+            <button type="submit" className="btn btn-outline btn-sm" disabled={!novoCoVendedor}>
+              <Plus style={{ width: 13, height: 13 }} /> Adicionar
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="card p-5 mb-5 rise-in" style={{ animationDelay: '.09s' }}>
@@ -344,9 +410,6 @@ export default function NewProposal() {
           <div className="flex gap-2">
             <button className="btn btn-outline btn-sm" onClick={() => setCatalogOpen(true)}>
               <Package style={{ width: 13, height: 13 }} /> Buscar no Catálogo
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => addEmptyRow()}>
-              <Plus style={{ width: 13, height: 13 }} /> Adicionar Item
             </button>
           </div>
         </div>

@@ -140,6 +140,26 @@ class Proposta(Base):
 
     vendedor = relationship("Usuario")
     versoes = relationship("PropostaVersao", back_populates="proposta", order_by="PropostaVersao.versao_numero")
+    co_vendedores = relationship(
+        "PropostaConjunta", back_populates="proposta", cascade="all, delete-orphan",
+    )
+
+
+class PropostaConjunta(Base):
+    """Venda em conjunto: vendedores ADICIONAIS na mesma proposta, além do `vendedor_id`
+    principal em Proposta. Tabela pré-existente no banco (fora do Alembic, como outras do
+    schema legado) — nunca tinha sido modelada nem usada até aqui. Vale pra proposta inteira
+    (não por versão): uma nova versão herda os mesmos co-vendedores automaticamente."""
+    __tablename__ = "proposta_conjunta"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    proposta_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.propostas.id"), nullable=False)
+    vendedor_id = Column(UUID(as_uuid=True), ForeignKey(f"{DB_SCHEMA}.usuarios.id"), nullable=False)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    proposta = relationship("Proposta", back_populates="co_vendedores")
+    vendedor = relationship("Usuario")
 
 
 class PropostaVersao(Base):

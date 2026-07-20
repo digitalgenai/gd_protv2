@@ -33,6 +33,8 @@ export interface CreateProposalPayload {
   observacoes: string;
   descontoGlobal: number;
   itens: ProposalRow[];
+  /** Ids dos vendedores adicionais da venda em conjunto (RF-039) — nunca inclui o `vendedor` principal. */
+  vendedoresConjuntos: string[];
   /** Código da proposta original, só quando salva a partir de "Editar (Nova Versão)" — o
    * backend usa isso pra criar uma versão nova da MESMA proposta em vez de uma solta. */
   propostaOriginalCodigo?: string;

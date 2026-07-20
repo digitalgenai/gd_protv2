@@ -157,6 +157,25 @@ nenhum → sempre `no available server`.
 
 Depois de corrigir, salvar e dar **Redeploy** de novo.
 
+### Gotcha #3: chamadas ao EngajaCRM (Arquitetos) travando em SSL
+
+O domínio público do CRM (`crm.galpaodesign.digitalgenai.com.br`, porta 80) redireciona pra
+`https://crm.galpaodesign.digitalgenai.com.br:10443` — só que essa porta 10443 é a interface
+administrativa de um **pfSense** (firewall/roteador da rede), não o CRM de verdade. O CRM real
+roda num container Apache que só é alcançável hoje via rede interna do Docker, não pelo
+caminho público (confirmado via `docker ps`/`docker exec` no servidor Coolify).
+
+**Correção aplicada:** `docker-compose.yml` conecta o serviço `backend` na rede Docker do
+container do CRM (`w26b01n9jesh1dqq5p1x1r9p_engajacrm-net`, externa — já existe, criada pelo
+compose do próprio CRM) e `ESPOCRM_BASE_URL` em produção aponta pro **nome do container**
+(`http://engajacrm-w26b01n9jesh1dqq5p1x1r9p-011223352746`), não pro domínio público —
+contornando o redirect quebrado e o firewall inteiramente, por dentro da rede do Docker.
+
+Se o recurso do EngajaCRM for excluído/recriado no Coolify no futuro, o nome dessa rede e do
+container mudam — repita a investigação (`docker ps --format "{{.Names}}" | grep -i engaja`,
+depois `docker inspect` pra achar a rede) e atualize `engajacrm-net` no `docker-compose.yml` e
+`ESPOCRM_BASE_URL` no Coolify.
+
 ## Sobre o banco em produção
 
 O schema do Postgres não é gerenciado por migration automática no deploy — segue o mesmo

@@ -9,14 +9,14 @@ export default function Arquitetos() {
   const [arquitetos, setArquitetos] = useState<ArquitetoSummary[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
-    setError(false);
+    setError(null);
     fetchArquitetos()
       .then(setArquitetos)
-      .catch(() => setError(true))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Não foi possível carregar os arquitetos.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -60,7 +60,7 @@ export default function Arquitetos() {
             <div style={{ fontSize: 14 }}>Carregando arquitetos...</div>
           </div>
         ) : error ? (
-          <ErrorState message="Não foi possível carregar os arquitetos — verifique se o backend e o CRM estão no ar." onRetry={load} />
+          <ErrorState message={error} onRetry={load} />
         ) : filtered.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="data-table">
