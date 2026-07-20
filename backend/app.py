@@ -2,7 +2,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 from config import CORS_ALLOWED_ORIGINS, SECRET_KEY, SESSION_COOKIE_SECURE, UPLOADS_DIR
-from db import engine
+from db import SessionLocal, engine
 from routes.auth import bp as auth_bp
 from routes.catalogo_qualidade import bp as catalogo_qualidade_bp
 from routes.dashboard import bp as dashboard_bp
@@ -53,6 +53,16 @@ def create_app() -> Flask:
     @app.errorhandler(404)
     def not_found(_err):
         return jsonify({"error": "Não encontrado."}), 404
+
+    # scoped_session sem isso vaza entre requests: se uma request der erro no meio de uma
+    # transação (ex.: IntegrityError) sem chamar rollback() explicitamente, a MESMA sessão
+    # (por thread do worker) fica presa em "pending rollback" e QUALQUER request seguinte
+    # nesse worker — mesmo sem nenhuma relação com a que falhou — quebra com
+    # PendingRollbackError, até o worker reiniciar. .remove() descarta a sessão da thread ao
+    # fim de cada request (sucesso ou erro), forçando uma nova limpa na próxima.
+    @app.teardown_appcontext
+    def remove_session(_exception=None):
+        SessionLocal.remove()
 
     return app
 
