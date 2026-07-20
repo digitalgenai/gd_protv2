@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from db import get_session
 from models import ArquivoDrive, CatalogoProduto, Proposta, PropostaVersao
+from utils.auth import login_required
 
 bp = Blueprint("dashboard", __name__)
 
@@ -19,6 +20,7 @@ def _mes_anterior(ref):
 
 
 @bp.get("/dashboard/kpis")
+@login_required
 def dashboard_kpis():
     """Agregados reais do dashboard (RF-051). Sem contador de eventos histórico no banco —
     "enviada" usa o status atual da última versão + updated_at do mês como proxy de

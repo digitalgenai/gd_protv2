@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from db import get_session
 from models import CatalogoProduto, Proposta, PropostaItem, PropostaVersao, Usuario
+from utils.auth import login_required
 from utils.crm_client import (
     CrmError,
     create_opportunity as crm_create_opportunity,
@@ -79,6 +80,7 @@ def _format_date(dt) -> str:
 
 
 @bp.get("/vendedores")
+@login_required
 def list_vendedores():
     session = get_session()
     vendedores = (
@@ -94,6 +96,7 @@ def list_vendedores():
 
 
 @bp.get("/clientes")
+@login_required
 def list_clientes():
     """Diretório agregado de clientes — não existe tabela própria ainda; cada cliente é
     derivado dos nomes já usados em propostas reais (RN combinada com o time)."""
@@ -140,6 +143,7 @@ def _soma_entrada(entrada, count, valor, data):
 
 
 @bp.get("/arquitetos")
+@login_required
 def list_arquitetos():
     """Diretório de arquitetos: a lista em si vem do EngajaCRM (fonte de verdade de quem são
     os arquitetos parceiros). Propostas/valorTotal/últimaProposta somam duas fontes:
@@ -207,6 +211,7 @@ def list_arquitetos():
 
 
 @bp.get("/propostas")
+@login_required
 def list_propostas():
     session = get_session()
     propostas = (
@@ -240,6 +245,7 @@ def list_propostas():
 
 
 @bp.get("/propostas/<codigo_proposta>")
+@login_required
 def get_proposta_detail(codigo_proposta):
     session = get_session()
     versao = (
@@ -310,6 +316,7 @@ def get_proposta_detail(codigo_proposta):
 
 
 @bp.post("/propostas")
+@login_required
 def create_proposta():
     session = get_session()
     data = request.get_json(silent=True) or {}

@@ -3,6 +3,7 @@ from sqlalchemy import text
 
 from db import get_session
 from models import Usuario
+from utils.auth import admin_required
 
 bp = Blueprint("usuarios", __name__)
 
@@ -22,6 +23,7 @@ def _serialize(u: Usuario) -> dict:
 
 
 @bp.get("/usuarios")
+@admin_required
 def list_usuarios():
     session = get_session()
     usuarios = session.query(Usuario).order_by(Usuario.nome).all()
@@ -29,6 +31,7 @@ def list_usuarios():
 
 
 @bp.post("/usuarios")
+@admin_required
 def create_usuario():
     """RF-044 — cadastro real de usuário. Senha vira hash via pgcrypto (crypt +
     gen_salt('bf')), igual ao padrão usado em seed_usuarios.py; nunca fica em texto puro."""
@@ -70,6 +73,7 @@ def create_usuario():
 
 
 @bp.patch("/usuarios/<uuid:usuario_id>")
+@admin_required
 def update_usuario_status(usuario_id):
     session = get_session()
     data = request.get_json(silent=True) or {}

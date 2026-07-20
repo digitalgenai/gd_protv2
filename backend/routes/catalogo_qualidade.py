@@ -3,11 +3,13 @@ from sqlalchemy.orm import selectinload
 
 from db import get_session
 from models import ErroImportacao
+from utils.auth import login_required
 
 bp = Blueprint("catalogo_qualidade", __name__)
 
 
 @bp.get("/catalogo/qualidade")
+@login_required
 def get_qualidade():
     """RF-009/052/054 — só "erros de importação" tem tabela real (erros_importacao);
     hoje está vazia porque nenhuma das 14 importações já feitas falhou. "Imagens

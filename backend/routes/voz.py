@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from config import DB_SCHEMA, PROPOSTA_VOZ_WEBHOOK_SECRET
 from db import get_session
 from models import CatalogoProduto, PropostaRascunho, RascunhoItem, Usuario
+from utils.auth import login_required
 from utils.openai_client import extrair_dados_proposta, transcrever_audio
 from utils.serializers import serialize_product
 
@@ -36,6 +37,7 @@ def _serialize_rascunho(r):
 
 
 @bp.get("/rascunhos")
+@login_required
 def list_rascunhos():
     """RF-059 — rascunhos de voz chegam aqui via um webhook externo (fora do escopo
     deste app, ainda não implementado); esta tela só lista o que já estiver aguardando
@@ -59,6 +61,7 @@ def list_rascunhos():
 
 
 @bp.patch("/rascunhos/<int:rascunho_id>")
+@login_required
 def update_rascunho_status(rascunho_id):
     session = get_session()
     data = request.get_json(silent=True) or {}
@@ -179,6 +182,7 @@ def _buscar_produto_similar(session, descricao: str):
 
 
 @bp.post("/voz/transcrever")
+@login_required
 def transcrever_e_extrair():
     """Gravação feita direto no navegador (MediaRecorder) → Whisper (transcrição) → GPT
     (extração de cliente/arquiteto/desconto/itens) → cada item é casado com um produto real

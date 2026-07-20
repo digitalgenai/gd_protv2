@@ -5,20 +5,9 @@ from sqlalchemy import text
 from db import get_session
 from models import Usuario
 from routes.usuarios import _serialize
+from utils.auth import get_current_usuario as _current_usuario
 
 bp = Blueprint("auth", __name__)
-
-
-def _current_usuario(db_session):
-    """Usuário da sessão atual, ou None (sessão ausente/expirada/usuário desativado depois do login)."""
-    user_id = flask_session.get("user_id")
-    if not user_id:
-        return None
-    usuario = db_session.query(Usuario).filter(Usuario.id == user_id, Usuario.is_active.is_(True)).first()
-    if not usuario:
-        flask_session.clear()
-        return None
-    return usuario
 
 
 @bp.post("/auth/login")

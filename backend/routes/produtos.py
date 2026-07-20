@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from config import MAX_IMAGES_PER_PRODUCT, MAX_TOTAL_IMAGES_PER_PRODUCT
 from db import get_session
 from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem
+from utils.auth import login_required
 from utils.s3_storage import delete_image, save_image
 from utils.serializers import absolute_image_url, serialize_product
 from utils.validation import ImageValidationError, validate_image
@@ -25,6 +26,7 @@ def _base_query(session):
 
 
 @bp.get("/produtos")
+@login_required
 def list_produtos():
     session = get_session()
     query = _base_query(session)
@@ -78,6 +80,7 @@ def list_produtos():
 
 
 @bp.get("/produtos/filtros")
+@login_required
 def get_filtros():
     session = get_session()
 
@@ -105,6 +108,7 @@ def get_filtros():
 
 
 @bp.get("/fornecedores")
+@login_required
 def list_fornecedores():
     """Cadastro de fornecedores — só existem nome/ativo/markup no banco hoje; logo, site e
     contato ainda não têm coluna própria, então voltam nulos até essa parte ser modelada."""
@@ -119,6 +123,7 @@ def list_fornecedores():
 
 
 @bp.patch("/produtos/<codigo>")
+@login_required
 def update_produto(codigo):
     session = get_session()
     produto = (
@@ -163,6 +168,7 @@ def update_produto(codigo):
 
 
 @bp.post("/produtos/<codigo>/imagens")
+@login_required
 def upload_imagem(codigo):
     session = get_session()
     produto = (
@@ -203,6 +209,7 @@ def upload_imagem(codigo):
 
 
 @bp.delete("/produtos/<codigo>/imagens/<int:image_id>")
+@login_required
 def delete_imagem(codigo, image_id):
     session = get_session()
     produto = session.query(CatalogoProduto).filter(CatalogoProduto.codigo == codigo).first()
@@ -240,6 +247,7 @@ def delete_imagem(codigo, image_id):
 
 
 @bp.patch("/produtos/<codigo>/imagens/<int:image_id>/posicao")
+@login_required
 def reordenar_imagem(codigo, image_id):
     session = get_session()
     produto = (
