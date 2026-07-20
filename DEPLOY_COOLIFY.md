@@ -135,6 +135,28 @@ mas não acha nada escutando ali dentro do container — resultado: `503 no avai
 aconteceu no primeiro deploy. Corrigido o campo, é preciso **redeploy** pra o Traefik regenerar
 a rota.
 
+### Gotcha #2 (o que realmente travou): o campo "Domains" precisa do `https://` na frente
+
+Preencher o campo só com o domínio puro (`propostagd.digitalgenai.com.br`, sem esquema) faz o
+Coolify gerar um label de Traefik quebrado — confirmado inspecionando o container direto
+(`docker inspect ... --format "{{json .Config.Labels}}"` no servidor):
+
+```
+traefik.http.routers...rule = "Host(``) && PathPrefix(`propostagd.digitalgenai.com.br`)"
+```
+
+Repare: `Host()` fica **vazio** e o domínio inteiro vira `PathPrefix` — o Coolify não conseguiu
+separar o host do resto porque faltou o esquema (mesmo efeito de rodar `urlparse` numa string
+sem `http(s)://`: tudo cai em "path", nada em "host"). Uma regra assim nunca casa com request
+nenhum → sempre `no available server`.
+
+**Correção:** os dois campos precisam da URL completa, com esquema:
+
+- Domains for backend: `https://api.propostagd.digitalgenai.com.br`
+- Domains for frontend: `https://propostagd.digitalgenai.com.br`
+
+Depois de corrigir, salvar e dar **Redeploy** de novo.
+
 ## Sobre o banco em produção
 
 O schema do Postgres não é gerenciado por migration automática no deploy — segue o mesmo
