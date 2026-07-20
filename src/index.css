@@ -25,7 +25,21 @@ h1, h2, h3 { font-family: 'Kamerik205', 'Montserrat', sans-serif; }
 #sidebar { width: 256px; min-height: 100vh; background: var(--sidebar-bg); transition: width .28s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
 #sidebar.collapsed { width: 72px; }
 #sidebar.collapsed .nav-label,
-#sidebar.collapsed .nav-section-label, #sidebar.collapsed .submenu { display: none !important; }
+#sidebar.collapsed .nav-section-label { display: none !important; }
+
+.nav-group { position: relative; }
+
+/* Sidebar só-ícones (recolhida manualmente ou por causa da largura da tela — ver Sidebar.tsx):
+   os links de cada grupo (Comercial, Catálogo, Gestão, Sistema) viram um flyout ao passar o
+   mouse ou focar o ícone do grupo, em vez de ficarem inacessíveis atrás de um accordion que
+   nunca aparece com o menu minimizado. Posição (fixed/top/left) é definida via JS inline —
+   aqui só o visual do cartão flutuante. */
+.submenu-flyout {
+  margin-left: 8px;
+  background: #381e1e; border-radius: 10px; padding: 6px; padding-left: 6px;
+  min-width: 190px; box-shadow: 0 12px 28px rgba(0,0,0,.4); z-index: 60;
+}
+#sidebar .submenu-flyout .nav-label { display: inline-block !important; }
 
 .sidebar-brand-row { transition: padding .28s cubic-bezier(.4,0,.2,1); }
 .brand-name { display: flex; align-items: center; }
@@ -264,7 +278,7 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 /* Responsive – tablet */
 @media (max-width: 900px) {
   #sidebar { width: 72px !important; }
-  .nav-label, .nav-section-label, .submenu { display: none !important; }
+  .nav-label, .nav-section-label { display: none !important; }
   #sidebar .sidebar-brand-row { padding-left: 8px; padding-right: 8px; justify-content: center; }
   #sidebar .brand-name .brand-logo-full { display: none; }
   #sidebar .brand-name .brand-logo-compact { display: block; }
