@@ -1,14 +1,17 @@
 # Deploy no Coolify — propostagd.digitalgenai.com.br
 
-Dois apps separados no Coolify, cada um usando os Dockerfiles já existentes no repo
-(`backend/Dockerfile` e `Dockerfile` na raiz) — sem precisar do `docker-compose.yml`
-(esse arquivo é só pra rodar local/testar).
-
 - **Frontend** → `propostagd.digitalgenai.com.br`
 - **Backend (API)** → `api.propostagd.digitalgenai.com.br`
 
 Confirmado com você: o Postgres em `192.168.23.130` continua acessível a partir de onde o
 Coolify roda (mesma rede/VPN) — nenhuma mudança de `DATABASE_URL` necessária.
+
+> **Nota (achado no deploy real):** ao apontar o Coolify pro repositório, ele detectou o
+> `docker-compose.yml` da raiz sozinho e criou **um único recurso "Docker Compose"** com os
+> dois serviços (`backend`/`frontend`), em vez de dois apps separados do tipo "Dockerfile"
+> como a seção 1/2 abaixo descreve. As duas abordagens funcionam — se o Coolify já escolheu o
+> modo Compose pra você, siga a seção **"Modo Docker Compose (o que realmente aconteceu)"**
+> mais abaixo, que tem um gotcha de porta que já pegou a gente uma vez.
 
 ---
 
@@ -108,6 +111,29 @@ servido pelo nginx.
 5. Cheque os logs do backend no Coolify por qualquer erro de conexão com o Postgres
    assim que subir (confirma que a rede/VPN até `192.168.23.130` está mesmo acessível
    a partir do servidor do Coolify).
+
+## Modo Docker Compose (o que realmente aconteceu)
+
+Se o Coolify detectou o `docker-compose.yml` e criou os serviços `backend`/`frontend` como um
+recurso "Docker Compose" único, cada serviço tem sua própria tela com campos de **Domains** e
+**Port** (às vezes chamado "Port"/"Exposes").
+
+**O gotcha:** o `docker-compose.yml` mapeia `"8090:80"` (frontend) e `"5000:5000"` (backend) —
+isso é `porta-do-host:porta-do-container`, só relevante pra testar local (`docker compose up`
+na sua máquina). O Traefik do Coolify fala com o container **pela rede interna do Docker**,
+então o campo "Port" de cada serviço precisa ser a porta **de dentro do container**, não a do
+host:
+
+| Serviço | Port (Traefik) | Domains |
+|---|---|---|
+| `frontend` | `80` | `https://propostagd.digitalgenai.com.br` |
+| `backend` | `5000` | `https://api.propostagd.digitalgenai.com.br` |
+
+Se o campo Port vier com `8090` (a porta do host) em vez de `80`, o Traefik encontra o domínio
+mas não acha nada escutando ali dentro do container — resultado: `503 no available server` (ou
+`404 page not found` se nem o redirect http→https tiver sido gerado). Foi exatamente isso que
+aconteceu no primeiro deploy. Corrigido o campo, é preciso **redeploy** pra o Traefik regenerar
+a rota.
 
 ## Sobre o banco em produção
 
