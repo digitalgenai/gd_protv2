@@ -18,4 +18,10 @@ EXPOSE 5000
 
 # Variáveis reais (DATABASE_URL, SECRET_KEY, etc.) vêm de fora do container (docker-compose
 # env_file / --env-file) — nada de segredo é copiado pra dentro da imagem.
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "60", "app:app"]
+# gthread (não sync): worker sync trava 1 request por vez, então 2 workers = só 2 requests
+# simultâneas — quando as duas ficam presas numa query lenta/travada, o app inteiro congela
+# (Gateway Timeout). Com gthread, cada worker atende várias requests em threads; a scoped_session
+# é thread-local, então cada thread tem sua própria sessão (seguro). 3 workers × 4 threads = 12
+# requests simultâneas. graceful-timeout garante que um worker travado seja reciclado.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "gthread", \
+     "--workers", "3", "--threads", "4", "--timeout", "60", "--graceful-timeout", "30", "app:app"]
