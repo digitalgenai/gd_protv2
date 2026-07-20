@@ -49,6 +49,34 @@ function GroupHeader({
   );
 }
 
+/** Componente estável (fora do Sidebar) de propósito: se fosse declarado dentro da função
+ * Sidebar, toda vez que o hover chamasse setFlyout (causando um re-render do Sidebar) o React
+ * veria uma NOVA identidade de função aqui e desmontaria/remontaria o <div> real por debaixo
+ * do cursor do mouse — o que quebra silenciosamente o rastreamento de hover (o navegador não
+ * gera um novo mouseenter pra um elemento recriado sob um cursor parado) e fazia o flyout
+ * fechar sozinho mesmo com o mouse ainda "em cima" dele, impedindo o clique de navegar. */
+function NavGroup({
+  onEnter, onLeave, children,
+}: { onEnter: (e: { currentTarget: HTMLElement }) => void; onLeave: () => void; children: ReactNode }) {
+  return (
+    <div
+      className="nav-group"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onFocus={onEnter}
+      onBlur={(e) => {
+        // Foco só saiu de verdade se o novo elemento focado não é mais um descendente deste
+        // grupo — sem essa checagem, tabular/clicar de um link do flyout pro outro (ainda
+        // dentro do mesmo grupo) fecha e reabre o flyout à toa.
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        onLeave();
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
   const { resetDraft } = useProposalDraft();
   const { pathname } = useLocation();
@@ -94,42 +122,24 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
       setFlyout({ key, top: e.currentTarget.getBoundingClientRect().top });
     };
   }
-  // Espera um instante antes de fechar (cancelado se o mouse voltar a entrar) — sem essa
-  // margem, mover o cursor do ícone até o flyout (que fica fisicamente ao lado, não embaixo)
-  // dispara mouseleave antes de o clique no link do flyout completar, e o link nunca navega.
+  // Espera um instante antes de fechar (cancelado se o mouse voltar a entrar) — rede de
+  // segurança pra quando o mouse realmente sai pra longe de verdade.
   function groupLeave() {
     clearCloseTimer();
-    closeTimer.current = setTimeout(() => setFlyout(null), 200);
+    closeTimer.current = setTimeout(() => setFlyout(null), 350);
   }
   function submenuStyle(key: string, open: boolean): CSSProperties {
     if (iconOnly) {
+      // left: 72 encosta exatamente na borda direita do menu recolhido (#sidebar.collapsed
+      // tem width:72px) — sem vão entre ícone e flyout, o mouse nunca sai do .nav-group ao
+      // mover na horizontal do ícone pro link.
       return flyout?.key === key
-        ? { display: 'block', position: 'fixed', top: flyout.top, left: 76 }
+        ? { display: 'block', position: 'fixed', top: flyout.top, left: 72 }
         : { display: 'none' };
     }
     return { display: open ? 'block' : 'none' };
   }
   const submenuClass = iconOnly ? 'submenu submenu-flyout' : 'submenu';
-
-  function NavGroup({ groupKey, children }: { groupKey: string; children: ReactNode }) {
-    return (
-      <div
-        className="nav-group"
-        onMouseEnter={groupEnter(groupKey)}
-        onMouseLeave={groupLeave}
-        onFocus={groupEnter(groupKey)}
-        onBlur={(e) => {
-          // Foco só saiu de verdade se o novo elemento focado não é mais um descendente deste
-          // grupo — sem essa checagem, tabular/clicar de um link do flyout pro outro (ainda
-          // dentro do mesmo grupo) fecha e reabre o flyout à toa.
-          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-          groupLeave();
-        }}
-      >
-        {children}
-      </div>
-    );
-  }
 
   return (
     <aside
@@ -151,7 +161,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
           <span className="tt">Dashboard</span>
         </NavLink>
 
-        <NavGroup groupKey="comercial">
+        <NavGroup onEnter={groupEnter('comercial')} onLeave={groupLeave}>
           <GroupHeader icon={FileText} label="Comercial" open={comercialOpen} onToggle={() => setComercialOpen((o) => !o)} active={groupIsActive(['/propostas'])} />
           <div className={submenuClass} style={submenuStyle('comercial', comercialOpen)}>
             <NavLink to="/propostas/nova" className={navClass} onClick={() => { resetDraft(); onNavigate(); }}>
@@ -166,7 +176,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
           </div>
         </NavGroup>
 
-        <NavGroup groupKey="catalogo">
+        <NavGroup onEnter={groupEnter('catalogo')} onLeave={groupLeave}>
           <GroupHeader icon={Package} label="Catálogo" open={catalogoOpen} onToggle={() => setCatalogoOpen((o) => !o)} active={groupIsActive(['/catalogo'])} />
           <div className={submenuClass} style={submenuStyle('catalogo', catalogoOpen)}>
             <NavLink to="/catalogo" className={navClass} onClick={onNavigate}>
@@ -182,7 +192,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
 
         {isAdmin && (
           <>
-            <NavGroup groupKey="gestao">
+            <NavGroup onEnter={groupEnter('gestao')} onLeave={groupLeave}>
               <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} active={groupIsActive(['/gestao'])} />
               <div className={submenuClass} style={submenuStyle('gestao', gestaoOpen)}>
                 <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
@@ -204,7 +214,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
               </div>
             </NavGroup>
 
-            <NavGroup groupKey="sistema">
+            <NavGroup onEnter={groupEnter('sistema')} onLeave={groupLeave}>
               <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} active={groupIsActive(['/config'])} />
               <div className={submenuClass} style={submenuStyle('sistema', sistemaOpen)}>
                 <NavLink to="/config" className={navClass} onClick={onNavigate}>
