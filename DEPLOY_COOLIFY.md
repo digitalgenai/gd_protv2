@@ -157,7 +157,7 @@ nenhum → sempre `no available server`.
 
 Depois de corrigir, salvar e dar **Redeploy** de novo.
 
-### Gotcha #3: chamadas ao EngajaCRM (Arquitetos) travando em SSL
+### Gotcha #3: chamadas ao CRM (Arquitetos) travando em SSL, depois em 401
 
 O domínio público do CRM (`crm.galpaodesign.digitalgenai.com.br`, porta 80) redireciona pra
 `https://crm.galpaodesign.digitalgenai.com.br:10443` — só que essa porta 10443 é a interface
@@ -165,15 +165,22 @@ administrativa de um **pfSense** (firewall/roteador da rede), não o CRM de verd
 roda num container Apache que só é alcançável hoje via rede interna do Docker, não pelo
 caminho público (confirmado via `docker ps`/`docker exec` no servidor Coolify).
 
+**Cuidado:** esse mesmo servidor Coolify tem DOIS CRMs diferentes rodando (containers
+`galpaocrm-*` e `engajacrm-*`, de clientes/projetos diferentes) — o nome no código/env
+(`ESPOCRM_*`, comentários mencionando "EngajaCRM") é só histórico e **engana**: o CRM de
+verdade usado por este projeto é o **`galpaocrm-*`**, confirmado testando a API key direto
+contra cada um (a `engajacrm-*` aceitava a conexão de rede mas rejeitava a chave com 401 sem
+motivo aparente — só ficou claro comparando com o outro container).
+
 **Correção aplicada:** `docker-compose.yml` conecta o serviço `backend` na rede Docker do
-container do CRM (`w26b01n9jesh1dqq5p1x1r9p_engajacrm-net`, externa — já existe, criada pelo
+container do CRM (`ogp0hz5e5w54emcqoccjmt10_galpaocrm-net`, externa — já existe, criada pelo
 compose do próprio CRM) e `ESPOCRM_BASE_URL` em produção aponta pro **nome do container**
-(`http://engajacrm-w26b01n9jesh1dqq5p1x1r9p-011223352746`), não pro domínio público —
+(`http://galpaocrm-ogp0hz5e5w54emcqoccjmt10-124436523785`), não pro domínio público —
 contornando o redirect quebrado e o firewall inteiramente, por dentro da rede do Docker.
 
-Se o recurso do EngajaCRM for excluído/recriado no Coolify no futuro, o nome dessa rede e do
-container mudam — repita a investigação (`docker ps --format "{{.Names}}" | grep -i engaja`,
-depois `docker inspect` pra achar a rede) e atualize `engajacrm-net` no `docker-compose.yml` e
+Se o recurso do CRM for excluído/recriado no Coolify no futuro, o nome dessa rede e do
+container mudam — repita a investigação (`docker ps --format "{{.Names}}" | grep -i galpaocrm`,
+depois `docker inspect` pra achar a rede) e atualize `galpaocrm-net` no `docker-compose.yml` e
 `ESPOCRM_BASE_URL` no Coolify.
 
 ## Sobre o banco em produção
