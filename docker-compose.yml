@@ -6,17 +6,6 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
-    # Rede do container real do GalpãoCRM (o CRM de verdade usado por este projeto — apesar do
-    # nome no código/env ser "ESPOCRM_*"/"EngajaCRM", tem OUTRO container chamado "engajacrm-*"
-    # nesse mesmo servidor que é de um cliente diferente; confirmado testando a API key direto
-    # em cada um). Sem essa rede, a chamada ao CRM só tem o caminho público
-    # (crm.galpaodesign.digitalgenai.com.br), que redireciona pra uma porta errada (cai num
-    # pfSense, não no CRM) e trava em SSL. Por dentro dessa rede, o CRM é alcançado direto por
-    # nome de container. Ver ESPOCRM_BASE_URL no .env: precisa ser o nome do container, não o
-    # domínio público.
-    networks:
-      - default
-      - galpaocrm-net
 
   frontend:
     build:
@@ -29,11 +18,3 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
-networks:
-  # external: já existe (é a rede do container do GalpãoCRM, criada pelo docker-compose DELE,
-  # não pelo nosso) — se o recurso do CRM for excluído/recriado no Coolify, esse nome de rede
-  # muda e precisa atualizar aqui (ver docker inspect nos containers "galpaocrm-*").
-  galpaocrm-net:
-    external: true
-    name: ogp0hz5e5w54emcqoccjmt10_galpaocrm-net
