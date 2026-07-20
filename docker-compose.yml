@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    image: galpao-design-backend
+    env_file: .env
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000}
+    image: galpao-design-frontend
+    ports:
+      - "8090:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

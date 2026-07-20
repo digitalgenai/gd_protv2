@@ -18,6 +18,17 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 # URLs já no S3 (https://...) não passam por aqui, seguem como estão.
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:5000")
 
+# Origens autorizadas a chamar esta API com cookies (Flask-CORS) — lista separada por vírgula.
+# O default cobre só o Vite em dev (:5173); qualquer outra origem (build via Docker/nginx,
+# domínio de produção, etc.) precisa estar aqui ou toda chamada autenticada falha em silêncio
+# no browser (a resposta chega, mas sem header CORS o JS nunca lê — visto como "Failed to
+# fetch" no front, mesmo com o backend respondendo 200).
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if o.strip()
+]
+
 # EngajaCRM (EspoCRM) — arquitetos são a entidade "Account" de lá (ver mcp-engajacrm/README.md).
 ESPOCRM_BASE_URL = os.environ.get("ESPOCRM_BASE_URL", "").rstrip("/")
 ESPOCRM_API_KEY = os.environ.get("ESPOCRM_API_KEY", "")

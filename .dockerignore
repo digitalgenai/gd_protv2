@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.git
+.env
+.env.local
+backend
+mcp-engajacrm
+.claude
+*.md
+.vscode
+.idea
