@@ -40,7 +40,13 @@ Rodar em Docker usa um ambiente Python **limpo**, só com o que está em `requir
 
 ---
 
-## 2. Achado crítico de segurança (não corrigido — decisão sua)
+## 2. Achado crítico de segurança — CORRIGIDO
+
+> Atualização: implementado. `backend/utils/auth.py` tem `@login_required` (sessão válida,
+> qualquer perfil) e `@admin_required` (perfil Administrador), aplicados em todas as rotas de
+> negócio. Testado com curl sem sessão (401 em tudo), com sessão de Vendedor em `/usuarios`
+> (403) e com sessão de Administrador (200) — o webhook externo de voz continua funcionando
+> normalmente com o `X-Webhook-Secret` próprio, sem sessão.
 
 **Nenhuma rota de negócio do backend verifica autenticação.** Só `routes/auth.py` usa a sessão; `produtos.py`, `propostas.py`, `usuarios.py`, `dashboard.py`, `catalogo_qualidade.py` e `voz.py` não checam nada. O `RequireAuth` do React só esconde a tela — quem chamar a API direto (curl, Postman, etc.) passa reto, sem estar logado.
 
@@ -56,7 +62,7 @@ curl -X POST http://localhost:5000/usuarios -d '{"nome":"Hacker Teste","email":"
 
 Removi a conta de teste que criei imediatamente depois de confirmar. Mas isso mostra que **qualquer pessoa com a URL do backend consegue**: listar clientes/propostas/usuários, e **criar sua própria conta de Administrador** — sem senha, sem login, sem nada.
 
-Isso não é específico do Docker — é assim hoje em produção/dev também, sempre foi (o Docker só me fez olhar rota por rota pra montar o relatório). Não mudei nada aqui porque é uma mudança de arquitetura (adicionar verificação de sessão em toda rota protegida + checagem de perfil Administrador nas rotas de gestão), não um ajuste pontual — prefiro confirmar com você antes de mexer em autenticação. Posso implementar isso como próximo passo se quiser.
+Isso não é específico do Docker — é assim hoje em produção/dev também, sempre foi (o Docker só me fez olhar rota por rota pra montar o relatório). ~~Não mudei nada aqui...~~ Corrigido, ver nota acima.
 
 ---
 
@@ -65,7 +71,7 @@ Isso não é específico do Docker — é assim hoje em produção/dev também, 
 - **`SECRET_KEY` não definida** — gerei um valor forte e aleatório (`secrets.token_hex(32)`) e adicionei no seu `.env`. Sessões antigas caem uma vez (o valor mudou), mas não vai mais cair a cada restart do backend.
 - **`SESSION_COOKIE_SECURE=False` hardcoded** — virou variável de ambiente `SESSION_COOKIE_SECURE` (default `false`, igual hoje). Quando for pra produção atrás de https, basta setar `SESSION_COOKIE_SECURE=true` no `.env` daquele ambiente, sem mexer em código.
 - **`Pillow==10.4.0` desatualizado** — atualizado pra `12.3.0`, igual ao que já roda no seu ambiente de dev. Rebuild da imagem do backend testado (health-check, login, sessão) — sem quebra.
-- **Sem framework de migration** (nenhum Alembic/SQL versionado) — **não mexi nisso**: não é um bug pontual, é uma decisão de processo (qual ferramenta usar, gerar a baseline a partir do schema atual, etc.). Me avisa se quiser que eu monte isso como próxima etapa.
+- **Sem framework de migration** — CORRIGIDO. Alembic configurado em `backend/`, com uma migration baseline vazia (`e3dc48254397`) e `alembic stamp head` já aplicado no banco de dev — nenhuma DDL rodou, só passou a rastrear a partir daqui. Ver `backend/migrations/README.md` pro fluxo de criar/revisar/aplicar migrations novas (tem avisos importantes sobre ruído do autogenerate nesse schema específico).
 
 Rebuild + reteste feito depois dessas mudanças: `/health` ok, login/sessão funcionando (cookie sem `Secure` em http local, `/auth/me` validando a sessão assinada com a `SECRET_KEY` real).
 
@@ -79,5 +85,7 @@ Rebuild + reteste feito depois dessas mudanças: `/health` ok, login/sessão fun
 - [x] Corrigido: CORS hardcoded que quebrava qualquer origem fora do Vite dev
 - [x] Corrigido: `.env.example` incompleto
 - [x] Corrigido: `SECRET_KEY` gerada, `SESSION_COOKIE_SECURE` configurável, `Pillow` atualizado
-- [ ] **Decisão sua**: quer que eu implemente autenticação/autorização real nas rotas do backend? (achado crítico, seção 2)
-- [ ] **Decisão sua**: quer que eu monte um framework de migration (Alembic) pro schema do banco?
+- [x] Corrigido: autenticação/autorização real em todas as rotas do backend (achado crítico)
+- [x] Corrigido: Alembic configurado, baseline aplicado no banco de dev
+
+Todos os itens do relatório original estão resolvidos.
