@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Power, UserPlus, X, Users } from 'lucide-react';
-import { createUsuario, fetchUsuarios, setUsuarioAtivo, type PerfilUsuario, type Usuario } from '../api/usuarios';
+import { Key, Loader2, Power, UserPlus, X, Users } from 'lucide-react';
+import { createUsuario, fetchUsuarios, resetSenhaUsuario, setUsuarioAtivo, type PerfilUsuario, type Usuario } from '../api/usuarios';
 import ErrorState from '../components/ui/ErrorState';
 import { useToast } from '../context/ToastContext';
 
@@ -17,6 +17,9 @@ export default function Usuarios() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [senhaModalUsuario, setSenhaModalUsuario] = useState<Usuario | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [resettingSenha, setResettingSenha] = useState(false);
 
   const loadUsuarios = useCallback(() => {
     setLoadingUsuarios(true);
@@ -74,6 +77,29 @@ export default function Usuarios() {
     }
   }
 
+  function openSenhaModal(u: Usuario) {
+    setNovaSenha('');
+    setSenhaModalUsuario(u);
+  }
+
+  async function handleResetSenha() {
+    if (!senhaModalUsuario) return;
+    if (novaSenha.length < 4) {
+      showToast('A nova senha deve ter pelo menos 4 caracteres.', 'warning');
+      return;
+    }
+    setResettingSenha(true);
+    try {
+      await resetSenhaUsuario(senhaModalUsuario.id, novaSenha);
+      showToast(`Senha de ${senhaModalUsuario.nome} atualizada.`, 'success');
+      setSenhaModalUsuario(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível trocar a senha.', 'error');
+    } finally {
+      setResettingSenha(false);
+    }
+  }
+
   return (
     <div id="view-usuarios" className="view active fade-in p-6" style={{ maxWidth: 960 }}>
       <div className="flex items-center gap-2 mb-5">
@@ -108,14 +134,24 @@ export default function Usuarios() {
                     <td>{u.perfil}</td>
                     <td><span className={`badge ${u.isActive ? 'badge-success' : 'badge-draft'}`}>{u.isActive ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        aria-label={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
-                        title={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
-                        onClick={() => handleToggleAtivo(u)}
-                      >
-                        <Power style={{ width: 13, height: 13, color: u.isActive ? 'var(--success)' : 'var(--text-secondary)' }} />
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          aria-label={`Trocar senha de ${u.nome}`}
+                          title={`Trocar senha de ${u.nome}`}
+                          onClick={() => openSenhaModal(u)}
+                        >
+                          <Key style={{ width: 13, height: 13, color: 'var(--text-secondary)' }} />
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          aria-label={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
+                          title={`${u.isActive ? 'Desativar' : 'Ativar'} ${u.nome}`}
+                          onClick={() => handleToggleAtivo(u)}
+                        >
+                          <Power style={{ width: 13, height: 13, color: u.isActive ? 'var(--success)' : 'var(--text-secondary)' }} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -159,6 +195,47 @@ export default function Usuarios() {
             <div className="flex justify-end gap-2 mt-4">
               <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
               <button className="btn btn-gold" onClick={handleSaveUsuario} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`modal-overlay${senhaModalUsuario ? ' open' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => { if (e.target === e.currentTarget) setSenhaModalUsuario(null); }}
+      >
+        <div className="modal-box" style={{ width: 400 }}>
+          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
+              Trocar senha{senhaModalUsuario ? ` — ${senhaModalUsuario.nome}` : ''}
+            </div>
+            <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setSenhaModalUsuario(null)}>
+              <X style={{ width: 18, height: 18 }} />
+            </button>
+          </div>
+          <div className="p-6">
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Define uma senha nova pra esse usuário sem precisar da senha atual dele — avise a
+              pessoa pelo canal de sempre depois de trocar.
+            </div>
+            <div className="mb-2">
+              <label className="form-label" htmlFor="reset-nova-senha">Nova senha *</label>
+              <input
+                id="reset-nova-senha"
+                type="password"
+                className="form-input"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button className="btn btn-outline" onClick={() => setSenhaModalUsuario(null)}>Cancelar</button>
+              <button className="btn btn-gold" onClick={handleResetSenha} disabled={resettingSenha}>
+                {resettingSenha ? 'Salvando...' : 'Trocar senha'}
+              </button>
             </div>
           </div>
         </div>

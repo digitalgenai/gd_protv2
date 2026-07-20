@@ -87,3 +87,27 @@ def update_usuario_status(usuario_id):
     usuario.is_active = bool(data["isActive"])
     session.commit()
     return jsonify(_serialize(usuario))
+
+
+@bp.patch("/usuarios/<uuid:usuario_id>/senha")
+@admin_required
+def reset_senha_usuario(usuario_id):
+    """Reset de senha pelo administrador — diferente de POST /auth/change-password (o usuário
+    trocando a própria senha, que exige a senha atual): aqui é um admin definindo uma senha
+    nova pra outra pessoa, sem precisar saber a antiga."""
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+    nova_senha = data.get("novaSenha") or ""
+    if len(nova_senha) < 4:
+        return jsonify({"error": "A nova senha deve ter pelo menos 4 caracteres."}), 400
+
+    usuario = session.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado."}), 404
+
+    session.execute(
+        text("UPDATE usuarios SET senha_hash = crypt(:senha, gen_salt('bf')) WHERE id = :id"),
+        {"senha": nova_senha, "id": usuario_id},
+    )
+    session.commit()
+    return jsonify({"ok": True})

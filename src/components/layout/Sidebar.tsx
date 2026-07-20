@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard,
   Package, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
@@ -19,11 +19,11 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 function GroupHeader({
-  icon: Icon, label, open, onToggle,
-}: { icon: typeof FileText; label: string; open: boolean; onToggle: () => void }) {
+  icon: Icon, label, open, onToggle, active,
+}: { icon: typeof FileText; label: string; open: boolean; onToggle: () => void; active: boolean }) {
   return (
     <div
-      className="nav-item tooltip"
+      className={`nav-item tooltip${active ? ' active' : ''}`}
       role="button"
       tabIndex={0}
       aria-expanded={open}
@@ -51,10 +51,15 @@ function GroupHeader({
 
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
   const { resetDraft } = useProposalDraft();
+  const { pathname } = useLocation();
   const [comercialOpen, setComercialOpen] = useState(true);
   const [catalogoOpen, setCatalogoOpen] = useState(true);
   const [gestaoOpen, setGestaoOpen] = useState(false);
   const [sistemaOpen, setSistemaOpen] = useState(false);
+
+  function groupIsActive(prefixes: string[]) {
+    return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  }
 
   // Abaixo de 900px o CSS (@media) já força o visual "só ícones" independente do toggle manual
   // (ver index.css) — precisamos saber disso aqui também pra decidir quando os grupos viram flyout.
@@ -72,15 +77,29 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
   // os links viram um flyout posicionado via JS (position:fixed, escapando do overflow do
   // sidebar/nav) que some/aparece ao passar o mouse ou focar o grupo pelo teclado.
   const [flyout, setFlyout] = useState<{ key: string; top: number } | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearCloseTimer() {
+    if (closeTimer.current !== null) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }
+  useEffect(() => clearCloseTimer, []);
 
   function groupEnter(key: string) {
     return (e: { currentTarget: HTMLElement }) => {
       if (!iconOnly) return;
+      clearCloseTimer();
       setFlyout({ key, top: e.currentTarget.getBoundingClientRect().top });
     };
   }
-  function groupLeave(key: string) {
-    return () => setFlyout((f) => (f?.key === key ? null : f));
+  // Espera um instante antes de fechar (cancelado se o mouse voltar a entrar) — sem essa
+  // margem, mover o cursor do ícone até o flyout (que fica fisicamente ao lado, não embaixo)
+  // dispara mouseleave antes de o clique no link do flyout completar, e o link nunca navega.
+  function groupLeave() {
+    clearCloseTimer();
+    closeTimer.current = setTimeout(() => setFlyout(null), 200);
   }
   function submenuStyle(key: string, open: boolean): CSSProperties {
     if (iconOnly) {
@@ -97,9 +116,15 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
       <div
         className="nav-group"
         onMouseEnter={groupEnter(groupKey)}
-        onMouseLeave={groupLeave(groupKey)}
+        onMouseLeave={groupLeave}
         onFocus={groupEnter(groupKey)}
-        onBlur={groupLeave(groupKey)}
+        onBlur={(e) => {
+          // Foco só saiu de verdade se o novo elemento focado não é mais um descendente deste
+          // grupo — sem essa checagem, tabular/clicar de um link do flyout pro outro (ainda
+          // dentro do mesmo grupo) fecha e reabre o flyout à toa.
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          groupLeave();
+        }}
       >
         {children}
       </div>
@@ -127,7 +152,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         </NavLink>
 
         <NavGroup groupKey="comercial">
-          <GroupHeader icon={FileText} label="Comercial" open={comercialOpen} onToggle={() => setComercialOpen((o) => !o)} />
+          <GroupHeader icon={FileText} label="Comercial" open={comercialOpen} onToggle={() => setComercialOpen((o) => !o)} active={groupIsActive(['/propostas'])} />
           <div className={submenuClass} style={submenuStyle('comercial', comercialOpen)}>
             <NavLink to="/propostas/nova" className={navClass} onClick={() => { resetDraft(); onNavigate(); }}>
               <FilePlus className="nav-icon" style={{ width: 16, height: 16 }} />
@@ -142,7 +167,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         </NavGroup>
 
         <NavGroup groupKey="catalogo">
-          <GroupHeader icon={Package} label="Catálogo" open={catalogoOpen} onToggle={() => setCatalogoOpen((o) => !o)} />
+          <GroupHeader icon={Package} label="Catálogo" open={catalogoOpen} onToggle={() => setCatalogoOpen((o) => !o)} active={groupIsActive(['/catalogo'])} />
           <div className={submenuClass} style={submenuStyle('catalogo', catalogoOpen)}>
             <NavLink to="/catalogo" className={navClass} onClick={onNavigate}>
               <Package className="nav-icon" style={{ width: 16, height: 16 }} />
@@ -158,7 +183,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         {isAdmin && (
           <>
             <NavGroup groupKey="gestao">
-              <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} />
+              <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} active={groupIsActive(['/gestao'])} />
               <div className={submenuClass} style={submenuStyle('gestao', gestaoOpen)}>
                 <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
                   <Contact className="nav-icon" style={{ width: 16, height: 16 }} />
@@ -180,7 +205,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
             </NavGroup>
 
             <NavGroup groupKey="sistema">
-              <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} />
+              <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} active={groupIsActive(['/config'])} />
               <div className={submenuClass} style={submenuStyle('sistema', sistemaOpen)}>
                 <NavLink to="/config" className={navClass} onClick={onNavigate}>
                   <Settings className="nav-icon" style={{ width: 16, height: 16 }} />
