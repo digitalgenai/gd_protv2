@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
-from config import CORS_ALLOWED_ORIGINS, SECRET_KEY, UPLOADS_DIR
+from config import CORS_ALLOWED_ORIGINS, SECRET_KEY, SESSION_COOKIE_SECURE, UPLOADS_DIR
 from db import engine
 from routes.auth import bp as auth_bp
 from routes.catalogo_qualidade import bp as catalogo_qualidade_bp
@@ -21,7 +21,7 @@ def create_app() -> Flask:
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=False,  # dev local em http — true obrigatório atrás de https em produção
+        SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
     )
     CORS(app, resources={r"/*": {"origins": CORS_ALLOWED_ORIGINS}}, supports_credentials=True)
 

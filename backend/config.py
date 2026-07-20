@@ -12,6 +12,9 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "galpaodesign_teste")
 # Assina o cookie de sessão (login). Defina SECRET_KEY no .env em qualquer ambiente real —
 # este fallback é só pra dev local não travar; com ele, reiniciar o servidor derruba as sessões.
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-troque-em-producao")
+# Cookie de sessão só viaja em HTTPS quando True — precisa disso em produção atrás de https,
+# mas teria que ficar False em dev local (http puro) senão o navegador nunca envia o cookie.
+SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").strip().lower() == "true"
 UPLOADS_DIR = BASE_DIR / "uploads"
 # Base pública deste servidor Flask — usada para transformar um storage_path local
 # (ex.: "/images/GD-0001/foto.jpg") em URL absoluta consumível pelo front (porta diferente).

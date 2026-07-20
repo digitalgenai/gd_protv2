@@ -60,12 +60,14 @@ Isso não é específico do Docker — é assim hoje em produção/dev também, 
 
 ---
 
-## 3. Outras observações (menor prioridade)
+## 3. Outras observações (menor prioridade) — corrigidas
 
-- **`SECRET_KEY`** não está definida no seu `.env` — usa o fallback inseguro hardcoded em `config.py` (`dev-only-insecure-secret...`). Reiniciar o backend derruba todas as sessões logadas, e em produção isso precisa ser um valor forte e secreto.
-- **`SESSION_COOKIE_SECURE=False`** hardcoded em `app.py` — já documentado no próprio código como "true obrigatório atrás de https em produção", mas fica aqui o lembrete de trocar antes de qualquer deploy real.
-- **`Pillow==10.4.0`** no `requirements.txt` está bem atrás da versão que roda no seu ambiente de dev hoje (12.3.0) — não vi quebra, mas vale atualizar o pin pra não ter dev/prod divergindo sem querer.
-- **Sem framework de migration** (nenhum Alembic/SQL versionado) — mudanças de schema (como a coluna `crm_opportunity_id` que adicionei antes) são feitas manualmente, sem histórico. Isso já era assim antes desta sessão, só documentando.
+- **`SECRET_KEY` não definida** — gerei um valor forte e aleatório (`secrets.token_hex(32)`) e adicionei no seu `.env`. Sessões antigas caem uma vez (o valor mudou), mas não vai mais cair a cada restart do backend.
+- **`SESSION_COOKIE_SECURE=False` hardcoded** — virou variável de ambiente `SESSION_COOKIE_SECURE` (default `false`, igual hoje). Quando for pra produção atrás de https, basta setar `SESSION_COOKIE_SECURE=true` no `.env` daquele ambiente, sem mexer em código.
+- **`Pillow==10.4.0` desatualizado** — atualizado pra `12.3.0`, igual ao que já roda no seu ambiente de dev. Rebuild da imagem do backend testado (health-check, login, sessão) — sem quebra.
+- **Sem framework de migration** (nenhum Alembic/SQL versionado) — **não mexi nisso**: não é um bug pontual, é uma decisão de processo (qual ferramenta usar, gerar a baseline a partir do schema atual, etc.). Me avisa se quiser que eu monte isso como próxima etapa.
+
+Rebuild + reteste feito depois dessas mudanças: `/health` ok, login/sessão funcionando (cookie sem `Secure` em http local, `/auth/me` validando a sessão assinada com a `SECRET_KEY` real).
 
 ---
 
@@ -76,4 +78,6 @@ Isso não é específico do Docker — é assim hoje em produção/dev também, 
 - [x] Corrigido: dependências faltando (`openai`, `requests`) que quebravam build limpo
 - [x] Corrigido: CORS hardcoded que quebrava qualquer origem fora do Vite dev
 - [x] Corrigido: `.env.example` incompleto
+- [x] Corrigido: `SECRET_KEY` gerada, `SESSION_COOKIE_SECURE` configurável, `Pillow` atualizado
 - [ ] **Decisão sua**: quer que eu implemente autenticação/autorização real nas rotas do backend? (achado crítico, seção 2)
+- [ ] **Decisão sua**: quer que eu monte um framework de migration (Alembic) pro schema do banco?
