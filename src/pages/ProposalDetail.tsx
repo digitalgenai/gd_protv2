@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Copy, FileCheck, FileX, Mail, MessageCircle, Pencil, PackageSearch, Send } from 'lucide-react';
-import { fetchProposalDetail } from '../api/proposals';
+import { ArrowLeft, Check, Copy, FileCheck, FileX, Mail, MessageCircle, Pencil, PackageSearch, Send, X } from 'lucide-react';
+import { fetchProposalDetail, updateProposalStatus } from '../api/proposals';
 import ErrorState from '../components/ui/ErrorState';
 import { useProducts } from '../context/ProductsContext';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../context/ProposalDraftContext';
@@ -108,9 +108,21 @@ export default function ProposalDetail() {
         ambientes: detail!.ambientes,
       },
       detail!.itens,
+      detail!.code,
     );
     showToast(`Nova versão v${detail!.versao + 1} criada a partir de ${detail!.code}.`, 'success');
     navigate('/propostas/nova');
+  }
+
+  /** Grava o novo status no backend (reflete no estágio da Opportunity espelhada no CRM) e
+   * atualiza a tela sem precisar recarregar a proposta inteira. */
+  async function markStatus(status: 'Enviada' | 'Aprovada' | 'Reprovada') {
+    try {
+      const result = await updateProposalStatus(detail!.code, status);
+      setDetail((d) => (d ? { ...d, status: result.status } : d));
+    } catch {
+      showToast('Não foi possível atualizar o status da proposta.', 'error');
+    }
   }
 
   function handleSendWhatsApp() {
@@ -129,6 +141,7 @@ export default function ProposalDetail() {
 
     window.open(buildWhatsAppShareLink(detail!.telefoneCliente, mensagem), '_blank', 'noopener,noreferrer');
     showToast('Anexe o PDF da proposta manualmente na conversa do WhatsApp.', 'info');
+    if (detail!.status === 'Rascunho') markStatus('Enviada');
   }
 
   function handleSendEmail() {
@@ -150,6 +163,17 @@ export default function ProposalDetail() {
 
     window.location.href = buildMailtoShareLink(detail!.emailCliente, assunto, corpo);
     showToast('Anexe o PDF da proposta manualmente no e-mail.', 'info');
+    if (detail!.status === 'Rascunho') markStatus('Enviada');
+  }
+
+  async function handleAprovar() {
+    await markStatus('Aprovada');
+    showToast('Proposta marcada como aprovada!', 'success');
+  }
+
+  async function handleRecusar() {
+    await markStatus('Reprovada');
+    showToast('Proposta marcada como reprovada.', 'info');
   }
 
   return (
@@ -223,6 +247,16 @@ export default function ProposalDetail() {
               </div>
             )}
           </div>
+          {(detail.status === 'Enviada' || detail.status === 'Revisão') && (
+            <>
+              <button className="btn btn-outline btn-sm" style={{ color: 'var(--success)', borderColor: 'var(--success)' }} onClick={handleAprovar}>
+                <Check style={{ width: 13, height: 13 }} /> Aprovar
+              </button>
+              <button className="btn btn-outline btn-sm" style={{ color: 'var(--error)', borderColor: 'var(--error)' }} onClick={handleRecusar}>
+                <X style={{ width: 13, height: 13 }} /> Recusar
+              </button>
+            </>
+          )}
         </div>
       </div>
 

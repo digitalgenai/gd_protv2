@@ -39,8 +39,16 @@ interface ProposalDraftContextValue {
   removeAmbiente: (name: string) => void;
   renameAmbiente: (oldName: string, newName: string) => void;
   applyVoiceResult: (result: ParsedVoiceResult) => void;
-  /** Carrega um rascunho pré-existente (ex.: "Editar como nova versão" a partir do histórico). */
-  loadDraft: (newHeader: Partial<ProposalHeader>, newRows: ProposalRow[]) => void;
+  /** Carrega um rascunho pré-existente (ex.: "Editar como nova versão" a partir do histórico).
+   * `originalCode`, quando informado, marca que o próximo save deve virar uma versão nova da
+   * proposta original (ver Nova Proposta > handleSave), não uma proposta solta. */
+  loadDraft: (newHeader: Partial<ProposalHeader>, newRows: ProposalRow[], originalCode?: string) => void;
+  /** Volta pro estado inicial (cliente novo, sem itens, sem vínculo com nenhuma proposta
+   * original) — usado ao clicar em "Nova Proposta" pra não carregar sobras de um rascunho anterior. */
+  resetDraft: () => void;
+  /** Código da proposta original quando este rascunho é uma "nova versão" dela; null numa
+   * proposta genuinamente nova. */
+  originalCode: string | null;
   proposalCode: string;
   subtotal: number;
   total: number;
@@ -79,6 +87,7 @@ export function buildProposalCode(header: ProposalHeader): string {
 export function ProposalDraftProvider({ children }: { children: ReactNode }) {
   const [header, setHeader] = useState<ProposalHeader>(DEFAULT_HEADER);
   const [rows, setRows] = useState<ProposalRow[]>([]);
+  const [originalCode, setOriginalCode] = useState<string | null>(null);
   const rowCounter = useRef(0);
   const materialCounter = useRef(0);
 
@@ -150,13 +159,22 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
     setRows((r) => r.map((row) => (row.ambiente === oldName ? { ...row, ambiente: trimmed } : row)));
   };
 
-  const loadDraft = (newHeader: Partial<ProposalHeader>, newRows: ProposalRow[]) => {
+  const loadDraft = (newHeader: Partial<ProposalHeader>, newRows: ProposalRow[], newOriginalCode?: string) => {
     const maxRowId = newRows.reduce((m, row) => Math.max(m, row.id), 0);
     const maxMaterialId = newRows.reduce((m, row) => Math.max(m, ...row.materiais.map((mat) => mat.id)), 0);
     rowCounter.current = maxRowId;
     materialCounter.current = maxMaterialId;
     setHeader((h) => ({ ...h, ...newHeader }));
     setRows(newRows);
+    setOriginalCode(newOriginalCode ?? null);
+  };
+
+  const resetDraft = () => {
+    rowCounter.current = 0;
+    materialCounter.current = 0;
+    setHeader(DEFAULT_HEADER);
+    setRows([]);
+    setOriginalCode(null);
   };
 
   const applyVoiceResult = (result: ParsedVoiceResult) => {
@@ -198,7 +216,7 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
       value={{
         header, rows, setHeaderField, addProductToProposal, addEmptyRow, updateRow, removeRow,
         addMaterial, updateMaterial, removeMaterial, addAmbiente, removeAmbiente, renameAmbiente,
-        applyVoiceResult, loadDraft, proposalCode, subtotal, total,
+        applyVoiceResult, loadDraft, resetDraft, originalCode, proposalCode, subtotal, total,
       }}
     >
       {children}

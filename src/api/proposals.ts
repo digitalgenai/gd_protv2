@@ -1,5 +1,5 @@
 import { apiFetch, ApiError } from './client';
-import type { ProposalDetail, ProposalRow, ProposalSummary } from '../types';
+import type { ProposalDetail, ProposalRow, ProposalStatus, ProposalSummary } from '../types';
 
 /** RF-053/3.4: histórico de propostas. Sem fallback mockado — erro sobe pra quem chamou mostrar. */
 export async function fetchProposals(): Promise<ProposalSummary[]> {
@@ -33,6 +33,9 @@ export interface CreateProposalPayload {
   observacoes: string;
   descontoGlobal: number;
   itens: ProposalRow[];
+  /** Código da proposta original, só quando salva a partir de "Editar (Nova Versão)" — o
+   * backend usa isso pra criar uma versão nova da MESMA proposta em vez de uma solta. */
+  propostaOriginalCodigo?: string;
 }
 
 /** RF-028 a RF-042: criação de proposta. Sem fallback — se falhar, o usuário precisa saber
@@ -41,5 +44,17 @@ export async function createProposal(payload: CreateProposalPayload): Promise<{ 
   return apiFetch<{ codigo: string }>('/propostas', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+/** Muda o status de uma versão (Enviada/Aprovada/Reprovada) — reflete no estágio da Opportunity
+ * espelhada no EngajaCRM (ver backend/routes/propostas.py). */
+export async function updateProposalStatus(
+  code: string,
+  status: Exclude<ProposalStatus, 'Revisão'>,
+): Promise<{ status: ProposalStatus }> {
+  return apiFetch<{ status: ProposalStatus }>(`/propostas/${encodeURIComponent(code)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 }

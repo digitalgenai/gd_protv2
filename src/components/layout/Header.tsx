@@ -3,6 +3,7 @@ import { LogOut, Menu, Moon, Plus, Sun, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { initials } from '../../utils/format';
 import GlobalSearch from '../search/GlobalSearch';
 import type { Product } from '../../types';
@@ -16,6 +17,7 @@ interface HeaderProps {
 export default function Header({ title, onOpenMobileDrawer, products }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { usuario, logout } = useAuth();
+  const { resetDraft } = useProposalDraft();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -55,7 +57,14 @@ export default function Header({ title, onOpenMobileDrawer, products }: HeaderPr
             ? <Sun style={{ width: 16, height: 16, color: 'var(--gold-text)' }} />
             : <Moon style={{ width: 16, height: 16, color: 'var(--text-secondary)' }} />}
         </button>
-        <button id="btn-nova-proposta" className="btn btn-gold btn-sm" onClick={() => navigate('/propostas/nova')}>
+        <button
+          id="btn-nova-proposta"
+          className="btn btn-gold btn-sm"
+          onClick={() => {
+            resetDraft();
+            navigate('/propostas/nova');
+          }}
+        >
           <Plus style={{ width: 14, height: 14 }} /> Nova Proposta
         </button>
         {usuario && (

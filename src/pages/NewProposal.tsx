@@ -16,7 +16,7 @@ import ProposalPreview from '../components/proposal/ProposalPreview';
 import CatalogPickerModal from '../components/catalog/CatalogPickerModal';
 
 export default function NewProposal() {
-  const { header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente, proposalCode, subtotal, total } = useProposalDraft();
+  const { header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente, originalCode, proposalCode, subtotal, total } = useProposalDraft();
   const { products: allProducts } = useProducts();
   const { vendedores } = useVendedores();
   const { showToast } = useToast();
@@ -98,8 +98,9 @@ export default function NewProposal() {
         observacoes: header.observacoes,
         descontoGlobal: header.globalDiscount,
         itens: rows,
+        propostaOriginalCodigo: originalCode ?? undefined,
       });
-      showToast('Rascunho salvo!', 'success');
+      showToast(originalCode ? `Versão v${header.versao} salva!` : 'Rascunho salvo!', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Não foi possível salvar a proposta — backend indisponível.', 'error');
     }

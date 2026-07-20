@@ -4,6 +4,7 @@ import {
   ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard,
   Package, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
 } from 'lucide-react';
+import { useProposalDraft } from '../../context/ProposalDraftContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -49,6 +50,7 @@ function GroupHeader({
 }
 
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
+  const { resetDraft } = useProposalDraft();
   const [comercialOpen, setComercialOpen] = useState(true);
   const [catalogoOpen, setCatalogoOpen] = useState(true);
   const [gestaoOpen, setGestaoOpen] = useState(false);
@@ -127,7 +129,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         <NavGroup groupKey="comercial">
           <GroupHeader icon={FileText} label="Comercial" open={comercialOpen} onToggle={() => setComercialOpen((o) => !o)} />
           <div className={submenuClass} style={submenuStyle('comercial', comercialOpen)}>
-            <NavLink to="/propostas/nova" className={navClass} onClick={onNavigate}>
+            <NavLink to="/propostas/nova" className={navClass} onClick={() => { resetDraft(); onNavigate(); }}>
               <FilePlus className="nav-icon" style={{ width: 16, height: 16 }} />
               <span className="nav-label">Nova Proposta</span>
             </NavLink>

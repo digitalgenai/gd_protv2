@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -15,6 +16,7 @@ from utils.crm_client import (
     find_account_id_by_nome as crm_find_account_id_by_nome,
     list_arquitetos as crm_list_arquitetos,
     list_opportunities_by_account as crm_list_opportunities_by_account,
+    update_opportunity as crm_update_opportunity,
 )
 
 bp = Blueprint("propostas", __name__)
@@ -69,6 +71,7 @@ STATUS_DB_TO_FRONT = {
     "aprovada": "Aprovada",
     "recusada": "Reprovada",
 }
+STATUS_FRONT_TO_DB = {front: db for db, front in STATUS_DB_TO_FRONT.items()}
 
 
 def _map_status(db_status: str) -> str:
@@ -325,20 +328,49 @@ def create_proposta():
     if not cliente:
         return jsonify({"error": "Cliente é obrigatório."}), 400
 
-    proposta = Proposta(
-        cliente_nome=cliente,
-        cliente_telefone=data.get("telefoneCliente") or None,
-        cliente_endereco=data.get("enderecoCliente") or None,
-        cliente_email=data.get("emailCliente") or None,
-        arquiteto_nome=data.get("arquiteto") or None,
-        desconto_geral=data.get("descontoGlobal") or 0,
-        observacoes=data.get("observacoes") or None,
-        vendedor_id=_resolve_vendedor_id(session, data.get("vendedor")),
-    )
-    session.add(proposta)
-    session.flush()  # dispara o trigger que gera codigo_base
+    # "Editar (Nova Versão)" no histórico manda o código da proposta original — quando presente,
+    # isso vira uma versão nova da MESMA proposta (mesmo id, versao_numero seguinte), em vez de
+    # criar uma proposta solta do zero (bug antigo: toda "nova versão" virava um registro novo,
+    # duplicando inclusive a Opportunity no CRM).
+    codigo_original = (data.get("propostaOriginalCodigo") or "").strip()
+    proposta = None
+    if codigo_original:
+        versao_original = (
+            session.query(PropostaVersao)
+            .filter(PropostaVersao.codigo_proposta == codigo_original)
+            .first()
+        )
+        if not versao_original:
+            return jsonify({
+                "error": f'Proposta original "{codigo_original}" não encontrada — não foi possível criar uma nova versão dela.',
+            }), 404
+        proposta = versao_original.proposta
 
-    versao = PropostaVersao(proposta_id=proposta.id, versao_numero=1, status="rascunho")
+    is_nova_versao = proposta is not None
+    if not is_nova_versao:
+        proposta = Proposta()
+        session.add(proposta)
+
+    proposta.cliente_nome = cliente
+    proposta.cliente_telefone = data.get("telefoneCliente") or None
+    proposta.cliente_endereco = data.get("enderecoCliente") or None
+    proposta.cliente_email = data.get("emailCliente") or None
+    proposta.arquiteto_nome = data.get("arquiteto") or None
+    proposta.desconto_geral = data.get("descontoGlobal") or 0
+    proposta.observacoes = data.get("observacoes") or None
+    proposta.vendedor_id = _resolve_vendedor_id(session, data.get("vendedor"))
+    session.flush()  # numa proposta nova, dispara o trigger que gera codigo_base
+
+    proximo_numero = 1
+    if is_nova_versao:
+        maior = (
+            session.query(func.max(PropostaVersao.versao_numero))
+            .filter(PropostaVersao.proposta_id == proposta.id)
+            .scalar()
+        )
+        proximo_numero = (maior or 0) + 1
+
+    versao = PropostaVersao(proposta_id=proposta.id, versao_numero=proximo_numero, status="rascunho")
     session.add(versao)
     session.flush()  # dispara o trigger que gera codigo_proposta
 
@@ -384,28 +416,61 @@ def create_proposta():
 
 
 def _sync_opportunity_no_crm(session, proposta, versao):
-    """Espelha a proposta recém-criada como uma Opportunity no kanban do EngajaCRM — melhor
-    esforço: se o CRM estiver fora do ar ou mal configurado, a proposta já foi salva no nosso
-    banco normalmente, só não aparece lá até uma próxima tentativa manual."""
-    account_id = None
-    if proposta.arquiteto_nome:
-        try:
-            account_id = crm_find_account_id_by_nome(proposta.arquiteto_nome)
-        except CrmError:
-            account_id = None
-
+    """Espelha a proposta como uma Opportunity no kanban do EngajaCRM — uma por proposta, não
+    por versão: a primeira versão cria o card, as seguintes (nova versão salva, ou mudança de
+    status) atualizam o mesmo card em vez de duplicar. Melhor esforço: se o CRM estiver fora do
+    ar ou mal configurado, a proposta já foi salva no nosso banco normalmente, só não
+    aparece/atualiza lá até uma próxima tentativa manual."""
     total = sum(float(item.valor_total or 0) for item in versao.itens)
     try:
-        opportunity_id = crm_create_opportunity(
-            nome=f"{versao.codigo_proposta} — {proposta.cliente_nome}",
-            amount=total,
-            status_db=versao.status,
-            account_id=account_id,
-            # App ainda não persiste validade por proposta — usa +48h (padrão comercial da
-            # validade da proposta, ver ProposalDraftContext.tsx) como closeDate no CRM.
-            close_date=(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
-        )
-        versao.crm_opportunity_id = opportunity_id
+        if proposta.crm_opportunity_id:
+            crm_update_opportunity(proposta.crm_opportunity_id, amount=total, status_db=versao.status)
+        else:
+            account_id = None
+            if proposta.arquiteto_nome:
+                try:
+                    account_id = crm_find_account_id_by_nome(proposta.arquiteto_nome)
+                except CrmError:
+                    account_id = None
+            opportunity_id = crm_create_opportunity(
+                nome=f"{versao.codigo_proposta} — {proposta.cliente_nome}",
+                amount=total,
+                status_db=versao.status,
+                account_id=account_id,
+                # App ainda não persiste validade por proposta — usa +48h (padrão comercial da
+                # validade da proposta, ver ProposalDraftContext.tsx) como closeDate no CRM.
+                close_date=(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
+            )
+            proposta.crm_opportunity_id = opportunity_id
         session.commit()
     except CrmError as exc:
-        print(f"[crm] Falha ao criar Opportunity no EngajaCRM para {versao.codigo_proposta}: {exc}", flush=True)
+        print(f"[crm] Falha ao sincronizar Opportunity no EngajaCRM para {versao.codigo_proposta}: {exc}", flush=True)
+
+
+@bp.patch("/propostas/<codigo_proposta>/status")
+@login_required
+def update_proposta_status(codigo_proposta):
+    """Muda o status de uma versão (Enviada/Aprovada/Reprovada) e espelha o novo estágio na
+    Opportunity do CRM. "Rascunho" também é aceito (reverter), mas "Revisão" não — é um estado
+    só do front, não existe no enum do banco."""
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+    novo_status_db = STATUS_FRONT_TO_DB.get(data.get("status"))
+    if not novo_status_db:
+        return jsonify({"error": f"status deve ser um de: {', '.join(STATUS_FRONT_TO_DB)}."}), 400
+
+    versao = (
+        session.query(PropostaVersao)
+        .options(selectinload(PropostaVersao.itens), selectinload(PropostaVersao.proposta))
+        .filter(PropostaVersao.codigo_proposta == codigo_proposta)
+        .first()
+    )
+    if not versao:
+        return jsonify({"error": "Proposta não encontrada."}), 404
+
+    versao.status = novo_status_db
+    session.commit()
+    session.refresh(versao)
+
+    _sync_opportunity_no_crm(session, versao.proposta, versao)
+    return jsonify({"status": _map_status(versao.status)})

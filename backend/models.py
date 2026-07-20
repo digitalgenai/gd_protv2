@@ -132,6 +132,9 @@ class Proposta(Base):
     arquiteto_nome = Column(Text)
     observacoes = Column(Text)
     desconto_geral = Column(Numeric(5, 2), nullable=False, default=0)
+    # Uma Opportunity por proposta (não por versão) — evita duplicar card no kanban a cada nova
+    # versão salva; ver utils/crm_client.py e routes/propostas.py.
+    crm_opportunity_id = Column(Text)
     criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
     updated_at = Column(DateTime(timezone=True), server_default=FetchedValue())
 
@@ -150,7 +153,6 @@ class PropostaVersao(Base):
     status = Column(status_versao_enum, nullable=False, default="rascunho")
     pdf_path = Column(Text)
     xlsx_path = Column(Text)
-    crm_opportunity_id = Column(Text)  # id da Opportunity espelhada no kanban do EngajaCRM (ver utils/crm_client.py)
     criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
     updated_at = Column(DateTime(timezone=True), server_default=FetchedValue())
 
