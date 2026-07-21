@@ -150,7 +150,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                   <div className="overflow-x-auto">
                     <table className="data-table">
                       <thead>
-                        <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Preço</th><th /></tr>
+                        <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Material</th><th>Preço</th><th /></tr>
                       </thead>
                       <tbody>
                         {products.map((p) => (
@@ -171,6 +171,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                             <td>{p.supplier}</td>
                             <td style={{ color: 'var(--text-secondary)' }}>{p.cat || '—'}</td>
                             <td style={{ color: 'var(--text-secondary)' }}>{p.finish || '—'}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{p.material || '—'}</td>
                             <td className="mono font-semibold">{p.price ? formatCurrency(p.price) : '—'}</td>
                             <td>
                               <button

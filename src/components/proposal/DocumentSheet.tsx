@@ -114,7 +114,7 @@ export default function DocumentSheet({
                             </span>
                           )}
                         </div>
-                        <div className="prv-item-sub">{product ? `${product.supplier} · ${product.finish}` : ''}</div>
+                        <div className="prv-item-sub">{product ? [product.supplier, product.finish, product.material].filter(Boolean).join(' · ') : ''}</div>
                         {r.materiais.filter((m) => m.descricao.trim()).length > 0 && (
                           <div className="prv-item-sub">
                             {r.materiais

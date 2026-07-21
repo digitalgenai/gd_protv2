@@ -103,7 +103,7 @@ export default function PrintProposal() {
                           </span>
                         )}
                       </div>
-                      <div className="pr-item-sub">{product ? `${product.supplier} · ${product.finish}` : ''}</div>
+                      <div className="pr-item-sub">{product ? [product.supplier, product.finish, product.material].filter(Boolean).join(' · ') : ''}</div>
                       {r.materiais.length > 0 && (
                         <div className="pr-item-sub" style={{ marginTop: 3 }}>
                           {r.materiais

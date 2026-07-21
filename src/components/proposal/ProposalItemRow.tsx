@@ -67,7 +67,7 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
         <td>
           <div className="flex items-center gap-2">
             {matchedProduct
-              ? <img src={matchedProduct.img} alt={matchedProduct.name} className="row-thumb" title={`${matchedProduct.supplier} · ${matchedProduct.finish}`} />
+              ? <img src={matchedProduct.img} alt={matchedProduct.name} className="row-thumb" title={[matchedProduct.supplier, matchedProduct.finish, matchedProduct.material].filter(Boolean).join(' · ')} />
               : <span className="row-thumb-empty" title="Sem produto do catálogo vinculado" />}
             <input className="proposal-input" style={{ width: '100%' }} value={row.desc} onChange={(e) => updateRow(row.id, { desc: e.target.value })} />
             {matchedProduct?.vendaDireta && (

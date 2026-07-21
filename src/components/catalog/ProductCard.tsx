@@ -57,7 +57,7 @@ export default function ProductCard({ product, ambiente, alreadyInAmbiente }: Pr
       </div>
       <div style={{ padding: '12px 14px' }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{product.name}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>{product.supplier} · {product.finish}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>{[product.supplier, product.finish, product.material].filter(Boolean).join(' · ')}</div>
         {product.dimensions && (
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>{product.dimensions}</div>
         )}

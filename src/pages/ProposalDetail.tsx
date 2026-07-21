@@ -306,7 +306,7 @@ export default function ProposalDetail() {
                         <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{r.code}</span></td>
                         <td>
                           {r.desc}
-                          {product && <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{product.supplier} · {product.finish}</div>}
+                          {product && <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{[product.supplier, product.finish, product.material].filter(Boolean).join(' · ')}</div>}
                         </td>
                         <td>{r.qty}</td>
                         <td className="mono">{formatCurrency(r.price)}</td>

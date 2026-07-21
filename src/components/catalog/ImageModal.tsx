@@ -30,7 +30,7 @@ export default function ImageModal() {
   const { showToast } = useToast();
 
   const [tab, setTab] = useState<ImageModalTab>('info');
-  const [form, setForm] = useState({ name: '', cat: '', supplier: '', finish: '', price: 0, dimensions: '' });
+  const [form, setForm] = useState({ name: '', cat: '', supplier: '', finish: '', material: '', price: 0, dimensions: '' });
   const [savingInfo, setSavingInfo] = useState(false);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
@@ -42,7 +42,7 @@ export default function ImageModal() {
   useEffect(() => {
     if (!isOpen || !product) return;
     setTab(initialTab);
-    setForm({ name: product.name, cat: product.cat, supplier: product.supplier, finish: product.finish, price: product.price, dimensions: product.dimensions });
+    setForm({ name: product.name, cat: product.cat, supplier: product.supplier, finish: product.finish, material: product.material, price: product.price, dimensions: product.dimensions });
     setImages(product.images ?? []);
     setLightboxUrl(null);
   }, [isOpen, product, initialTab]);
@@ -186,6 +186,16 @@ export default function ImageModal() {
                   <option value="">— Sem acabamento —</option>
                   {facets.finishes.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="form-label" htmlFor="pi-material">Material</label>
+                <input
+                  id="pi-material"
+                  className="form-input"
+                  placeholder="Ex.: Latão / Metalizado"
+                  value={form.material}
+                  onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-preco">Preço (R$)</label>

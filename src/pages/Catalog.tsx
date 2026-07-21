@@ -191,7 +191,7 @@ export default function Catalog() {
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
-                      <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Preço</th><th>Venda Direta</th><th /></tr>
+                      <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Material</th><th>Preço</th><th>Venda Direta</th><th /></tr>
                     </thead>
                     <tbody>
                       {pageProducts.map((p) => (
@@ -212,6 +212,7 @@ export default function Catalog() {
                           <td>{p.supplier}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{p.cat || '—'}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{p.finish || '—'}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{p.material || '—'}</td>
                           <td className="mono font-semibold">{p.price ? formatCurrency(p.price) : '—'}</td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <ToggleSwitch

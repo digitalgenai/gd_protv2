@@ -4,6 +4,8 @@ export interface Product {
   cat: string;
   supplier: string;
   finish: string;
+  /** Material da variante (ex.: "Tecido #7", "Latão / Metalizado") — vem de produto_customizacoes.material. */
+  material: string;
   price: number;
   img: string;
   /** Dimensões do produto (L × P × A em cm, ou L × C para tapetes). */

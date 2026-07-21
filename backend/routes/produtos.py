@@ -157,6 +157,8 @@ def update_produto(codigo):
 
     if "finish" in data:
         customizacao.acabamento = data["finish"] or None
+    if "material" in data:
+        customizacao.material = data["material"] or None
     if "dimensions" in data:
         customizacao.dimensoes = data["dimensions"] or None
     if "price" in data:

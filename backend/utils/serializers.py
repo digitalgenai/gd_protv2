@@ -44,6 +44,7 @@ def serialize_product(produto: CatalogoProduto) -> dict:
         "cat": produto.categoria or "",
         "supplier": produto.fornecedor.nome if produto.fornecedor else "",
         "finish": customizacao.acabamento if customizacao and customizacao.acabamento else "",
+        "material": customizacao.material if customizacao and customizacao.material else "",
         "price": _preco_produto(customizacao),
         "dimensions": customizacao.dimensoes if customizacao and customizacao.dimensoes else "",
         "img": absolute_image_url(imagens[0].storage_path) if imagens else "",
