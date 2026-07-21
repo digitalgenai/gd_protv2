@@ -84,10 +84,10 @@ export default function PrintProposal() {
                 const product = products.find((p) => p.id === r.code);
                 return (
                   <tr key={r.id}>
-                    <td style={{ padding: '7px 10px', width: 90 }}>
+                    <td style={{ padding: '5px 10px', width: 66 }}>
                       {product?.img && <img src={product.img} className="pr-img" alt={r.desc} />}
                     </td>
-                    <td style={{ padding: '7px 10px' }}>
+                    <td style={{ padding: '5px 10px' }}>
                       <div className="pr-item-code">{r.code}</div>
                       <div className="pr-item-name">
                         {r.desc}
@@ -113,12 +113,12 @@ export default function PrintProposal() {
                         </div>
                       )}
                     </td>
-                    <td className="pr-num pr-center" style={{ padding: '7px 10px' }}>{r.qty}</td>
-                    <td className="pr-num pr-right" style={{ padding: '7px 10px' }}>{formatCurrency(r.price)}</td>
-                    <td className="pr-center" style={{ padding: '7px 10px' }}>
+                    <td className="pr-num pr-center" style={{ padding: '5px 10px' }}>{r.qty}</td>
+                    <td className="pr-num pr-right" style={{ padding: '5px 10px' }}>{formatCurrency(r.price)}</td>
+                    <td className="pr-center" style={{ padding: '5px 10px' }}>
                       {r.disc > 0 ? <span className="pr-disc-badge">{r.disc}%</span> : <span style={{ color: '#979797' }}>—</span>}
                     </td>
-                    <td className="pr-num pr-right" style={{ padding: '7px 10px', fontWeight: 700, color: '#343434' }}>{formatCurrency(lineTotal)}</td>
+                    <td className="pr-num pr-right" style={{ padding: '5px 10px', fontWeight: 700, color: '#343434' }}>{formatCurrency(lineTotal)}</td>
                   </tr>
                 );
               })}
