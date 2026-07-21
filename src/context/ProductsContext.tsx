@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fetchCatalogFacets, fetchProducts } from '../api/products';
+import { useAuth } from './AuthContext';
 import type { Product } from '../types';
 
 type CatalogFacets = Awaited<ReturnType<typeof fetchCatalogFacets>>;
@@ -44,13 +45,25 @@ const ProductsContext = createContext<ProductsContextValue>({
 
 /** Catálogo completo — usado pela busca global, parser de voz e geração de PDF. */
 export function ProductsProvider({ children }: { children: ReactNode }) {
+  const { usuario } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [facets, setFacets] = useState<CatalogFacets>(EMPTY_FACETS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Só busca quando há usuário logado — e refaz a busca quando o login muda (usuario?.id na
+  // dependência). Antes, o fetch disparava no mount (ainda na tela de login, sem sessão), tomava
+  // 401 e nunca mais tentava — por isso o catálogo/busca/PDF só "acordavam" depois de um reload
+  // manual. Agora tudo o que o sistema precisa carrega automaticamente no login do usuário.
   useEffect(() => {
+    if (!usuario) {
+      setProducts([]);
+      setFacets(EMPTY_FACETS);
+      setLoading(false);
+      setError(false);
+      return;
+    }
     let active = true;
     setLoading(true);
     setError(false);
@@ -70,7 +83,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, usuario?.id]);
 
   const reload = () => setReloadKey((k) => k + 1);
 

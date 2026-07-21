@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { fetchVendedores } from '../api/vendedores';
+import { useAuth } from './AuthContext';
 import type { VendedorSummary } from '../api/vendedores';
 
 interface VendedoresContextValue {
@@ -18,12 +19,20 @@ const VendedoresContext = createContext<VendedoresContextValue>({
 
 /** Lista de vendedores reais (usuários ativos) — usada nos dropdowns de Nova Proposta/Voz e na exibição do documento. */
 export function VendedoresProvider({ children }: { children: ReactNode }) {
+  const { usuario } = useAuth();
   const [vendedores, setVendedores] = useState<VendedorSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Só busca com usuário logado; refaz no login (ver ProductsContext pro porquê detalhado).
   useEffect(() => {
+    if (!usuario) {
+      setVendedores([]);
+      setLoading(false);
+      setError(false);
+      return;
+    }
     let active = true;
     setLoading(true);
     setError(false);
@@ -41,7 +50,7 @@ export function VendedoresProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, usuario?.id]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
