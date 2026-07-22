@@ -93,7 +93,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
               onCloseMobile={() => setMobileFilterOpen(false)}
             />
           </div>
-          <div className="flex-1 p-5 overflow-y-auto">
+          <div className="flex-1 p-5 overflow-y-auto" style={{ minWidth: 0 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
               <div className="flex items-center gap-2">
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -148,7 +148,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
               ) : (
                 <div className="card overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="data-table">
+                    <table className="data-table" style={{ minWidth: 760 }}>
                       <thead>
                         <tr><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th>Acabamento</th><th>Material</th><th>Preço</th><th /></tr>
                       </thead>
@@ -158,7 +158,7 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                             <td>
                               <div className="flex items-center gap-3">
                                 {p.img ? (
-                                  <img src={p.img} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
+                                  <img src={p.img} alt={p.name} loading="lazy" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
                                 ) : (
                                   <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg)', flexShrink: 0 }} />
                                 )}

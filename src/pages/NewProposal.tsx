@@ -501,10 +501,7 @@ export default function NewProposal() {
               Adicione móveis do catálogo, digite um código (ex.: <span className="mono" style={{ color: 'var(--gold-text)' }}>GD-CAD-001</span>) ou use o microfone para ditar os itens.
             </div>
             <div className="flex gap-2 mt-2">
-              <button className="btn btn-outline btn-sm" onClick={() => setCatalogOpen(true)}>
-                <Package style={{ width: 13, height: 13 }} /> Buscar no Catálogo
-              </button>
-              <button className="btn btn-gold btn-sm" onClick={() => addEmptyRow()}>+ Adicionar primeiro item</button>
+              <button className="btn btn-gold btn-sm" onClick={() => setCatalogOpen(true)}>+ Adicionar primeiro item</button>
             </div>
           </div>
         )}

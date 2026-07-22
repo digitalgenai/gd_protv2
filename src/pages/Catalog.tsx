@@ -199,7 +199,7 @@ export default function Catalog() {
                           <td>
                             <div className="flex items-center gap-3">
                               {p.img ? (
-                                <img src={p.img} alt={p.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
+                                <img src={p.img} alt={p.name} loading="lazy" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, background: '#fff' }} />
                               ) : (
                                 <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--bg)', flexShrink: 0 }} />
                               )}
