@@ -162,7 +162,7 @@ def update_produto(codigo):
     if "dimensions" in data:
         customizacao.dimensoes = data["dimensions"] or None
     if "price" in data:
-        customizacao.preco_b2c = data["price"] or None
+        customizacao.preco_final = data["price"] or None
 
     session.commit()
     session.refresh(produto)

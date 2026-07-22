@@ -9,13 +9,13 @@ def absolute_image_url(storage_path: str) -> str:
 
 
 def _preco_produto(customizacao) -> float:
-    """preco_b2c é o campo editável pela tela de produto (RF-...), mas a importação em
-    massa das tabelas de fornecedor só preencheu preco_b2b (11872 de 11963 linhas —
-    preco_b2c tinha só 1). Prioriza um preco_b2c editado manualmente; cai pro b2b
+    """preco_final é o campo editável pela tela de produto (RF-...), mas a importação em
+    massa das tabelas de fornecedor só preencheu preco_venda (11872 de 11963 linhas —
+    preco_final tinha só 1). Prioriza um preco_final editado manualmente; cai pro preco_venda
     importado quando não há edição, em vez de mostrar "sem preço" pra quase tudo."""
     if not customizacao:
         return 0
-    valor = customizacao.preco_b2c if customizacao.preco_b2c is not None else customizacao.preco_b2b
+    valor = customizacao.preco_final if customizacao.preco_final is not None else customizacao.preco_venda
     return float(valor) if valor is not None else 0
 
 
@@ -24,7 +24,7 @@ def _selecionar_customizacao(produto: CatalogoProduto):
     prioriza uma que tenha preço cadastrado — sem isso, pegar sempre a primeira variante
     fazia mostrar "sem preço" em produtos que na verdade têm preço em outra variante."""
     ativas = [c for c in produto.customizacoes if c.ativo]
-    com_preco = next((c for c in ativas if c.preco_b2c is not None or c.preco_b2b is not None), None)
+    com_preco = next((c for c in ativas if c.preco_final is not None or c.preco_venda is not None), None)
     return com_preco or (ativas[0] if ativas else None)
 
 
