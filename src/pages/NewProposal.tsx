@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useBlocker } from 'react-router-dom';
-import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, Users, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, Users, X } from 'lucide-react';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
 import { useVendedores } from '../context/VendedoresContext';
@@ -42,14 +42,6 @@ export default function NewProposal() {
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => isDirty && currentLocation.pathname !== nextLocation.pathname,
   );
-
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    const sair = window.confirm('Você tem alterações não salvas nesta proposta. Sair mesmo assim?');
-    if (sair) blocker.proceed();
-    else blocker.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocker.state]);
 
   // Cobre fechar a aba/atualizar a página — navegação dentro do app (SPA) é pega pelo blocker
   // acima; isso aqui só entra em ação quando o navegador de fato descarrega a página.
@@ -592,6 +584,20 @@ export default function NewProposal() {
 
       <ProposalPreview open={previewOpen} onClose={() => setPreviewOpen(false)} onGeneratePdf={handlePdf} />
       <CatalogPickerModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+
+      {blocker.state === 'blocked' && (
+        <div className="modal-overlay open" role="alertdialog" aria-modal="true" aria-label="Sair sem salvar as alterações?">
+          <div className="unsaved-modal-card">
+            <div className="unsaved-modal-icon"><AlertTriangle style={{ width: 22, height: 22 }} /></div>
+            <div className="unsaved-modal-title">Alterações não salvas</div>
+            <div className="unsaved-modal-text">Você tem alterações não salvas nesta proposta. Sair mesmo assim?</div>
+            <div className="unsaved-modal-actions">
+              <button className="btn btn-outline btn-sm" onClick={() => blocker.reset()}>Ficar na página</button>
+              <button className="btn btn-danger btn-sm" onClick={() => blocker.proceed()}>Sair sem salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
