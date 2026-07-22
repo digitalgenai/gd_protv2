@@ -30,6 +30,16 @@ export default function ProposalDetail() {
   const [loadError, setLoadError] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
+  const [statusFeedback, setStatusFeedback] = useState<'aprovada' | 'recusada' | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(feedbackTimerRef.current), []);
+
+  function triggerStatusFeedback(kind: 'aprovada' | 'recusada') {
+    setStatusFeedback(kind);
+    clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setStatusFeedback(null), 1100);
+  }
 
   useEffect(() => {
     if (!sendMenuOpen) return;
@@ -121,8 +131,10 @@ export default function ProposalDetail() {
     try {
       const result = await updateProposalStatus(detail!.code, status);
       setDetail((d) => (d ? { ...d, status: result.status } : d));
+      return true;
     } catch {
       showToast('Não foi possível atualizar o status da proposta.', 'error');
+      return false;
     }
   }
 
@@ -168,13 +180,15 @@ export default function ProposalDetail() {
   }
 
   async function handleAprovar() {
-    await markStatus('Aprovada');
+    if (!(await markStatus('Aprovada'))) return;
     showToast('Proposta marcada como aprovada!', 'success');
+    triggerStatusFeedback('aprovada');
   }
 
   async function handleRecusar() {
-    await markStatus('Reprovada');
+    if (!(await markStatus('Reprovada'))) return;
     showToast('Proposta marcada como reprovada.', 'info');
+    triggerStatusFeedback('recusada');
   }
 
   return (
@@ -389,6 +403,18 @@ export default function ProposalDetail() {
               ))}
             </tbody>
           </table>
+          </div>
+        </div>
+      )}
+
+      {statusFeedback && (
+        <div className={`status-feedback ${statusFeedback === 'aprovada' ? 'approved' : 'rejected'}`}>
+          <div className="status-feedback-icon">
+            {statusFeedback === 'aprovada' ? (
+              <Check style={{ width: 44, height: 44, color: 'var(--success)' }} strokeWidth={3} />
+            ) : (
+              <X style={{ width: 44, height: 44, color: 'var(--error)' }} strokeWidth={3} />
+            )}
           </div>
         </div>
       )}
