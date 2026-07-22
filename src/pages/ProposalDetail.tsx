@@ -30,16 +30,10 @@ export default function ProposalDetail() {
   const [loadError, setLoadError] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
-  const [statusFeedback, setStatusFeedback] = useState<'aprovada' | 'recusada' | null>(null);
-  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [statusModal, setStatusModal] = useState<{ kind: 'aprovada' | 'recusada'; phase: 'loading' | 'done' } | null>(null);
+  const statusModalTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => () => clearTimeout(feedbackTimerRef.current), []);
-
-  function triggerStatusFeedback(kind: 'aprovada' | 'recusada') {
-    setStatusFeedback(kind);
-    clearTimeout(feedbackTimerRef.current);
-    feedbackTimerRef.current = setTimeout(() => setStatusFeedback(null), 1100);
-  }
+  useEffect(() => () => clearTimeout(statusModalTimerRef.current), []);
 
   useEffect(() => {
     if (!sendMenuOpen) return;
@@ -180,15 +174,25 @@ export default function ProposalDetail() {
   }
 
   async function handleAprovar() {
-    if (!(await markStatus('Aprovada'))) return;
-    showToast('Proposta marcada como aprovada!', 'success');
-    triggerStatusFeedback('aprovada');
+    setStatusModal({ kind: 'aprovada', phase: 'loading' });
+    const ok = await markStatus('Aprovada');
+    if (!ok) {
+      setStatusModal(null);
+      return;
+    }
+    setStatusModal({ kind: 'aprovada', phase: 'done' });
+    statusModalTimerRef.current = setTimeout(() => setStatusModal(null), 1800);
   }
 
   async function handleRecusar() {
-    if (!(await markStatus('Reprovada'))) return;
-    showToast('Proposta marcada como reprovada.', 'info');
-    triggerStatusFeedback('recusada');
+    setStatusModal({ kind: 'recusada', phase: 'loading' });
+    const ok = await markStatus('Reprovada');
+    if (!ok) {
+      setStatusModal(null);
+      return;
+    }
+    setStatusModal({ kind: 'recusada', phase: 'done' });
+    statusModalTimerRef.current = setTimeout(() => setStatusModal(null), 1800);
   }
 
   return (
@@ -407,14 +411,29 @@ export default function ProposalDetail() {
         </div>
       )}
 
-      {statusFeedback && (
-        <div className={`status-feedback ${statusFeedback === 'aprovada' ? 'approved' : 'rejected'}`}>
-          <div className="status-feedback-icon">
-            {statusFeedback === 'aprovada' ? (
-              <Check style={{ width: 44, height: 44, color: 'var(--success)' }} strokeWidth={3} />
+      {statusModal && (
+        <div className="status-modal-backdrop">
+          <div className="status-modal-card">
+            {statusModal.phase === 'loading' ? (
+              <div className="status-modal-spinner" />
             ) : (
-              <X style={{ width: 44, height: 44, color: 'var(--error)' }} strokeWidth={3} />
+              <svg className={`status-modal-circle ${statusModal.kind === 'aprovada' ? 'approved' : 'rejected'}`} viewBox="0 0 80 80">
+                <circle className="status-modal-ring" cx="40" cy="40" r="34" />
+                {statusModal.kind === 'aprovada' ? (
+                  <path className="status-modal-check" d="M23 41 L35 53 L58 28" />
+                ) : (
+                  <g className="status-modal-x">
+                    <line x1="27" y1="27" x2="53" y2="53" />
+                    <line x1="53" y1="27" x2="27" y2="53" />
+                  </g>
+                )}
+              </svg>
             )}
+            <div className="status-modal-text">
+              {statusModal.phase === 'loading'
+                ? (statusModal.kind === 'aprovada' ? 'Aprovando proposta…' : 'Recusando proposta…')
+                : (statusModal.kind === 'aprovada' ? 'Proposta aprovada!' : 'Proposta recusada.')}
+            </div>
           </div>
         </div>
       )}
