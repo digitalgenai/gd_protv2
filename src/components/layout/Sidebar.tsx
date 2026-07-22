@@ -80,10 +80,13 @@ function NavGroup({
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
   const { resetDraft } = useProposalDraft();
   const { pathname } = useLocation();
-  const [comercialOpen, setComercialOpen] = useState(true);
-  const [catalogoOpen, setCatalogoOpen] = useState(true);
-  const [gestaoOpen, setGestaoOpen] = useState(false);
-  const [sistemaOpen, setSistemaOpen] = useState(false);
+  // Accordion de verdade: só um grupo aberto por vez — abrir um fecha o que já estava aberto,
+  // em vez de acumular vários abertos ao mesmo tempo (era o comportamento antigo, com 4
+  // booleans independentes). Clicar no grupo já aberto fecha ele (volta a null).
+  const [openGroup, setOpenGroup] = useState<string | null>('comercial');
+  function toggleGroup(key: string) {
+    setOpenGroup((current) => (current === key ? null : key));
+  }
 
   function groupIsActive(prefixes: string[]) {
     return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -162,8 +165,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         </NavLink>
 
         <NavGroup onEnter={groupEnter('comercial')} onLeave={groupLeave}>
-          <GroupHeader icon={FileText} label="Comercial" open={comercialOpen} onToggle={() => setComercialOpen((o) => !o)} active={groupIsActive(['/propostas'])} />
-          <div className={submenuClass} style={submenuStyle('comercial', comercialOpen)}>
+          <GroupHeader icon={FileText} label="Comercial" open={openGroup === 'comercial'} onToggle={() => toggleGroup('comercial')} active={groupIsActive(['/propostas'])} />
+          <div className={submenuClass} style={submenuStyle('comercial', openGroup === 'comercial')}>
             <NavLink to="/propostas/nova" className={navClass} onClick={() => { resetDraft(); onNavigate(); }}>
               <FilePlus className="nav-icon" style={{ width: 16, height: 16 }} />
               <span className="nav-label">Nova Proposta</span>
@@ -177,8 +180,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         </NavGroup>
 
         <NavGroup onEnter={groupEnter('catalogo')} onLeave={groupLeave}>
-          <GroupHeader icon={Package} label="Catálogo" open={catalogoOpen} onToggle={() => setCatalogoOpen((o) => !o)} active={groupIsActive(['/catalogo'])} />
-          <div className={submenuClass} style={submenuStyle('catalogo', catalogoOpen)}>
+          <GroupHeader icon={Package} label="Catálogo" open={openGroup === 'catalogo'} onToggle={() => toggleGroup('catalogo')} active={groupIsActive(['/catalogo'])} />
+          <div className={submenuClass} style={submenuStyle('catalogo', openGroup === 'catalogo')}>
             <NavLink to="/catalogo" className={navClass} onClick={onNavigate}>
               <Package className="nav-icon" style={{ width: 16, height: 16 }} />
               <span className="nav-label">Produtos</span>
@@ -193,8 +196,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
         {isAdmin && (
           <>
             <NavGroup onEnter={groupEnter('gestao')} onLeave={groupLeave}>
-              <GroupHeader icon={Users} label="Gestão" open={gestaoOpen} onToggle={() => setGestaoOpen((o) => !o)} active={groupIsActive(['/gestao'])} />
-              <div className={submenuClass} style={submenuStyle('gestao', gestaoOpen)}>
+              <GroupHeader icon={Users} label="Gestão" open={openGroup === 'gestao'} onToggle={() => toggleGroup('gestao')} active={groupIsActive(['/gestao'])} />
+              <div className={submenuClass} style={submenuStyle('gestao', openGroup === 'gestao')}>
                 <NavLink to="/gestao/clientes" className={navClass} onClick={onNavigate}>
                   <Contact className="nav-icon" style={{ width: 16, height: 16 }} />
                   <span className="nav-label">Clientes</span>
@@ -215,8 +218,8 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
             </NavGroup>
 
             <NavGroup onEnter={groupEnter('sistema')} onLeave={groupLeave}>
-              <GroupHeader icon={Settings} label="Sistema" open={sistemaOpen} onToggle={() => setSistemaOpen((o) => !o)} active={groupIsActive(['/config'])} />
-              <div className={submenuClass} style={submenuStyle('sistema', sistemaOpen)}>
+              <GroupHeader icon={Settings} label="Sistema" open={openGroup === 'sistema'} onToggle={() => toggleGroup('sistema')} active={groupIsActive(['/config'])} />
+              <div className={submenuClass} style={submenuStyle('sistema', openGroup === 'sistema')}>
                 <NavLink to="/config" className={navClass} onClick={onNavigate}>
                   <Settings className="nav-icon" style={{ width: 16, height: 16 }} />
                   <span className="nav-label">Configurações</span>
