@@ -3,8 +3,8 @@ import uuid
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, text
+from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlalchemy.orm import selectinload
 
 from db import get_session
@@ -466,6 +466,22 @@ def create_proposta():
     return jsonify({"codigo": versao.codigo_proposta}), 201
 
 
+def _selar_versao_no_dw(session, versao_id):
+    """RN-10: ao virar 'aprovada' pela primeira vez, congela um snapshot imutável em
+    propostas_sequencia_historico via fn_seal_proposta_versao() (DW — fonte de verdade
+    pra relatórios históricos, nunca alterado depois). A função no banco já se protege
+    contra seal duplo (levanta exceção); reverter e reaprovar a mesma versão (ex.:
+    Aprovada -> Rascunho -> Aprovada de novo) cai nesse caso — tratamos como no-op, já
+    que o snapshot da primeira aprovação continua valendo."""
+    try:
+        session.execute(text("SELECT fn_seal_proposta_versao(:id)"), {"id": versao_id})
+        session.commit()
+    except DatabaseError as exc:
+        session.rollback()
+        if "ja foi selada" not in str(exc.orig).lower():
+            raise
+
+
 def _sync_opportunity_no_crm(session, proposta, versao):
     """Espelha a proposta como uma Opportunity no kanban do EngajaCRM — uma por proposta, não
     por versão: a primeira versão cria o card, as seguintes (nova versão salva, ou mudança de
@@ -519,9 +535,13 @@ def update_proposta_status(codigo_proposta):
     if not versao:
         return jsonify({"error": "Proposta não encontrada."}), 404
 
+    status_anterior = versao.status
     versao.status = novo_status_db
     session.commit()
     session.refresh(versao)
+
+    if novo_status_db == "aprovada" and status_anterior != "aprovada":
+        _selar_versao_no_dw(session, versao.id)
 
     _sync_opportunity_no_crm(session, versao.proposta, versao)
     return jsonify({"status": _map_status(versao.status)})
