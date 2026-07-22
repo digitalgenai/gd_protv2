@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { useBlocker } from 'react-router-dom';
 import { Check, CheckCircle2, Circle, Copy, Eye, FileDown, FilePlus, Home, Mail, MessageCircle, Package, Plus, Save, Send, Users, X } from 'lucide-react';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../context/ProposalDraftContext';
 import { useProducts } from '../context/ProductsContext';
@@ -30,6 +31,37 @@ export default function NewProposal() {
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const sendMenuRef = useRef<HTMLDivElement>(null);
   const [arquitetosCrm, setArquitetosCrm] = useState<ArquitetoSummary[]>([]);
+
+  // Aviso ao sair com alterações não salvas (RF-...): compara o estado atual com o do último
+  // save bem-sucedido (ou o de quando a página abriu, se ainda não salvou nada aqui). A ref
+  // só é inicializada uma vez, na montagem — cai certo tanto pra uma proposta em branco quanto
+  // pra uma carregada via "Editar (Nova Versão)".
+  const savedSnapshotRef = useRef(JSON.stringify({ header, rows }));
+  const isDirty = JSON.stringify({ header, rows }) !== savedSnapshotRef.current;
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) => isDirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    const sair = window.confirm('Você tem alterações não salvas nesta proposta. Sair mesmo assim?');
+    if (sair) blocker.proceed();
+    else blocker.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
+
+  // Cobre fechar a aba/atualizar a página — navegação dentro do app (SPA) é pega pelo blocker
+  // acima; isso aqui só entra em ação quando o navegador de fato descarrega a página.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     // Sugestões pro campo Arquiteto vêm do CRM — se falhar, o campo segue como texto livre normal.
@@ -105,6 +137,7 @@ export default function NewProposal() {
         vendedoresConjuntos: header.vendedoresConjuntos,
         propostaOriginalCodigo: originalCode ?? undefined,
       });
+      savedSnapshotRef.current = JSON.stringify({ header, rows });
       showToast(originalCode ? `Versão v${header.versao} salva!` : 'Rascunho salvo!', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Não foi possível salvar a proposta — backend indisponível.', 'error');

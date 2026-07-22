@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
@@ -27,6 +27,37 @@ import Clientes from './pages/Clientes';
 import Arquitetos from './pages/Arquitetos';
 import Fornecedores from './pages/Fornecedores';
 
+// createBrowserRouter (em vez do <BrowserRouter><Routes>... declarativo) é o que habilita
+// useBlocker — usado em NewProposal.tsx pra avisar antes de sair da página com a proposta
+// não salva. Estrutura de rotas idêntica à anterior, só a forma de declarar que muda.
+const router = createBrowserRouter([
+  { path: '/login', element: <Login /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      {
+        element: <Layout />,
+        children: [
+          { index: true, element: <Dashboard /> },
+          { path: 'catalogo', element: <Catalog /> },
+          { path: 'catalogo/qualidade', element: <CatalogQuality /> },
+          { path: 'propostas/nova', element: <NewProposal /> },
+          { path: 'propostas/revisao', element: <ReviewProposals /> },
+          { path: 'propostas/historico', element: <History /> },
+          { path: 'propostas/:codigo', element: <ProposalDetail /> },
+          // { path: 'voz', element: <Voice /> }, — v2
+          { path: 'gestao/clientes', element: <Clientes /> },
+          { path: 'gestao/arquitetos', element: <Arquitetos /> },
+          { path: 'gestao/fornecedores', element: <Fornecedores /> },
+          { path: 'gestao/usuarios', element: <Usuarios /> },
+          { path: 'perfil', element: <Perfil /> },
+          { path: 'config', element: <Settings /> },
+        ],
+      },
+    ],
+  },
+]);
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -37,29 +68,7 @@ export default function App() {
           <VozProvider>
             <ProposalDraftProvider>
               <ImageModalProvider>
-                <BrowserRouter>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route element={<RequireAuth />}>
-                      <Route element={<Layout />}>
-                        <Route index element={<Dashboard />} />
-                        <Route path="catalogo" element={<Catalog />} />
-                        <Route path="catalogo/qualidade" element={<CatalogQuality />} />
-                        <Route path="propostas/nova" element={<NewProposal />} />
-                        <Route path="propostas/revisao" element={<ReviewProposals />} />
-                        <Route path="propostas/historico" element={<History />} />
-                        <Route path="propostas/:codigo" element={<ProposalDetail />} />
-                        {/* <Route path="voz" element={<Voice />} /> — v2 */}
-                        <Route path="gestao/clientes" element={<Clientes />} />
-                        <Route path="gestao/arquitetos" element={<Arquitetos />} />
-                        <Route path="gestao/fornecedores" element={<Fornecedores />} />
-                        <Route path="gestao/usuarios" element={<Usuarios />} />
-                        <Route path="perfil" element={<Perfil />} />
-                        <Route path="config" element={<Settings />} />
-                      </Route>
-                    </Route>
-                  </Routes>
-                </BrowserRouter>
+                <RouterProvider router={router} />
                 <PrintProposal />
               </ImageModalProvider>
             </ProposalDraftProvider>
