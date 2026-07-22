@@ -9,6 +9,7 @@ import { ApiError } from '../../api/client';
 import { getProductStats } from '../../utils/productStats';
 import { formatCurrencyRounded } from '../../utils/format';
 import CurrencyInput from '../ui/CurrencyInput';
+import Dropdown from '../ui/Dropdown';
 import { STATUS_BADGE, statusBadgeLabel } from '../../utils/proposalStatus';
 import type { ProposalStatus } from '../../types';
 
@@ -167,36 +168,50 @@ export default function ImageModal() {
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-cat">Categoria</label>
-                <select id="pi-cat" className="form-input" value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))}>
-                  <option value="">— Sem categoria —</option>
-                  {form.cat && !facets.categories.some((fc) => fc.value === form.cat) && (
-                    <option value={form.cat}>{form.cat}</option>
-                  )}
-                  {facets.categories.map(({ value: c }) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <Dropdown
+                  id="pi-cat"
+                  value={form.cat}
+                  onChange={(cat) => setForm((f) => ({ ...f, cat }))}
+                  placeholder="— Sem categoria —"
+                  options={[
+                    ...(form.cat && !facets.categories.some((fc) => fc.value === form.cat) ? [form.cat] : []),
+                    ...facets.categories.map((fc) => fc.value),
+                  ]}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-forn">Fornecedor</label>
-                <select id="pi-forn" className="form-input" value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}>
-                  {facets.suppliers.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Dropdown
+                  id="pi-forn"
+                  value={form.supplier}
+                  onChange={(supplier) => setForm((f) => ({ ...f, supplier }))}
+                  placeholder="Selecione um fornecedor"
+                  options={facets.suppliers}
+                  allowEmpty={false}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-acab">Acabamento</label>
-                <select id="pi-acab" className="form-input" value={form.finish} onChange={(e) => setForm((f) => ({ ...f, finish: e.target.value }))}>
-                  <option value="">— Sem acabamento —</option>
-                  {facets.finishes.map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <Dropdown
+                  id="pi-acab"
+                  value={form.finish}
+                  onChange={(finish) => setForm((f) => ({ ...f, finish }))}
+                  placeholder="— Sem acabamento —"
+                  options={facets.finishes}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-material">Material</label>
-                <select id="pi-material" className="form-input" value={form.material} onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}>
-                  <option value="">— Sem material —</option>
-                  {form.material && !facets.materials.includes(form.material) && (
-                    <option value={form.material}>{form.material}</option>
-                  )}
-                  {facets.materials.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <Dropdown
+                  id="pi-material"
+                  value={form.material}
+                  onChange={(material) => setForm((f) => ({ ...f, material }))}
+                  placeholder="— Sem material —"
+                  options={[
+                    ...(form.material && !facets.materials.includes(form.material) ? [form.material] : []),
+                    ...facets.materials,
+                  ]}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-preco">Preço (R$)</label>

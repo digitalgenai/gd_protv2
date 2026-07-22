@@ -12,7 +12,8 @@
       "name": "backend",
       "runtimeExecutable": "python",
       "runtimeArgs": ["backend/app.py"],
-      "port": 5000
+      "port": 5000,
+      "autoPort": false
     }
   ]
 }
