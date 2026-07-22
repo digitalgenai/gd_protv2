@@ -201,32 +201,49 @@ export default function PrintProposal() {
       <div className="pr-bottombar" />
 
       {highlightGroups.length > 0 && (
-        <div className="pr-highlight-page">
-          <div className="pr-topbar" />
-          <div className="pr-highlight-header">
-            <img src="/logo-galpao-bege.avif" alt="Galpão Design" className="pr-logo" />
-            <div className="pr-highlight-title">Itens em Destaque</div>
-          </div>
-          <div className="pr-highlight-content">
-            {highlightGroups.map((g) => (
-              <Fragment key={g.ambiente}>
-                {showHighlightAmbienteHeaders && <div className="pr-highlight-ambiente-bar">{g.ambiente}</div>}
-                <div className={`pr-highlight-grid${g.items.length === 1 ? ' single' : ''}`}>
-                  {g.items.map(({ row, product, img }) => (
-                    <div key={row.id} className="pr-highlight-card">
-                      <img src={img.url} alt={row.desc} className="pr-highlight-img" />
-                      <div className="pr-highlight-caption">
-                        <div className="pr-highlight-name">{row.desc}</div>
-                        <div className="pr-highlight-sub">{row.code}{product ? ` · ${product.supplier}` : ''}</div>
+        // <table>, não <div> — cabeçalho (logo + "Itens em Destaque") vai no <thead>, que os
+        // navegadores repetem automaticamente no topo de CADA página impressa em que a seção
+        // transborda (mesmo recurso nativo que já faz o cabeçalho da tabela de itens repetir).
+        // Com <div>, o cabeçalho só desenha uma vez lá no início e a 2ª página em diante começa
+        // colada no topo da folha, sem respiro nenhum.
+        <table className="pr-highlight-page" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ padding: 0, fontWeight: 'normal', textAlign: 'left' }}>
+                <div className="pr-topbar" />
+                <div className="pr-highlight-header">
+                  <img src="/logo-galpao-bege.avif" alt="Galpão Design" className="pr-logo" />
+                  <div className="pr-highlight-title">Itens em Destaque</div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ padding: 0 }}>
+                <div className="pr-highlight-content">
+                  {highlightGroups.map((g) => (
+                    <Fragment key={g.ambiente}>
+                      {showHighlightAmbienteHeaders && <div className="pr-highlight-ambiente-bar">{g.ambiente}</div>}
+                      <div className={`pr-highlight-grid${g.items.length === 1 ? ' single' : ''}`}>
+                        {g.items.map(({ row, product, img }) => (
+                          <div key={row.id} className="pr-highlight-card">
+                            <img src={img.url} alt={row.desc} className="pr-highlight-img" />
+                            <div className="pr-highlight-caption">
+                              <div className="pr-highlight-name">{row.desc}</div>
+                              <div className="pr-highlight-sub">{row.code}{product ? ` · ${product.supplier}` : ''}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
+                    </Fragment>
                   ))}
                 </div>
-              </Fragment>
-            ))}
-          </div>
-          <div className="pr-bottombar" />
-        </div>
+                <div className="pr-bottombar" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       )}
     </div>,
     printRoot,
