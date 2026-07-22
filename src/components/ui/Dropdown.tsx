@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 interface DropdownProps {
@@ -20,11 +21,16 @@ export default function Dropdown({ id, value, onChange, options, placeholder, al
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
+      // A lista vai por portal pro <body> — fora da subárvore do botão — então precisa
+      // checar as duas refs; sem isso, clicar numa opção conta como "clique fora" no
+      // mousedown e fecha a lista antes do click da opção disparar o pick().
       if (triggerRef.current?.contains(e.target as Node)) return;
+      if (listRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     }
     function handleClose() {
@@ -67,8 +73,8 @@ export default function Dropdown({ id, value, onChange, options, placeholder, al
         <span className={value ? '' : 'dropdown-placeholder'}>{value || placeholder}</span>
         <ChevronDown className="dropdown-chevron" style={{ width: 14, height: 14 }} />
       </button>
-      {open && rect && (
-        <div className="dropdown-list" role="listbox" style={{ top: rect.top, left: rect.left, width: rect.width }}>
+      {open && rect && createPortal(
+        <div ref={listRef} className="dropdown-list" role="listbox" style={{ top: rect.top, left: rect.left, width: rect.width }}>
           {allowEmpty && (
             <button type="button" className={`dropdown-option${value ? '' : ' selected'}`} onClick={() => pick('')}>
               {placeholder}
@@ -84,7 +90,8 @@ export default function Dropdown({ id, value, onChange, options, placeholder, al
               {opt}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
