@@ -169,7 +169,11 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {recent.length > 0 ? recent.map((p) => (
-                <tr key={p.code}>
+                <tr
+                  key={p.code}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/propostas/${encodeURIComponent(p.code)}`)}
+                >
                   <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
                   <td>{p.cliente}</td>
                   <td>
