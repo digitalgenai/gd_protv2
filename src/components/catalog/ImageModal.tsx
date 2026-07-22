@@ -8,6 +8,7 @@ import { uploadProductImage, reorderProductImage } from '../../api/images';
 import { ApiError } from '../../api/client';
 import { getProductStats } from '../../utils/productStats';
 import { formatCurrencyRounded } from '../../utils/format';
+import CurrencyInput from '../ui/CurrencyInput';
 import { STATUS_BADGE, statusBadgeLabel } from '../../utils/proposalStatus';
 import type { ProposalStatus } from '../../types';
 
@@ -199,7 +200,7 @@ export default function ImageModal() {
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-preco">Preço (R$)</label>
-                <input id="pi-preco" type="number" min={0} className="form-input" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))} />
+                <CurrencyInput id="pi-preco" className="form-input" value={form.price} onChange={(price) => setForm((f) => ({ ...f, price }))} />
               </div>
               <div className="sm:col-span-2">
                 <label className="form-label" htmlFor="pi-dim">Dimensões</label>
