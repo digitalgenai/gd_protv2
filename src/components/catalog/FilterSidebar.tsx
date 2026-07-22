@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import type { FilterState } from '../../types';
@@ -15,7 +16,28 @@ function toggleValue(list: string[], value: string): string[] {
 }
 
 export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, onCloseMobile }: FilterSidebarProps) {
-  const { facets } = useProducts();
+  const { facets, products } = useProducts();
+
+  // Acabamento depende do(s) fornecedor(es) marcado(s): sem nenhum marcado, mostra todos os
+  // acabamentos do catálogo; com um ou mais marcados, só os que existem em produtos daqueles
+  // fornecedores — calculado em memória a partir do catálogo já carregado, sem round-trip.
+  const availableFinishes = useMemo(() => {
+    const relevantes = filters.suppliers.length
+      ? products.filter((p) => filters.suppliers.includes(p.supplier))
+      : products;
+    return Array.from(new Set(relevantes.map((p) => p.finish).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [products, filters.suppliers]);
+
+  // Se trocar o fornecedor faz um acabamento já marcado sumir da lista, remove ele do filtro
+  // ativo também — evita deixar um filtro aplicado que não aparece mais na tela pra desmarcar.
+  useEffect(() => {
+    const semAcabamentosOrfaos = filters.finishes.filter((f) => availableFinishes.includes(f));
+    if (semAcabamentosOrfaos.length !== filters.finishes.length) {
+      onChange({ finishes: semAcabamentosOrfaos });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableFinishes]);
+
   return (
     <aside
       id="catalog-filter-sidebar"
@@ -74,7 +96,7 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
 
       <div className="filter-group">
         <div className="filter-label">Acabamento</div>
-        {facets.finishes.map((f) => (
+        {availableFinishes.map((f) => (
           <label key={f} className="filter-option">
             <input type="checkbox" checked={filters.finishes.includes(f)} onChange={() => onChange({ finishes: toggleValue(filters.finishes, f) })} />
             {f}

@@ -190,13 +190,13 @@ export default function ImageModal() {
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-material">Material</label>
-                <input
-                  id="pi-material"
-                  className="form-input"
-                  placeholder="Ex.: Latão / Metalizado"
-                  value={form.material}
-                  onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
-                />
+                <select id="pi-material" className="form-input" value={form.material} onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}>
+                  <option value="">— Sem material —</option>
+                  {form.material && !facets.materials.includes(form.material) && (
+                    <option value={form.material}>{form.material}</option>
+                  )}
+                  {facets.materials.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
               <div>
                 <label className="form-label" htmlFor="pi-preco">Preço (R$)</label>

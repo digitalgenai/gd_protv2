@@ -99,11 +99,18 @@ def get_filtros():
         .distinct()
         .all()
     )
+    materiais = (
+        session.query(ProdutoCustomizacao.material)
+        .filter(ProdutoCustomizacao.material.isnot(None), ProdutoCustomizacao.ativo.is_(True))
+        .distinct()
+        .all()
+    )
 
     return jsonify({
         "categories": [{"value": c, "count": n} for c, n in category_counts],
         "suppliers": [row[0] for row in fornecedores],
         "finishes": [row[0] for row in acabamentos],
+        "materials": [row[0] for row in materiais],
     })
 
 

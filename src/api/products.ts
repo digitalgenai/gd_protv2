@@ -5,6 +5,7 @@ interface CatalogFacets {
   categories: { value: string; count: number }[];
   suppliers: string[];
   finishes: string[];
+  materials: string[];
 }
 
 /** RF-012 a RF-015: listagem, busca textual e filtros de catálogo. Sem fallback mockado —
