@@ -36,11 +36,22 @@ export default function Dropdown({ id, value, onChange, options, placeholder, al
     function handleResize() {
       setOpen(false);
     }
+    // Reposiciona (não fecha) ao rolar — captura até o scroll interno do .modal-box
+    // (overflow-y:auto), senão a lista fica parada na tela enquanto o campo se move
+    // junto com o conteúdo. Fechar aqui (como antes) recriava a corrida de fechar a
+    // lista antes do click na opção terminar de disparar.
+    function handleScroll() {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [open]);
 
