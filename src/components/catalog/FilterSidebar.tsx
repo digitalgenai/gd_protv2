@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ChevronDown, X } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import type { FilterState } from '../../types';
 
@@ -13,6 +13,21 @@ interface FilterSidebarProps {
 
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+/** Grupo de filtro recolhível — a Categoria vem fechada por padrão (é a lista mais longa,
+ * ~30 itens); os demais vêm abertos, já que são curtos o bastante pra não pesar na tela. */
+function FilterGroup({ label, defaultOpen = true, children }: { label: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="filter-group">
+      <button type="button" className="filter-group-header" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="filter-label" style={{ marginBottom: 0 }}>{label}</span>
+        <ChevronDown style={{ width: 14, height: 14, flexShrink: 0, transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .15s' }} />
+      </button>
+      {open && <div className="filter-group-body">{children}</div>}
+    </div>
+  );
 }
 
 export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, onCloseMobile }: FilterSidebarProps) {
@@ -58,20 +73,7 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
         </div>
       </div>
 
-      <div className="relative mb-4">
-        <input
-          type="text"
-          placeholder="Código ou nome..."
-          className="form-input"
-          style={{ fontSize: 13, paddingTop: 6, paddingBottom: 6, paddingLeft: 32 }}
-          aria-label="Buscar produto no catálogo"
-          value={filters.search}
-          onChange={(e) => onChange({ search: e.target.value })}
-        />
-      </div>
-
-      <div className="filter-group">
-        <div className="filter-label">Categoria</div>
+      <FilterGroup label="Categoria" defaultOpen={false}>
         {facets.categories.map(({ value: c, count }) => (
           <label key={c} className="filter-option">
             <input
@@ -82,30 +84,27 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
             {c} <span className="ml-auto text-xs" style={{ color: 'var(--text-secondary)' }}>{count}</span>
           </label>
         ))}
-      </div>
+      </FilterGroup>
 
-      <div className="filter-group">
-        <div className="filter-label">Fornecedor</div>
+      <FilterGroup label="Fornecedor">
         {facets.suppliers.map((s) => (
           <label key={s} className="filter-option">
             <input type="checkbox" checked={filters.suppliers.includes(s)} onChange={() => onChange({ suppliers: toggleValue(filters.suppliers, s) })} />
             {s}
           </label>
         ))}
-      </div>
+      </FilterGroup>
 
-      <div className="filter-group">
-        <div className="filter-label">Acabamento</div>
+      <FilterGroup label="Acabamento">
         {availableFinishes.map((f) => (
           <label key={f} className="filter-option">
             <input type="checkbox" checked={filters.finishes.includes(f)} onChange={() => onChange({ finishes: toggleValue(filters.finishes, f) })} />
             {f}
           </label>
         ))}
-      </div>
+      </FilterGroup>
 
-      <div className="filter-group">
-        <div className="filter-label">Faixa de Preço</div>
+      <FilterGroup label="Faixa de Preço">
         {([
           ['all', 'Todos'],
           ['0-3000', 'Até R$ 3.000'],
@@ -117,7 +116,7 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
             {label}
           </label>
         ))}
-      </div>
+      </FilterGroup>
     </aside>
   );
 }

@@ -114,6 +114,14 @@ h1, h2, h3 { font-family: 'Kamerik205', 'Montserrat', sans-serif; }
 .filter-group { border-bottom: 1px solid var(--border); padding: 16px 0; }
 .filter-group:last-child { border-bottom: none; }
 .filter-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-secondary); margin-bottom: 10px; }
+.filter-group-header {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; padding: 0; margin-bottom: 10px; cursor: pointer;
+  color: var(--text-secondary); font: inherit;
+}
+.filter-group-header:hover { color: var(--primary); }
+.filter-group-header .filter-label { margin-bottom: 0; }
+.filter-group-body { max-height: 260px; overflow-y: auto; }
 .filter-option { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13.5px; cursor: pointer; color: #343434; }
 .filter-option:hover { color: var(--primary); }
 input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
@@ -151,7 +159,7 @@ input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
 /* Catálogo dentro de modal (Nova Proposta) — sidebar embutida, sem o overlay fixed da tela cheia */
 .catalog-picker-body { display: flex; height: calc(85vh - 130px); }
 .catalog-picker-filter-btn { display: none; }
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .catalog-picker-body { flex-direction: column; height: auto; max-height: calc(85vh - 130px); overflow-y: auto; }
   .catalog-picker-sidebar-wrap { width: 100%; }
   .catalog-picker-sidebar-wrap #catalog-filter-sidebar {
@@ -328,6 +336,25 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
   #sidebar .sidebar-brand-row { padding-left: 8px; padding-right: 8px; justify-content: center; }
   #sidebar .brand-name .brand-logo-full { display: none; }
   #sidebar .brand-name .brand-logo-compact { display: block; }
+
+  /* Catálogo: o filtro lateral (224px fixos) vira gaveta a partir daqui — na mesma largura em
+     que o nav principal já encolhe pra só-ícones, senão sobra pouco espaço pro conteúdo entre
+     os dois (era o intervalo "nem desktop nem mobile" onde nada colapsava ainda). */
+  #catalog-filter-sidebar {
+    display: none !important;
+  }
+  #catalog-filter-sidebar.mobile-open {
+    display: block !important;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 280px !important; z-index: 51;
+    overflow-y: auto; border-radius: 0;
+    box-shadow: 4px 0 32px rgba(0,0,0,.4);
+    background: var(--card) !important;
+  }
+  #btn-filter-mobile       { display: flex !important; }
+  #btn-close-filter-mobile { display: flex !important; }
+  #view-catalog .flex.items-center.justify-between { flex-wrap: wrap; gap: 6px; }
+  #view-catalog .flex.items-center.gap-2 { flex-wrap: wrap; }
 }
 
 /* Responsive – mobile */
@@ -367,26 +394,10 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
   #view-dashboard .lg\:grid-cols-4 { grid-template-columns: repeat(2,1fr) !important; }
   #view-dashboard .lg\:grid-cols-3 { grid-template-columns: 1fr !important; }
 
-  #catalog-filter-sidebar {
-    display: none !important;
-  }
-  #catalog-filter-sidebar.mobile-open {
-    display: block !important;
-    position: fixed; top: 0; left: 0; bottom: 0;
-    width: 280px !important; z-index: 51;
-    overflow-y: auto; border-radius: 0;
-    box-shadow: 4px 0 32px rgba(0,0,0,.4);
-    background: var(--card) !important;
-  }
-  #btn-filter-mobile   { display: flex !important; }
-  #btn-close-filter-mobile { display: flex !important; }
   #catalog-grid        { grid-template-columns: repeat(2,1fr) !important; }
   #view-catalog .flex-1.p-6 { padding: 12px !important; }
 
-  #btn-import-produto  { display: none !important; }
   #catalog-sort        { font-size: 12px !important; padding: 5px 24px 5px 8px !important; max-width: 140px !important; }
-  #view-catalog .flex.items-center.justify-between { flex-wrap: wrap; gap: 6px; }
-  #view-catalog .flex.items-center.gap-2 { flex-wrap: wrap; }
 
   #view-new-proposal .md\:grid-cols-3 { grid-template-columns: 1fr !important; }
   #view-new-proposal .flex-wrap { flex-direction: column !important; }

@@ -96,6 +96,15 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
           <div className="flex-1 p-5 overflow-y-auto" style={{ minWidth: 0 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
               <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Código ou nome..."
+                  className="form-input"
+                  style={{ width: 180, fontSize: 13, padding: '6px 10px' }}
+                  aria-label="Buscar produto no catálogo"
+                  value={filters.search}
+                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                />
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   {products.length} produto{products.length !== 1 ? 's' : ''}
                 </div>

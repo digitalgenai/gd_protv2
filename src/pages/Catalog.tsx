@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CloudUpload, LayoutGrid, List, Loader2, PackageSearch, Plus, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, List, Loader2, PackageSearch, Plus, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { filterProductsLocally } from '../api/products';
 import AmbienteSelectorBar from '../components/catalog/AmbienteSelectorBar';
 import FilterSidebar from '../components/catalog/FilterSidebar';
@@ -100,6 +100,15 @@ export default function Catalog() {
               >
                 <SlidersHorizontal style={{ width: 14, height: 14 }} /> Filtros
               </button>
+              <input
+                type="text"
+                placeholder="Código ou nome..."
+                className="form-input"
+                style={{ width: 200, fontSize: 13, padding: '6px 10px' }}
+                aria-label="Buscar produto no catálogo"
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              />
               <div id="catalog-count" style={{ fontSize: 13.5, color: 'var(--text-secondary)' }}>
                 {products.length === 0
                   ? '0 produtos'
@@ -152,16 +161,6 @@ export default function Catalog() {
               </select>
               <button className="btn btn-outline btn-sm" onClick={() => navigate('/catalogo/qualidade')}>
                 <ShieldCheck style={{ width: 13, height: 13 }} /> Qualidade do Catálogo
-              </button>
-              <button
-                className="btn btn-primary btn-sm"
-                id="btn-import-produto"
-                onClick={() => {
-                  const p = allProducts.find((prod) => prod.id === 'GD-CAD-001') || allProducts[0];
-                  if (p) openImageModal(p, 'imagens');
-                }}
-              >
-                <CloudUpload style={{ width: 13, height: 13 }} /> Importar Produto
               </button>
             </div>
           </div>
