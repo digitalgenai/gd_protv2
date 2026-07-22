@@ -41,18 +41,25 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
       <tr>
         <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{index + 1}</td>
         <td>
-          <select
-            className="proposal-input"
-            style={{ width: 120 }}
-            value={row.ambiente}
-            disabled={header.ambientes.length === 0}
-            title={header.ambientes.length === 0 ? 'Crie um ambiente acima para poder relacionar este item' : undefined}
-            onChange={(e) => updateRow(row.id, { ambiente: e.target.value })}
-            aria-label={`Ambiente do item ${index + 1}`}
-          >
-            <option value="">— Itens Gerais —</option>
-            {header.ambientes.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
+          {header.ambientes.length === 0 ? (
+            // Sem ambiente nenhum criado, não há pra onde reatribuir o item — um <select>
+            // desabilitado ainda desenha a setinha de dropdown do navegador, sugerindo uma
+            // interação que não existe. Texto simples em vez disso.
+            <span style={{ fontSize: 13.5, color: 'var(--text-secondary)', padding: '4px 6px', display: 'inline-block' }}>
+              Itens Gerais
+            </span>
+          ) : (
+            <select
+              className="proposal-input"
+              style={{ width: 120 }}
+              value={row.ambiente}
+              onChange={(e) => updateRow(row.id, { ambiente: e.target.value })}
+              aria-label={`Ambiente do item ${index + 1}`}
+            >
+              <option value="">— Itens Gerais —</option>
+              {header.ambientes.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )}
         </td>
         <td>
           <input
