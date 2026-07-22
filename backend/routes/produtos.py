@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 
 from config import MAX_IMAGES_PER_PRODUCT, MAX_TOTAL_IMAGES_PER_PRODUCT
 from db import get_session
-from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem
+from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem, Proposta, PropostaVersao
 from utils.auth import login_required
 from utils.s3_storage import delete_image, save_image
 from utils.serializers import absolute_image_url, serialize_product
@@ -303,3 +303,44 @@ def reordenar_imagem(codigo, image_id):
         .all()
     )
     return jsonify([{"id": img.id, "url": absolute_image_url(img.storage_path), "posicao": img.posicao} for img in imagens])
+
+
+# Mesmo mapeamento de STATUS_DB_TO_FRONT em routes/propostas.py — copiado aqui (só 4 entradas)
+# em vez de importar de outro blueprint, pra não acoplar os dois módulos por causa disso.
+_STATUS_DB_TO_FRONT = {"rascunho": "Rascunho", "enviada": "Enviada", "aprovada": "Aprovada", "recusada": "Reprovada"}
+
+
+@bp.get("/produtos/<codigo>/analytics")
+@login_required
+def get_produto_analytics(codigo):
+    """Quantas vezes este produto apareceu em propostas reais e em quais — antes computado no
+    front a partir de um mock (src/data/mockProposals.ts), que nunca batia com os códigos do
+    catálogo real (por isso sempre aparecia vazio). Varre só a versão mais recente de cada
+    proposta, pra não contar a mesma negociação duas vezes conforme ela evolui de versão."""
+    session = get_session()
+    propostas = (
+        session.query(Proposta)
+        .options(selectinload(Proposta.versoes).selectinload(PropostaVersao.itens))
+        .all()
+    )
+
+    times_sold = 0
+    revenue = 0.0
+    proposals = []
+    for proposta in propostas:
+        if not proposta.versoes:
+            continue
+        ultima = max(proposta.versoes, key=lambda v: v.versao_numero)
+        for item in ultima.itens:
+            if item.codigo_produto != codigo:
+                continue
+            times_sold += item.quantidade
+            revenue += float(item.valor_total or 0)
+            proposals.append({
+                "code": ultima.codigo_proposta or proposta.codigo_base,
+                "cliente": proposta.cliente_nome,
+                "qty": item.quantidade,
+                "status": _STATUS_DB_TO_FRONT.get(ultima.status, "Rascunho"),
+            })
+
+    return jsonify({"timesSold": times_sold, "revenue": revenue, "proposals": proposals})

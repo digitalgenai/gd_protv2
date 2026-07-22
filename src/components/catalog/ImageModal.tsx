@@ -3,10 +3,9 @@ import { BarChart3, CheckCircle, CloudUpload, Info, Images, Loader2, Plus, Save,
 import { useImageModal, type ImageModalTab } from '../../context/ImageModalContext';
 import { useProducts } from '../../context/ProductsContext';
 import { useToast } from '../../context/ToastContext';
-import { updateProduct } from '../../api/products';
+import { updateProduct, fetchProductAnalytics, type ProductAnalytics } from '../../api/products';
 import { uploadProductImage, reorderProductImage } from '../../api/images';
 import { ApiError } from '../../api/client';
-import { getProductStats } from '../../utils/productStats';
 import { formatCurrencyRounded } from '../../utils/format';
 import CurrencyInput from '../ui/CurrencyInput';
 import Dropdown from '../ui/Dropdown';
@@ -38,6 +37,8 @@ export default function ImageModal() {
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [addingExtra, setAddingExtra] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [stats, setStats] = useState<ProductAnalytics | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingSlotRef = useRef<number | null>(null);
 
@@ -47,6 +48,7 @@ export default function ImageModal() {
     setForm({ name: product.name, cat: product.cat, supplier: product.supplier, finish: product.finish, material: product.material, price: product.price, dimensions: product.dimensions });
     setImages(product.images ?? []);
     setLightboxUrl(null);
+    setStats(null);
   }, [isOpen, product, initialTab]);
 
   useEffect(() => {
@@ -60,9 +62,21 @@ export default function ImageModal() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isOpen, closeImageModal, lightboxUrl]);
 
-  if (!product) return null;
+  // Carrega sob demanda só quando a aba é aberta — antes vinha de um mock local
+  // (src/data/mockProposals.ts) que nunca batia com os códigos reais do catálogo,
+  // então a aba sempre aparecia vazia pra qualquer produto de verdade.
+  useEffect(() => {
+    if (!isOpen || !product || tab !== 'analytics') return;
+    let active = true;
+    setStatsLoading(true);
+    fetchProductAnalytics(product.id)
+      .then((data) => { if (active) setStats(data); })
+      .catch(() => { if (active) showToast('Não foi possível carregar as estatísticas — backend indisponível.', 'error'); })
+      .finally(() => { if (active) setStatsLoading(false); });
+    return () => { active = false; };
+  }, [isOpen, product, tab, showToast]);
 
-  const stats = getProductStats(product.id);
+  if (!product) return null;
   // Fotos legadas de antes do limite de 3 posições por produto (ver MAX_IMAGES_PER_PRODUCT no
   // backend) — não cabem nos 3 slots principais, mas ficam visíveis aqui num carrossel.
   const extraImages = images.filter((img) => img.posicao > MAX_IMAGES);
@@ -412,44 +426,50 @@ export default function ImageModal() {
 
         {tab === 'analytics' && (
           <div className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-              <div className="kpi-card">
-                <div className="kpi-value">{stats.timesSold}</div>
-                <div className="kpi-label">Unidades vendidas (em propostas)</div>
-              </div>
-              <div className="kpi-card">
-                <div className="kpi-value mono" style={{ fontSize: 20 }}>{formatCurrencyRounded(stats.revenue)}</div>
-                <div className="kpi-label">Receita gerada (aproximada)</div>
-              </div>
-            </div>
-
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-secondary)', marginBottom: 8 }}>
-              Propostas relacionadas
-            </div>
-            {stats.proposals.length > 0 ? (
-              <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead><tr><th>Código</th><th>Cliente</th><th>Qtd</th><th>Status</th></tr></thead>
-                <tbody>
-                  {stats.proposals.map((p, i) => (
-                    <tr key={`${p.code}-${i}`}>
-                      <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
-                      <td>{p.cliente}</td>
-                      <td>{p.qty}</td>
-                      <td><span className={`badge ${STATUS_BADGE[p.status as ProposalStatus]}`}>{statusBadgeLabel(p.status as ProposalStatus)}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {statsLoading || !stats ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-2" style={{ color: 'var(--text-secondary)' }}>
+                <Loader2 className="spin" style={{ width: 24, height: 24 }} />
+                <div style={{ fontSize: 13 }}>Carregando estatísticas...</div>
               </div>
             ) : (
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '16px 0', textAlign: 'center' }}>
-                Este produto ainda não apareceu em nenhuma proposta registrada.
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                  <div className="kpi-card">
+                    <div className="kpi-value">{stats.timesSold}</div>
+                    <div className="kpi-label">Unidades vendidas (em propostas)</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-value mono" style={{ fontSize: 20 }}>{formatCurrencyRounded(stats.revenue)}</div>
+                    <div className="kpi-label">Receita gerada (aproximada)</div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  Propostas relacionadas
+                </div>
+                {stats.proposals.length > 0 ? (
+                  <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead><tr><th>Código</th><th>Cliente</th><th>Qtd</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {stats.proposals.map((p, i) => (
+                        <tr key={`${p.code}-${i}`}>
+                          <td><span className="mono text-xs" style={{ color: 'var(--gold-text)' }}>{p.code}</span></td>
+                          <td>{p.cliente}</td>
+                          <td>{p.qty}</td>
+                          <td><span className={`badge ${STATUS_BADGE[p.status as ProposalStatus]}`}>{statusBadgeLabel(p.status as ProposalStatus)}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '16px 0', textAlign: 'center' }}>
+                    Este produto ainda não apareceu em nenhuma proposta registrada.
+                  </div>
+                )}
+              </>
             )}
-            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 12 }}>
-              Calculado a partir do histórico de propostas — dado ilustrativo enquanto o backend não expõe esse agregado.
-            </div>
           </div>
         )}
       </div>

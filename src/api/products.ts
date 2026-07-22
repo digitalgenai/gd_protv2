@@ -8,6 +8,19 @@ interface CatalogFacets {
   materials: string[];
 }
 
+export interface ProductAnalyticsProposal {
+  code: string;
+  cliente: string;
+  qty: number;
+  status: string;
+}
+
+export interface ProductAnalytics {
+  timesSold: number;
+  revenue: number;
+  proposals: ProductAnalyticsProposal[];
+}
+
 /** RF-012 a RF-015: listagem, busca textual e filtros de catálogo. Sem fallback mockado —
  * se o backend estiver fora do ar, o erro sobe pra quem chamou mostrar. */
 export async function fetchProducts(filters: Partial<FilterState> = {}): Promise<Product[]> {
@@ -33,6 +46,11 @@ export async function updateProduct(id: string, patch: Partial<Product>): Promis
     method: 'PATCH',
     body: JSON.stringify(patch),
   });
+}
+
+/** Aba Analytics do produto — quantas vezes apareceu em propostas reais e em quais. */
+export async function fetchProductAnalytics(id: string): Promise<ProductAnalytics> {
+  return apiFetch<ProductAnalytics>(`/produtos/${encodeURIComponent(id)}/analytics`);
 }
 
 export function filterProductsLocally(products: Product[], filters: Partial<FilterState>): Product[] {
