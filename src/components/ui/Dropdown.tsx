@@ -33,16 +33,14 @@ export default function Dropdown({ id, value, onChange, options, placeholder, al
       if (listRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     }
-    function handleClose() {
+    function handleResize() {
       setOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleClose, true);
-    window.addEventListener('resize', handleClose);
+    window.addEventListener('resize', handleResize);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleClose, true);
-      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('resize', handleResize);
     };
   }, [open]);
 
