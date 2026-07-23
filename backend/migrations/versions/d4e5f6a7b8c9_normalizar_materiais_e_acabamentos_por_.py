@@ -1,7 +1,7 @@
 """normalizar materiais e acabamentos por fornecedor (migration 008 da analista de dados)
 
 Revision ID: d4e5f6a7b8c9
-Revises: c3d4e5f6a7b8
+Revises: b2c3d4e5f6a7
 Create Date: 2026-07-23 18:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 from config import DB_SCHEMA
 
 revision: str = "d4e5f6a7b8c9"
-down_revision: Union[str, Sequence[str], None] = "c3d4e5f6a7b8"
+down_revision: Union[str, Sequence[str], None] = "b2c3d4e5f6a7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from config import MAX_IMAGES_PER_PRODUCT, MAX_TOTAL_IMAGES_PER_PRODUCT
 from db import get_session
-from models import CatalogoProduto, Fornecedor, MaterialCatalogo, ProdutoCustomizacao, ProdutoImagem, Proposta, PropostaVersao
+from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem, Proposta, PropostaVersao
 from utils.auth import feature_or_roles_required, login_required, roles_required
 from utils.s3_storage import delete_image, save_image
 from utils.serializers import absolute_image_url, serialize_product
@@ -48,22 +48,6 @@ def _serialize_fornecedor(fornecedor):
         "logoUrl": None,
         "site": fornecedor.site,
         "contato": fornecedor.contato,
-    }
-
-
-def _material_display(material):
-    return f"{material.nome} — {material.referencia}" if material.referencia else material.nome
-
-
-def _serialize_material(material):
-    return {
-        "id": str(material.id),
-        "type": material.tipo,
-        "name": material.nome,
-        "reference": material.referencia,
-        "supplierId": str(material.fornecedor_id),
-        "supplier": material.fornecedor.nome if material.fornecedor else "",
-        "displayName": _material_display(material),
     }
 
 
@@ -159,13 +143,6 @@ def get_filtros():
         .distinct()
         .all()
     )
-    materiais_cadastrados = (
-        session.query(MaterialCatalogo)
-        .options(selectinload(MaterialCatalogo.fornecedor))
-        .filter(MaterialCatalogo.ativo.is_(True))
-        .order_by(MaterialCatalogo.nome)
-        .all()
-    )
     unidades = (
         session.query(ProdutoCustomizacao.unidade)
         .filter(ProdutoCustomizacao.unidade.isnot(None), ProdutoCustomizacao.ativo.is_(True))
@@ -178,71 +155,9 @@ def get_filtros():
         "categories": [{"value": c, "count": n} for c, n in category_counts],
         "suppliers": [row[0] for row in fornecedores],
         "finishes": [row[0] for row in acabamentos],
-        "materials": sorted({
-            *[row[0] for row in materiais if row[0]],
-            *[_material_display(material) for material in materiais_cadastrados],
-        }),
+        "materials": sorted({row[0] for row in materiais if row[0]}),
         "units": [row[0] for row in unidades if row[0]],
     })
-
-
-@bp.get("/materiais-catalogo")
-@login_required
-def list_materiais_catalogo():
-    session = get_session()
-    materiais = (
-        session.query(MaterialCatalogo)
-        .options(selectinload(MaterialCatalogo.fornecedor))
-        .filter(MaterialCatalogo.ativo.is_(True))
-        .order_by(MaterialCatalogo.nome)
-        .all()
-    )
-    return jsonify([_serialize_material(material) for material in materiais])
-
-
-@bp.post("/materiais-catalogo")
-@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
-def create_material_catalogo():
-    session = get_session()
-    data = request.get_json(silent=True) or {}
-    nome = _text(data.get("name"))
-    referencia = _text(data.get("reference"))
-    try:
-        fornecedor_id = int(data.get("supplierId"))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Selecione o fornecedor do tecido."}), 400
-    if not nome:
-        return jsonify({"error": "Informe o nome do tecido."}), 400
-
-    fornecedor = (
-        session.query(Fornecedor)
-        .filter(Fornecedor.id == fornecedor_id, Fornecedor.ativo.is_(True))
-        .first()
-    )
-    if not fornecedor:
-        return jsonify({"error": "Fornecedor não encontrado ou inativo."}), 400
-
-    duplicate_query = session.query(MaterialCatalogo).filter(
-        MaterialCatalogo.fornecedor_id == fornecedor_id,
-        func.lower(MaterialCatalogo.nome) == nome.lower(),
-        MaterialCatalogo.ativo.is_(True),
-    )
-    if referencia:
-        duplicate_query = duplicate_query.filter(func.lower(MaterialCatalogo.referencia) == referencia.lower())
-    if duplicate_query.first():
-        return jsonify({"error": "Este tecido já está cadastrado para o fornecedor selecionado."}), 409
-
-    material = MaterialCatalogo(
-        tipo="Tecido",
-        nome=nome,
-        referencia=referencia,
-        fornecedor_id=fornecedor.id,
-        ativo=True,
-    )
-    session.add(material)
-    session.commit()
-    session.refresh(material)
-    return jsonify(_serialize_material(material)), 201
 
 
 @bp.get("/fornecedores")

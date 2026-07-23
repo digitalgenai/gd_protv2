@@ -22,22 +22,6 @@ export interface CreateProductPayload {
   active: boolean;
 }
 
-export interface CatalogMaterial {
-  id: string;
-  type: string;
-  name: string;
-  reference: string | null;
-  supplierId: string;
-  supplier: string;
-  displayName: string;
-}
-
-export interface CreateCatalogMaterialPayload {
-  name: string;
-  reference: string;
-  supplierId: string;
-}
-
 export interface ProductAnalyticsProposal {
   code: string;
   cliente: string;
@@ -72,13 +56,6 @@ export async function fetchCatalogFacets(): Promise<CatalogFacets> {
 
 export async function createProduct(payload: CreateProductPayload): Promise<Product> {
   return apiFetch<Product>('/produtos', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function createCatalogMaterial(payload: CreateCatalogMaterialPayload): Promise<CatalogMaterial> {
-  return apiFetch<CatalogMaterial>('/materiais-catalogo', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

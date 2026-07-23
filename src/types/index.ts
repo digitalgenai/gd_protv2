@@ -113,6 +113,27 @@ export interface FornecedorSummary {
   contato: string | null;
 }
 
+/** Material (estrutura/base) cadastrado por fornecedor — tabela `materiais`, migration 008 da
+ * analista de dados. Normaliza (sem substituir) o texto livre em Product.material. */
+export interface MaterialSummary {
+  id: string;
+  fornecedorId: string;
+  nome: string;
+  categoria: string;
+  classificacao: string | null;
+  ativo: boolean;
+}
+
+/** Mesma ideia de MaterialSummary — tabela `acabamentos` (tecido, couro, metal, laca etc.). */
+export interface AcabamentoSummary {
+  id: string;
+  fornecedorId: string;
+  nome: string;
+  categoria: string;
+  classificacao: string | null;
+  ativo: boolean;
+}
+
 export interface ProposalSummary {
   code: string;
   cliente: string;

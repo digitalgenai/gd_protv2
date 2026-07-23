@@ -7,6 +7,7 @@ from routes.auth import bp as auth_bp
 from routes.catalogo_qualidade import bp as catalogo_qualidade_bp
 from routes.configuracoes import bp as configuracoes_bp
 from routes.dashboard import bp as dashboard_bp
+from routes.materiais import bp as materiais_bp
 from routes.produtos import bp as produtos_bp
 from routes.propostas import bp as propostas_bp
 from routes.usuarios import bp as usuarios_bp
@@ -27,6 +28,7 @@ def create_app() -> Flask:
     CORS(app, resources={r"/*": {"origins": CORS_ALLOWED_ORIGINS}}, supports_credentials=True)
 
     app.register_blueprint(produtos_bp)
+    app.register_blueprint(materiais_bp)
     app.register_blueprint(propostas_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(catalogo_qualidade_bp)

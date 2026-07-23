@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Database, ImagePlus, Info, Loader2, PackagePlus, Plus, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createCatalogMaterial, createProduct, type CreateProductPayload } from '../api/products';
+import { createAcabamento, fetchAcabamentosByFornecedor } from '../api/acabamentos';
 import { fetchFornecedores } from '../api/fornecedores';
+import { createMaterial, fetchMateriaisByFornecedor } from '../api/materiais';
+import { createProduct, type CreateProductPayload } from '../api/products';
+import Combobox from '../components/ui/Combobox';
 import CurrencyInput from '../components/ui/CurrencyInput';
 import DimensionsInput from '../components/ui/DimensionsInput';
 import Dropdown from '../components/ui/Dropdown';
@@ -11,7 +14,19 @@ import { useImageModal } from '../context/ImageModalContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductsContext';
 import { useToast } from '../context/ToastContext';
-import type { FornecedorSummary } from '../types';
+import type { AcabamentoSummary, FornecedorSummary, MaterialSummary } from '../types';
+
+/** Recurso do cadastro rápido (botão "+" ao lado de Acabamento/Material) — cada um mapeia pra
+ * uma tabela por fornecedor (materiais/acabamentos, migration 008 da analista de dados). */
+type QuickAddResource = 'finish' | 'material';
+
+/** Exemplos citados no DATABASE.md da analista — mesmo seed usado na tela Gestão > Materiais. */
+const CATEGORIA_SEED: Record<QuickAddResource, string[]> = {
+  material: ['Madeira', 'Metal', 'MDF'],
+  finish: ['Tecido', 'Couro', 'Metal', 'Laca'],
+};
+
+const EMPTY_QUICK_ADD_FORM = { nome: '', categoria: '', classificacao: '' };
 
 const EMPTY_FORM: CreateProductPayload = {
   name: '',
@@ -27,7 +42,6 @@ const EMPTY_FORM: CreateProductPayload = {
 };
 
 const SALE_UNIT_OPTIONS = ['Peça', 'Par', 'Conjunto', 'Metro linear', 'Metro quadrado'];
-const EMPTY_FABRIC_FORM = { name: '', reference: '', supplierId: '' };
 
 function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -42,10 +56,11 @@ export default function NewProduct() {
   const [fornecedores, setFornecedores] = useState<FornecedorSummary[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [fabricModalOpen, setFabricModalOpen] = useState(false);
-  const [savingFabric, setSavingFabric] = useState(false);
-  const [fabricForm, setFabricForm] = useState(EMPTY_FABRIC_FORM);
-  const [registeredMaterials, setRegisteredMaterials] = useState<string[]>([]);
+  const [supplierMateriais, setSupplierMateriais] = useState<MaterialSummary[]>([]);
+  const [supplierAcabamentos, setSupplierAcabamentos] = useState<AcabamentoSummary[]>([]);
+  const [quickAddResource, setQuickAddResource] = useState<QuickAddResource | null>(null);
+  const [quickAddForm, setQuickAddForm] = useState(EMPTY_QUICK_ADD_FORM);
+  const [savingQuickAdd, setSavingQuickAdd] = useState(false);
   const { facets, products, reload } = useProducts();
   const { openImageModal } = useImageModal();
   const { showToast } = useToast();
@@ -60,18 +75,81 @@ export default function NewProduct() {
       .finally(() => setLoadingSuppliers(false));
   }, [showToast]);
 
+  // Sugestões do fornecedor selecionado (cadastro formal, tabelas materiais/acabamentos) —
+  // além do texto livre já usado em produtos anteriores (facets.materials/finishes).
+  useEffect(() => {
+    if (!form.supplierId) {
+      setSupplierMateriais([]);
+      setSupplierAcabamentos([]);
+      return;
+    }
+    fetchMateriaisByFornecedor(form.supplierId).then(setSupplierMateriais).catch(() => setSupplierMateriais([]));
+    fetchAcabamentosByFornecedor(form.supplierId).then(setSupplierAcabamentos).catch(() => setSupplierAcabamentos([]));
+  }, [form.supplierId]);
+
   const categoryOptions = useMemo(
     () => unique([...facets.categories.map((item) => item.value), ...products.map((item) => item.cat)]),
     [facets.categories, products],
   );
   const supplierNames = fornecedores.map((item) => item.nome);
   const selectedSupplier = fornecedores.find((item) => item.id === form.supplierId);
-  const selectedFabricSupplier = fornecedores.find((item) => item.id === fabricForm.supplierId);
-  const materialOptions = unique([...facets.materials, ...registeredMaterials]);
+  const finishOptions = unique([...facets.finishes, ...supplierAcabamentos.map((item) => item.nome)]);
+  const materialOptions = unique([...facets.materials, ...supplierMateriais.map((item) => item.nome)]);
   const saleUnitOptions = unique([...facets.units, ...SALE_UNIT_OPTIONS]);
+  const quickAddCategoriaOptions = quickAddResource
+    ? [...new Set([
+        ...CATEGORIA_SEED[quickAddResource],
+        ...(quickAddResource === 'material' ? supplierMateriais : supplierAcabamentos).map((item) => item.categoria),
+      ])]
+    : [];
 
   function patch<K extends keyof CreateProductPayload>(key: K, value: CreateProductPayload[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function openQuickAdd(resource: QuickAddResource) {
+    setQuickAddForm(EMPTY_QUICK_ADD_FORM);
+    setQuickAddResource(resource);
+  }
+
+  async function handleQuickAddSave() {
+    if (!quickAddResource || !form.supplierId) return;
+    const nome = quickAddForm.nome.trim();
+    const categoria = quickAddForm.categoria.trim();
+    const resourceLabel = quickAddResource === 'material' ? 'material' : 'acabamento';
+    if (!nome) {
+      showToast(`Informe o nome do ${resourceLabel}.`, 'warning');
+      return;
+    }
+    if (!categoria) {
+      showToast('Informe a categoria.', 'warning');
+      return;
+    }
+
+    setSavingQuickAdd(true);
+    try {
+      const payload = {
+        fornecedorId: form.supplierId,
+        nome,
+        categoria,
+        classificacao: quickAddForm.classificacao.trim() || null,
+      };
+      if (quickAddResource === 'material') {
+        const created = await createMaterial(payload);
+        setSupplierMateriais((current) => [...current, created]);
+        patch('material', created.nome);
+      } else {
+        const created = await createAcabamento(payload);
+        setSupplierAcabamentos((current) => [...current, created]);
+        patch('finish', created.nome);
+      }
+      showToast(`${resourceLabel === 'material' ? 'Material' : 'Acabamento'} cadastrado e selecionado no produto.`, 'success');
+      setQuickAddResource(null);
+    } catch (error) {
+      showToast(errorText(error), 'error');
+    } finally {
+      setSavingQuickAdd(false);
+    }
   }
 
   async function handleSubmit() {
@@ -100,35 +178,6 @@ export default function NewProduct() {
       showToast(errorText(error), 'error');
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleCreateFabric() {
-    if (!fabricForm.name.trim()) {
-      showToast('Informe o nome do tecido.', 'warning');
-      return;
-    }
-    if (!fabricForm.supplierId) {
-      showToast('Selecione o fornecedor do tecido.', 'warning');
-      return;
-    }
-    setSavingFabric(true);
-    try {
-      const created = await createCatalogMaterial({
-        name: fabricForm.name.trim(),
-        reference: fabricForm.reference.trim(),
-        supplierId: fabricForm.supplierId,
-      });
-      setRegisteredMaterials((current) => unique([...current, created.displayName]));
-      patch('material', created.displayName);
-      reload();
-      setFabricModalOpen(false);
-      setFabricForm(EMPTY_FABRIC_FORM);
-      showToast('Tecido cadastrado e selecionado no produto.', 'success');
-    } catch (error) {
-      showToast(errorText(error), 'error');
-    } finally {
-      setSavingFabric(false);
     }
   }
 
@@ -231,8 +280,19 @@ export default function NewProduct() {
 
             <div className="product-register-grid">
               <div>
-                <label className="form-label" htmlFor="product-finish">Acabamento</label>
-                <Dropdown id="product-finish" value={form.finish} onChange={(value) => patch('finish', value)} options={unique(facets.finishes)} placeholder="Selecione o acabamento" />
+                <div className="flex items-center justify-between gap-2">
+                  <label className="form-label" htmlFor="product-finish">Acabamento</label>
+                  <button
+                    type="button"
+                    className="inline-field-action"
+                    disabled={!form.supplierId}
+                    title={form.supplierId ? 'Cadastrar acabamento para este fornecedor' : 'Selecione um fornecedor primeiro'}
+                    onClick={() => openQuickAdd('finish')}
+                  >
+                    <Plus style={{ width: 11, height: 11 }} /> Cadastrar
+                  </button>
+                </div>
+                <Combobox id="product-finish" value={form.finish} onChange={(value) => patch('finish', value)} options={finishOptions} placeholder="Digite ou selecione o acabamento" />
               </div>
               <div>
                 <div className="flex items-center justify-between gap-2">
@@ -240,12 +300,14 @@ export default function NewProduct() {
                   <button
                     type="button"
                     className="inline-field-action"
-                    onClick={() => setFabricModalOpen(true)}
+                    disabled={!form.supplierId}
+                    title={form.supplierId ? 'Cadastrar material para este fornecedor' : 'Selecione um fornecedor primeiro'}
+                    onClick={() => openQuickAdd('material')}
                   >
-                    <Plus style={{ width: 11, height: 11 }} /> Cadastrar tecido
+                    <Plus style={{ width: 11, height: 11 }} /> Cadastrar
                   </button>
                 </div>
-                <Dropdown id="product-material" value={form.material} onChange={(value) => patch('material', value)} options={materialOptions} placeholder="Selecione o material ou tecido" />
+                <Combobox id="product-material" value={form.material} onChange={(value) => patch('material', value)} options={materialOptions} placeholder="Digite ou selecione o material" />
               </div>
               <div className="product-register-span-2">
                 <DimensionsInput
@@ -261,13 +323,14 @@ export default function NewProduct() {
                   Como este produto é vendido: por peça, par, conjunto, metro ou m².
                 </div>
               </div>
+              <div />
               <div>
                 <label className="form-label" htmlFor="product-sale-price">Preço de venda</label>
-                <CurrencyInput id="product-sale-price" value={form.salePrice} onChange={(value) => patch('salePrice', value)} />
+                <CurrencyInput id="product-sale-price" className="form-input" value={form.salePrice} onChange={(value) => patch('salePrice', value)} />
               </div>
               <div>
                 <label className="form-label" htmlFor="product-final-price">Preço final</label>
-                <CurrencyInput id="product-final-price" value={form.finalPrice} onChange={(value) => patch('finalPrice', value)} />
+                <CurrencyInput id="product-final-price" className="form-input" value={form.finalPrice} onChange={(value) => patch('finalPrice', value)} />
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 5 }}>
                   Se ficar em R$ 0,00, o catálogo utilizará o preço de venda.
                 </div>
@@ -309,69 +372,73 @@ export default function NewProduct() {
         </aside>
       </div>
 
-      {fabricModalOpen && <div
-        className={`modal-overlay${fabricModalOpen ? ' open' : ''}`}
+      {quickAddResource && <div
+        className={`modal-overlay${quickAddResource ? ' open' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="fabric-modal-title"
+        aria-labelledby="quick-add-modal-title"
         onClick={(event) => {
-          if (event.target === event.currentTarget && !savingFabric) setFabricModalOpen(false);
+          if (event.target === event.currentTarget && !savingQuickAdd) setQuickAddResource(null);
         }}
       >
-        <div className="modal-box" style={{ width: 520 }}>
+        <div className="modal-box" style={{ width: 480 }}>
           <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <div>
-              <div id="fabric-modal-title" style={{ fontWeight: 700, fontSize: 17 }}>Cadastrar tecido</div>
+              <div id="quick-add-modal-title" style={{ fontWeight: 700, fontSize: 17 }}>
+                {quickAddResource === 'material' ? 'Cadastrar material' : 'Cadastrar acabamento'}
+              </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                O tecido ficará disponível no dropdown de materiais.
+                Fornecedor: {selectedSupplier?.nome} — fica disponível no dropdown pra qualquer produto deste fornecedor.
               </div>
             </div>
-            <button className="btn btn-ghost btn-sm" aria-label="Fechar cadastro de tecido" disabled={savingFabric} onClick={() => setFabricModalOpen(false)}>
+            <button
+              className="btn btn-ghost btn-sm"
+              aria-label="Fechar"
+              disabled={savingQuickAdd}
+              onClick={() => setQuickAddResource(null)}
+            >
               <X style={{ width: 18, height: 18 }} />
             </button>
           </div>
           <div className="p-6">
             <div className="mb-4">
-              <label className="form-label" htmlFor="fabric-name">Nome do tecido *</label>
+              <label className="form-label" htmlFor="quick-add-nome">Nome *</label>
               <input
-                id="fabric-name"
+                id="quick-add-nome"
                 className="form-input"
-                placeholder="Ex.: Linho Areia"
-                value={fabricForm.name}
-                onChange={(event) => setFabricForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder={quickAddResource === 'material' ? 'Ex.: MDF 18mm' : 'Ex.: Linho Areia'}
+                value={quickAddForm.nome}
+                onChange={(event) => setQuickAddForm((f) => ({ ...f, nome: event.target.value }))}
+                autoFocus
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="form-label" htmlFor="fabric-reference">Código ou referência</label>
-                <input
-                  id="fabric-reference"
-                  className="form-input"
-                  placeholder="Ex.: TEC-204"
-                  value={fabricForm.reference}
-                  onChange={(event) => setFabricForm((current) => ({ ...current, reference: event.target.value }))}
+                <label className="form-label" htmlFor="quick-add-categoria">Categoria *</label>
+                <Combobox
+                  id="quick-add-categoria"
+                  value={quickAddForm.categoria}
+                  onChange={(value) => setQuickAddForm((f) => ({ ...f, categoria: value }))}
+                  options={quickAddCategoriaOptions}
+                  placeholder="Ex.: Madeira, Tecido..."
                 />
               </div>
               <div>
-                <label className="form-label" htmlFor="fabric-supplier">Fornecedor *</label>
-                <Dropdown
-                  id="fabric-supplier"
-                  value={selectedFabricSupplier?.nome ?? ''}
-                  onChange={(name) => setFabricForm((current) => ({
-                    ...current,
-                    supplierId: fornecedores.find((item) => item.nome === name)?.id ?? '',
-                  }))}
-                  options={supplierNames}
-                  placeholder="Selecione o fornecedor"
-                  allowEmpty={false}
+                <label className="form-label" htmlFor="quick-add-classificacao">Classificação</label>
+                <input
+                  id="quick-add-classificacao"
+                  className="form-input"
+                  placeholder="Opcional"
+                  value={quickAddForm.classificacao}
+                  onChange={(event) => setQuickAddForm((f) => ({ ...f, classificacao: event.target.value }))}
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button className="btn btn-outline" disabled={savingFabric} onClick={() => setFabricModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-gold" disabled={savingFabric} onClick={handleCreateFabric}>
-                {savingFabric && <Loader2 className="spin" style={{ width: 14, height: 14 }} />}
-                Cadastrar e usar tecido
+              <button className="btn btn-outline" disabled={savingQuickAdd} onClick={() => setQuickAddResource(null)}>Cancelar</button>
+              <button className="btn btn-gold" disabled={savingQuickAdd} onClick={handleQuickAddSave}>
+                {savingQuickAdd && <Loader2 className="spin" style={{ width: 14, height: 14 }} />}
+                Cadastrar e usar
               </button>
             </div>
           </div>

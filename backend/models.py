@@ -77,26 +77,12 @@ class ConfiguracaoSistema(Base):
     atualizado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
 
 
-class MaterialCatalogo(Base):
-    __tablename__ = "materiais_catalogo"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id = Column(Integer, primary_key=True)
-    tipo = Column(Text, nullable=False, default="Tecido")
-    nome = Column(Text, nullable=False)
-    referencia = Column(Text)
-    fornecedor_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.fornecedores.id"), nullable=False)
-    ativo = Column(Boolean, nullable=False, default=True)
-    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
-
-    fornecedor = relationship("Fornecedor")
-
-
 class Material(Base):
     """Materiais (estrutura/base) normalizados por fornecedor — migration 008 da analista de
-    dados. Sempre escopado a um fornecedor (não há material genérico compartilhado). O vínculo
-    com produto_customizacoes.material_id é preenchido gradualmente pelo ETL, fornecedor por
-    fornecedor — a app não escreve aqui."""
+    dados. Sempre escopado a um fornecedor (não há material genérico compartilhado). Cadastrado
+    e mantido pela própria aplicação (routes/materiais.py, tela Gestão > Materiais e Acabamentos,
+    e o cadastro rápido no Cadastrar Produto). O que É gradual e feito pelo ETL da analista é só
+    o VÍNCULO em produto_customizacoes.material_id — não esta tabela."""
     __tablename__ = "materiais"
     __table_args__ = {"schema": DB_SCHEMA}
 
@@ -114,7 +100,7 @@ class Material(Base):
 
 class Acabamento(Base):
     """Acabamentos (tecido, couro, metal, laca etc.) normalizados por fornecedor — mesma
-    lógica de Material, migration 008."""
+    lógica de Material (inclusive quem escreve aqui: a aplicação, não o ETL), migration 008."""
     __tablename__ = "acabamentos"
     __table_args__ = {"schema": DB_SCHEMA}
 

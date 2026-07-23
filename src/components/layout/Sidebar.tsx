@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard,
+  ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard, Layers,
   Package, PackagePlus, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
 } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
@@ -219,6 +219,10 @@ export default function Sidebar({
                 <NavLink to="/gestao/fornecedores" className={navClass} onClick={onNavigate}>
                   <Truck className="nav-icon" style={{ width: 16, height: 16 }} />
                   <span className="nav-label">Fornecedores</span>
+                </NavLink>
+                <NavLink to="/gestao/materiais" className={navClass} onClick={onNavigate}>
+                  <Layers className="nav-icon" style={{ width: 16, height: 16 }} />
+                  <span className="nav-label">Materiais e Acabamentos</span>
                 </NavLink>
                 {isAdmin && (
                   <NavLink to="/gestao/usuarios" className={navClass} onClick={onNavigate}>

@@ -30,6 +30,7 @@ import Usuarios from './pages/Usuarios';
 import Clientes from './pages/Clientes';
 import Arquitetos from './pages/Arquitetos';
 import Fornecedores from './pages/Fornecedores';
+import Materiais from './pages/Materiais';
 
 // createBrowserRouter (em vez do <BrowserRouter><Routes>... declarativo) é o que habilita
 // useBlocker — usado em NewProposal.tsx pra avisar antes de sair da página com a proposta
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
           { path: 'gestao/clientes', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Clientes /></RequireRole> },
           { path: 'gestao/arquitetos', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Arquitetos /></RequireRole> },
           { path: 'gestao/fornecedores', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Fornecedores /></RequireRole> },
+          { path: 'gestao/materiais', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Materiais /></RequireRole> },
           { path: 'gestao/usuarios', element: <RequireRole allowed={['Administrador']}><Usuarios /></RequireRole> },
           { path: 'perfil', element: <Perfil /> },
           { path: 'config', element: <RequireRole allowed={['Administrador']}><Settings /></RequireRole> },
