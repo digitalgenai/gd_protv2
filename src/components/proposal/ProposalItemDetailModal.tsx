@@ -52,7 +52,7 @@ export default function ProposalItemDetailModal({ row, index, open, onClose }: P
           </button>
         </div>
 
-        <div className="p-6" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+        <div className="p-6">
           {matchedProduct ? (
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
