@@ -452,8 +452,7 @@ export default function NewProposal() {
                   <th style={{ width: 140 }}>Preço Unit.</th>
                   <th style={{ width: 90 }}>Desc. %</th>
                   <th style={{ width: 140 }}>Total</th>
-                  <th style={{ width: 130 }}>Materiais</th>
-                  <th style={{ width: 110 }}>Destaque</th>
+                  <th style={{ width: 130 }}>Detalhes</th>
                   <th style={{ width: 40 }} />
                 </tr>
               </thead>
@@ -464,7 +463,7 @@ export default function NewProposal() {
                     <Fragment key={group.ambiente}>
                       {showAmbienteHeaders && (
                         <tr>
-                          <td colSpan={11} className="ambiente-bar">
+                          <td colSpan={10} className="ambiente-bar">
                             <div className="flex items-center justify-between">
                               <span>{group.ambiente}</span>
                               <button className="btn btn-ghost btn-sm" style={{ color: '#fefefe' }} onClick={() => addEmptyRow(group.ambiente === 'Itens Gerais' ? '' : group.ambiente)}>
