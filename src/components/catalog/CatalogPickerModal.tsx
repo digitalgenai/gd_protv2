@@ -105,34 +105,34 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   {products.length} produto{products.length !== 1 ? 's' : ''}
                 </div>
-                <div className="flex items-center" style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                  <button
-                    aria-label="Ver em grade"
-                    aria-pressed={viewMode === 'grid'}
-                    title="Ver em grade"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
-                      background: viewMode === 'grid' ? 'var(--gold)' : 'var(--card)',
-                      color: viewMode === 'grid' ? '#fefefe' : 'var(--text-secondary)',
-                    }}
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <LayoutGrid style={{ width: 13, height: 13 }} /> Grade
-                  </button>
-                  <button
-                    aria-label="Ver em lista"
-                    aria-pressed={viewMode === 'list'}
-                    title="Ver em lista"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
-                      background: viewMode === 'list' ? 'var(--gold)' : 'var(--card)',
-                      color: viewMode === 'list' ? '#fefefe' : 'var(--text-secondary)',
-                    }}
-                    onClick={() => setViewMode('list')}
-                  >
-                    <List style={{ width: 13, height: 13 }} /> Lista
-                  </button>
-                </div>
+              </div>
+              <div className="flex items-center" style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <button
+                  aria-label="Ver em grade"
+                  aria-pressed={viewMode === 'grid'}
+                  title="Ver em grade"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
+                    background: viewMode === 'grid' ? 'var(--gold)' : 'var(--card)',
+                    color: viewMode === 'grid' ? '#fefefe' : 'var(--text-secondary)',
+                  }}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid style={{ width: 13, height: 13 }} /> Grade
+                </button>
+                <button
+                  aria-label="Ver em lista"
+                  aria-pressed={viewMode === 'list'}
+                  title="Ver em lista"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer',
+                    background: viewMode === 'list' ? 'var(--gold)' : 'var(--card)',
+                    color: viewMode === 'list' ? '#fefefe' : 'var(--text-secondary)',
+                  }}
+                  onClick={() => setViewMode('list')}
+                >
+                  <List style={{ width: 13, height: 13 }} /> Lista
+                </button>
               </div>
             </div>
             <AmbienteSelectorBar

@@ -106,6 +106,8 @@ export default function Catalog() {
                     ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, products.length)} de ${products.length}`
                     : `${products.length} produto${products.length !== 1 ? 's' : ''}`}
               </div>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="flex items-center" style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <button
                   aria-label="Ver em grade"
@@ -134,8 +136,6 @@ export default function Catalog() {
                   <List style={{ width: 13, height: 13 }} /> Lista
                 </button>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
               <select
                 id="catalog-sort"
                 className="form-input"

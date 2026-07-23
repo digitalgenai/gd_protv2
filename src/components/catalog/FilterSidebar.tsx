@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import type { FilterState } from '../../types';
 
@@ -30,6 +30,20 @@ function FilterGroup({ label, defaultOpen = true, children }: { label: string; d
 
 export default function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps) {
   const { facets, products } = useProducts();
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Em telas estreitas o filtro fica sempre visível, empilhado (decisão explícita — ver
+  // commit anterior) — o recolher/expandir é só um recurso de desktop, pra devolver espaço
+  // horizontal pra tabela quando não está filtrando.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    setIsNarrowViewport(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsNarrowViewport(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const effectivelyCollapsed = collapsed && !isNarrowViewport;
 
   // Acabamento depende do(s) fornecedor(es) marcado(s): sem nenhum marcado, mostra todos os
   // acabamentos do catálogo; com um ou mais marcados, só os que existem em produtos daqueles
@@ -51,12 +65,37 @@ export default function FilterSidebar({ filters, onChange, onClear }: FilterSide
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableFinishes]);
 
+  if (effectivelyCollapsed) {
+    return (
+      <button
+        type="button"
+        className="filter-sidebar-rail"
+        onClick={() => setCollapsed(false)}
+        aria-label="Mostrar filtros"
+        title="Mostrar filtros"
+      >
+        <ChevronRight style={{ width: 16, height: 16 }} />
+      </button>
+    );
+  }
+
   return (
     <aside
       id="catalog-filter-sidebar"
       className="w-56 flex-shrink-0 bg-white border-r p-4 overflow-y-auto"
-      style={{ borderColor: 'var(--border)', minHeight: 'calc(100vh - 57px)' }}
+      style={{ borderColor: 'var(--border)', minHeight: 'calc(100vh - 57px)', position: 'relative' }}
     >
+      {!isNarrowViewport && (
+        <button
+          type="button"
+          className="filter-sidebar-collapse-btn"
+          onClick={() => setCollapsed(true)}
+          aria-label="Esconder filtros"
+          title="Esconder filtros"
+        >
+          <ChevronLeft style={{ width: 14, height: 14 }} />
+        </button>
+      )}
       <div className="flex items-center justify-between mb-4">
         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Filtros</span>
         <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
