@@ -92,6 +92,44 @@ class MaterialCatalogo(Base):
     fornecedor = relationship("Fornecedor")
 
 
+class Material(Base):
+    """Materiais (estrutura/base) normalizados por fornecedor — migration 008 da analista de
+    dados. Sempre escopado a um fornecedor (não há material genérico compartilhado). O vínculo
+    com produto_customizacoes.material_id é preenchido gradualmente pelo ETL, fornecedor por
+    fornecedor — a app não escreve aqui."""
+    __tablename__ = "materiais"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(BigInteger, primary_key=True)
+    fornecedor_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.fornecedores.id"), nullable=False)
+    nome = Column(Text, nullable=False)
+    categoria = Column(Text, nullable=False)
+    classificacao = Column(Text)
+    ativo = Column(Boolean, nullable=False, default=True)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+    atualizado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    fornecedor = relationship("Fornecedor")
+
+
+class Acabamento(Base):
+    """Acabamentos (tecido, couro, metal, laca etc.) normalizados por fornecedor — mesma
+    lógica de Material, migration 008."""
+    __tablename__ = "acabamentos"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(BigInteger, primary_key=True)
+    fornecedor_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.fornecedores.id"), nullable=False)
+    nome = Column(Text, nullable=False)
+    categoria = Column(Text, nullable=False)
+    classificacao = Column(Text)
+    ativo = Column(Boolean, nullable=False, default=True)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+    atualizado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    fornecedor = relationship("Fornecedor")
+
+
 class CatalogoProduto(Base):
     __tablename__ = "catalogo_produtos"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -127,8 +165,14 @@ class ProdutoCustomizacao(Base):
     ativo = Column(Boolean, nullable=False, default=True)
     criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
     atualizado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+    # Normalizam material/acabamento (texto livre acima) mas não os substituem — RN-18.
+    # Nullable e preenchida aos poucos pelo ETL; a app não precisa escrever aqui hoje.
+    material_id = Column(BigInteger, ForeignKey(f"{DB_SCHEMA}.materiais.id"))
+    acabamento_id = Column(BigInteger, ForeignKey(f"{DB_SCHEMA}.acabamentos.id"))
 
     produto = relationship("CatalogoProduto", back_populates="customizacoes")
+    material_ref = relationship("Material")
+    acabamento_ref = relationship("Acabamento")
 
 
 class ProdutoImagem(Base):
