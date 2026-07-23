@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { PackageSearch, Plus, Trash2, X } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useProducts } from '../../context/ProductsContext';
@@ -29,7 +30,12 @@ export default function ProposalItemDetailModal({ row, index, open, onClose }: P
   const highlightCandidates = matchedProduct?.images ?? [];
   const hasHighlightChoice = highlightCandidates.length > 1;
 
-  return (
+  // Portal pro <body>: este modal é montado de dentro da <tbody> da tabela de itens, que
+  // fica num card com a classe "rise-in" — a animação dela deixa um transform:translateY(0)
+  // "residual" mesmo depois de terminar (fill-mode both), e qualquer transform vira o
+  // container de referência do position:fixed dos descendentes. Sem o portal, o modal
+  // centralizava/cortava dentro do card em vez da tela toda (mesmo bug já visto no dropdown).
+  return createPortal(
     <div
       className="modal-overlay open"
       role="dialog"
@@ -199,6 +205,7 @@ export default function ProposalItemDetailModal({ row, index, open, onClose }: P
           <button className="btn btn-gold btn-sm" onClick={onClose}>Concluir</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
