@@ -5,6 +5,7 @@ from config import CORS_ALLOWED_ORIGINS, SECRET_KEY, SESSION_COOKIE_SECURE, UPLO
 from db import SessionLocal, engine
 from routes.auth import bp as auth_bp
 from routes.catalogo_qualidade import bp as catalogo_qualidade_bp
+from routes.configuracoes import bp as configuracoes_bp
 from routes.dashboard import bp as dashboard_bp
 from routes.produtos import bp as produtos_bp
 from routes.propostas import bp as propostas_bp
@@ -29,6 +30,7 @@ def create_app() -> Flask:
     app.register_blueprint(propostas_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(catalogo_qualidade_bp)
+    app.register_blueprint(configuracoes_bp)
     app.register_blueprint(voz_bp)
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(auth_bp)

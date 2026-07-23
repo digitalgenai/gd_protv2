@@ -2,12 +2,15 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
+import { SystemSettingsProvider } from './context/SystemSettingsContext';
 import { ProductsProvider } from './context/ProductsContext';
 import { VendedoresProvider } from './context/VendedoresContext';
 import { VozProvider } from './context/VozContext';
 import { ProposalDraftProvider } from './context/ProposalDraftContext';
 import { ImageModalProvider } from './context/ImageModalContext';
 import RequireAuth from './components/auth/RequireAuth';
+import RequireRole from './components/auth/RequireRole';
+import RequireCatalogRegistrationAccess from './components/auth/RequireCatalogRegistrationAccess';
 import Layout from './components/layout/Layout';
 import PrintProposal from './components/proposal/PrintProposal';
 import Login from './pages/Login';
@@ -15,6 +18,7 @@ import Perfil from './pages/Perfil';
 import Dashboard from './pages/Dashboard';
 import Catalog from './pages/Catalog';
 import CatalogQuality from './pages/CatalogQuality';
+import NewProduct from './pages/NewProduct';
 import NewProposal from './pages/NewProposal';
 import ProposalDetail from './pages/ProposalDetail';
 import ReviewProposals from './pages/ReviewProposals';
@@ -40,18 +44,19 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Dashboard /> },
           { path: 'catalogo', element: <Catalog /> },
+          { path: 'catalogo/cadastrar', element: <RequireCatalogRegistrationAccess><NewProduct /></RequireCatalogRegistrationAccess> },
           { path: 'catalogo/qualidade', element: <CatalogQuality /> },
           { path: 'propostas/nova', element: <NewProposal /> },
           { path: 'propostas/revisao', element: <ReviewProposals /> },
           { path: 'propostas/historico', element: <History /> },
           { path: 'propostas/:codigo', element: <ProposalDetail /> },
           // { path: 'voz', element: <Voice /> }, — v2
-          { path: 'gestao/clientes', element: <Clientes /> },
-          { path: 'gestao/arquitetos', element: <Arquitetos /> },
-          { path: 'gestao/fornecedores', element: <Fornecedores /> },
-          { path: 'gestao/usuarios', element: <Usuarios /> },
+          { path: 'gestao/clientes', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Clientes /></RequireRole> },
+          { path: 'gestao/arquitetos', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Arquitetos /></RequireRole> },
+          { path: 'gestao/fornecedores', element: <RequireRole allowed={['Administrador', 'Supervisor']}><Fornecedores /></RequireRole> },
+          { path: 'gestao/usuarios', element: <RequireRole allowed={['Administrador']}><Usuarios /></RequireRole> },
           { path: 'perfil', element: <Perfil /> },
-          { path: 'config', element: <Settings /> },
+          { path: 'config', element: <RequireRole allowed={['Administrador']}><Settings /></RequireRole> },
         ],
       },
     ],
@@ -63,6 +68,7 @@ export default function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
+          <SystemSettingsProvider>
           <ProductsProvider>
           <VendedoresProvider>
           <VozProvider>
@@ -75,6 +81,7 @@ export default function App() {
           </VozProvider>
           </VendedoresProvider>
           </ProductsProvider>
+          </SystemSettingsProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

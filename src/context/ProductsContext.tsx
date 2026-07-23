@@ -5,7 +5,7 @@ import type { Product } from '../types';
 
 type CatalogFacets = Awaited<ReturnType<typeof fetchCatalogFacets>>;
 
-const EMPTY_FACETS: CatalogFacets = { categories: [], suppliers: [], finishes: [], materials: [] };
+const EMPTY_FACETS: CatalogFacets = { categories: [], suppliers: [], finishes: [], materials: [], units: [] };
 
 /** vendaDireta é front-only (sem coluna própria no banco ainda) — overrides por produto ficam salvos aqui. */
 const VENDA_DIRETA_KEY = 'galpao:produtos:venda-direta';

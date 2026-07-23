@@ -18,7 +18,7 @@ import CatalogPickerModal from '../components/catalog/CatalogPickerModal';
 
 export default function NewProposal() {
   const {
-    header, rows, setHeaderField, addEmptyRow, addAmbiente, removeAmbiente,
+    header, rows, setHeaderField, addAmbiente, removeAmbiente,
     addCoVendedor, removeCoVendedor, originalCode, proposalCode, subtotal, total,
   } = useProposalDraft();
   const { products: allProducts } = useProducts();
@@ -464,12 +464,7 @@ export default function NewProposal() {
                       {showAmbienteHeaders && (
                         <tr>
                           <td colSpan={10} className="ambiente-bar">
-                            <div className="flex items-center justify-between">
-                              <span>{group.ambiente}</span>
-                              <button className="btn btn-ghost btn-sm" style={{ color: '#fefefe' }} onClick={() => addEmptyRow(group.ambiente === 'Itens Gerais' ? '' : group.ambiente)}>
-                                <Plus style={{ width: 12, height: 12 }} /> Item neste ambiente
-                              </button>
-                            </div>
+                            <span>{group.ambiente}</span>
                           </td>
                         </tr>
                       )}
@@ -489,10 +484,12 @@ export default function NewProposal() {
             <FilePlus style={{ width: 38, height: 38, opacity: 0.3 }} />
             <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--primary)' }}>Comece a montar a proposta</div>
             <div style={{ fontSize: 13, maxWidth: 380, textAlign: 'center' }}>
-              Adicione móveis do catálogo, digite um código (ex.: <span className="mono" style={{ color: 'var(--gold-text)' }}>GD-CAD-001</span>) ou use o microfone para ditar os itens.
+              Escolha os produtos cadastrados no catálogo e adicione-os à proposta.
             </div>
-            <div className="flex gap-2 mt-2">
-              <button className="btn btn-gold btn-sm" onClick={() => setCatalogOpen(true)}>+ Adicionar primeiro item</button>
+            <div className="mt-2">
+              <button className="btn btn-gold btn-sm" onClick={() => setCatalogOpen(true)}>
+                <Package style={{ width: 12, height: 12 }} /> Escolher no catálogo
+              </button>
             </div>
           </div>
         )}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, Cloud, CloudUpload, Database, Mic, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Cloud, CloudUpload, Database, Loader2, Mic, PackagePlus, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { checkBackendHealth } from '../api/health';
+import ToggleSwitch from '../components/ui/ToggleSwitch';
+import { useSystemSettings } from '../context/SystemSettingsContext';
 import { useToast } from '../context/ToastContext';
 
 const IMPORT_LOGS = [
@@ -12,10 +14,29 @@ const IMPORT_LOGS = [
 export default function Settings() {
   const { showToast } = useToast();
   const [dbOnline, setDbOnline] = useState<boolean | null>(null);
+  const [savingCatalogAccess, setSavingCatalogAccess] = useState(false);
+  const { sellersCanManageCatalog, saveSellersCanManageCatalog } = useSystemSettings();
 
   useEffect(() => {
     checkBackendHealth().then(setDbOnline);
   }, []);
+
+  async function changeCatalogAccess(enabled: boolean) {
+    setSavingCatalogAccess(true);
+    try {
+      await saveSellersCanManageCatalog(enabled);
+      showToast(
+        enabled
+          ? 'Vendedores agora podem cadastrar e editar produtos.'
+          : 'Cadastro de produtos desativado para vendedores.',
+        'success',
+      );
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Não foi possível alterar essa permissão.', 'error');
+    } finally {
+      setSavingCatalogAccess(false);
+    }
+  }
 
   return (
     <div id="view-settings" className="view active fade-in p-6" style={{ maxWidth: 960 }}>
@@ -25,6 +46,34 @@ export default function Settings() {
       </div>
 
       <div className="grid gap-5">
+        <div className="card p-5" style={{ borderColor: 'rgba(123,29,52,.3)' }}>
+          <div className="flex items-start justify-between gap-5 flex-wrap">
+            <div className="flex items-start gap-3" style={{ maxWidth: 620 }}>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(123,29,52,.1)' }}>
+                <PackagePlus style={{ width: 18, height: 18, color: 'var(--gold-text)' }} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2" style={{ fontWeight: 700, fontSize: 14 }}>
+                  Cadastro colaborativo do catálogo
+                  {savingCatalogAccess && <Loader2 className="spin" style={{ width: 13, height: 13, color: 'var(--text-secondary)' }} />}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 3, lineHeight: 1.5 }}>
+                  Libera a aba “Cadastrar Produto” para vendedores durante a força-tarefa. Administradores e supervisores continuam com acesso mesmo quando esta opção estiver desligada.
+                </div>
+              </div>
+            </div>
+            <ToggleSwitch
+              checked={sellersCanManageCatalog}
+              onChange={changeCatalogAccess}
+              onLabel="Liberado"
+              offLabel="Somente gestão"
+              badgeLabel={sellersCanManageCatalog ? 'Força-tarefa ativa' : undefined}
+              ariaLabel="Permitir vendedores cadastrarem produtos"
+              disabled={savingCatalogAccess}
+            />
+          </div>
+        </div>
+
         <div className="card p-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-start gap-3">

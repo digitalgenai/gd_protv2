@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from db import get_session
 from models import Usuario
-from utils.auth import admin_required
+from utils.auth import admin_required, get_current_usuario
 
 bp = Blueprint("usuarios", __name__)
 
@@ -74,17 +74,48 @@ def create_usuario():
 
 @bp.patch("/usuarios/<uuid:usuario_id>")
 @admin_required
-def update_usuario_status(usuario_id):
+def update_usuario(usuario_id):
     session = get_session()
     data = request.get_json(silent=True) or {}
-    if "isActive" not in data:
-        return jsonify({"error": "Campo 'isActive' é obrigatório."}), 400
+    if "isActive" not in data and "perfil" not in data:
+        return jsonify({"error": "Informe 'isActive' ou 'perfil' para atualizar o usuário."}), 400
 
     usuario = session.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         return jsonify({"error": "Usuário não encontrado."}), 404
 
-    usuario.is_active = bool(data["isActive"])
+    usuario_logado = get_current_usuario(session)
+    novo_perfil = data.get("perfil")
+    novo_status = bool(data["isActive"]) if "isActive" in data else usuario.is_active
+
+    if novo_perfil is not None and novo_perfil not in PERFIS_VALIDOS:
+        return jsonify({"error": f"Perfil deve ser um de: {', '.join(PERFIS_VALIDOS)}."}), 400
+
+    # Evita o administrador remover o próprio acesso e ficar sem conseguir corrigir a ação.
+    if usuario_logado and usuario.id == usuario_logado.id:
+        if novo_perfil is not None and novo_perfil != "Administrador":
+            return jsonify({"error": "Você não pode alterar o seu próprio nível de acesso."}), 400
+        if not novo_status:
+            return jsonify({"error": "Você não pode desativar o seu próprio usuário."}), 400
+
+    # Também impede que o sistema fique sem nenhum administrador ativo.
+    removendo_admin = usuario.perfil == "Administrador" and (
+        (novo_perfil is not None and novo_perfil != "Administrador") or not novo_status
+    )
+    if removendo_admin:
+        admins_ativos = (
+            session.query(Usuario)
+            .filter(Usuario.perfil == "Administrador", Usuario.is_active.is_(True))
+            .count()
+        )
+        if admins_ativos <= 1:
+            return jsonify({"error": "O sistema precisa manter pelo menos um administrador ativo."}), 400
+
+    if novo_perfil is not None:
+        usuario.perfil = novo_perfil
+    if "isActive" in data:
+        usuario.is_active = novo_status
+
     session.commit()
     return jsonify(_serialize(usuario))
 

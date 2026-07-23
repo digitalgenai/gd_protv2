@@ -1,49 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Loader2, Pencil, Search, Upload, X } from 'lucide-react';
-import { fetchFornecedores } from '../api/fornecedores';
+import { Building2, Loader2, Pencil, Plus, Search, X } from 'lucide-react';
+import {
+  createFornecedor,
+  fetchFornecedores,
+  updateFornecedor,
+  type FornecedorPayload,
+} from '../api/fornecedores';
 import ErrorState from '../components/ui/ErrorState';
+import { useProducts } from '../context/ProductsContext';
 import { useToast } from '../context/ToastContext';
 import type { FornecedorSummary } from '../types';
 
-/**
- * Edição/cadastro ainda é front-only (sem coluna de logo/site/contato no banco), mas a lista
- * base sempre vem do backend (tabela `fornecedores`) — o que fica no localStorage é só a
- * camada de edições locais (overrides) e os fornecedores criados manualmente que não existem
- * no banco, para não sumirem quando um fornecedor novo for cadastrado no banco de verdade.
- */
-const OVERRIDES_KEY = 'galpao:fornecedores:overrides';
-const MANUAL_KEY = 'galpao:fornecedores:manual';
+const EMPTY_FORM: FornecedorPayload = { nome: '', site: null, contato: null };
 
-function loadJSON<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/** Miniatura de logo com fundo neutro (para logos claras não desaparecerem) e fallback caso a imagem falhe ao carregar. */
-function LogoThumb({ src, alt, size = 34 }: { src: string | null; alt: string; size?: number }) {
-  const [failed, setFailed] = useState(false);
-  const showImage = Boolean(src) && !failed;
-  return (
-    <div
-      className="flex items-center justify-center"
-      style={{ width: size, height: size, borderRadius: 4, background: 'var(--bg)', border: '1px solid var(--border)', overflow: 'hidden', flexShrink: 0 }}
-    >
-      {showImage ? (
-        <img
-          src={src as string}
-          alt={alt}
-          onError={() => setFailed(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }}
-        />
-      ) : (
-        <Building2 style={{ width: size * 0.45, height: size * 0.45, color: 'var(--text-secondary)' }} />
-      )}
-    </div>
-  );
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : 'Não foi possível salvar o fornecedor.';
 }
 
 export default function Fornecedores() {
@@ -51,94 +22,98 @@ export default function Fornecedores() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: '', logoUrl: '', site: '', contato: '' });
+  const [form, setForm] = useState<FornecedorPayload>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const { showToast } = useToast();
+  const { reload: reloadProducts } = useProducts();
 
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
     fetchFornecedores()
-      .then((base) => {
-        const overrides = loadJSON<Record<string, Partial<FornecedorSummary>>>(OVERRIDES_KEY, {});
-        const manual = loadJSON<FornecedorSummary[]>(MANUAL_KEY, []);
-        const baseIds = new Set(base.map((f) => f.id));
-        const merged = base.map((f) => (overrides[f.id] ? { ...f, ...overrides[f.id] } : f));
-        const extras = manual.filter((m) => !baseIds.has(m.id));
-        setFornecedores([...merged, ...extras].sort((a, b) => a.nome.localeCompare(b.nome)));
-      })
+      .then(setFornecedores)
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return fornecedores;
-    return fornecedores.filter((f) => f.nome.toLowerCase().includes(q));
+    return q ? fornecedores.filter((f) =>
+      [f.nome, f.site, f.contato].some((value) => value?.toLowerCase().includes(q)),
+    ) : fornecedores;
   }, [fornecedores, search]);
 
-  function openEdit(f: FornecedorSummary) {
-    setEditingId(f.id);
-    setForm({ nome: f.nome, logoUrl: f.logoUrl ?? '', site: f.site ?? '', contato: f.contato ?? '' });
+  function openCreate() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
     setModalOpen(true);
   }
 
-  function handleLogoFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => setForm((f) => ({ ...f, logoUrl: String(reader.result) }));
-    reader.readAsDataURL(file);
+  function openEdit(fornecedor: FornecedorSummary) {
+    setEditingId(fornecedor.id);
+    setForm({ nome: fornecedor.nome, site: fornecedor.site, contato: fornecedor.contato });
+    setModalOpen(true);
   }
 
-  function handleSave() {
-    const nome = form.nome.trim();
-    if (!nome) {
+  async function handleSave() {
+    const payload = {
+      nome: form.nome.trim(),
+      site: form.site?.trim() || null,
+      contato: form.contato?.trim() || null,
+    };
+    if (!payload.nome) {
       showToast('Informe o nome do fornecedor.', 'warning');
       return;
     }
-    const patch = { nome, logoUrl: form.logoUrl.trim() || null, site: form.site.trim() || null, contato: form.contato.trim() || null };
-
-    const atualizado = fornecedores.map((f) => (f.id === editingId ? { ...f, ...patch } : f));
-    setFornecedores(atualizado.sort((a, b) => a.nome.localeCompare(b.nome)));
-
-    const overrides = loadJSON<Record<string, Partial<FornecedorSummary>>>(OVERRIDES_KEY, {});
-    overrides[editingId as string] = patch;
-    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
-
-    const manual = loadJSON<FornecedorSummary[]>(MANUAL_KEY, []);
-    const idx = manual.findIndex((m) => m.id === editingId);
-    if (idx >= 0) {
-      manual[idx] = { ...manual[idx], ...patch };
-      localStorage.setItem(MANUAL_KEY, JSON.stringify(manual));
+    setSaving(true);
+    try {
+      const saved = editingId
+        ? await updateFornecedor(editingId, payload)
+        : await createFornecedor(payload);
+      setFornecedores((current) => {
+        const next = editingId
+          ? current.map((item) => item.id === saved.id ? saved : item)
+          : [...current, saved];
+        return next.sort((a, b) => a.nome.localeCompare(b.nome));
+      });
+      reloadProducts();
+      showToast(editingId ? 'Fornecedor atualizado.' : 'Fornecedor cadastrado no banco.', 'success');
+      setModalOpen(false);
+    } catch (err) {
+      showToast(errorText(err), 'error');
+    } finally {
+      setSaving(false);
     }
-    showToast('Fornecedor atualizado.', 'success');
-    setModalOpen(false);
   }
 
   return (
     <div id="view-fornecedores" className="view active fade-in p-6" style={{ maxWidth: 1440 }}>
-      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 720 }}>
-        Fornecedores cadastrados no banco. Logo, site e contato ainda ficam salvos só neste navegador (não persistem no backend ainda).
-        O cadastro de novos fornecedores passa a ser feito no CRM da empresa — em breve esta lista vai puxar de lá via integração (MCP).
+      <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 5 }}>Fornecedores</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 680 }}>
+            Cadastre aqui as empresas que poderão ser escolhidas nos produtos. Nome, site e contato ficam salvos no banco de dados.
+          </p>
+        </div>
+        <button className="btn btn-gold" onClick={openCreate}>
+          <Plus style={{ width: 15, height: 15 }} /> Novo fornecedor
+        </button>
       </div>
 
-      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-        <div className="relative" style={{ maxWidth: 360, flex: 1, minWidth: 220 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#979797' }} />
-          <input
-            type="text"
-            placeholder="Buscar fornecedor..."
-            className="form-input"
-            style={{ paddingLeft: 36 }}
-            aria-label="Buscar fornecedor"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="relative mb-5" style={{ maxWidth: 420 }}>
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 14, height: 14, color: '#979797' }} />
+        <input
+          type="search"
+          placeholder="Buscar por nome, site ou contato..."
+          className="form-input"
+          style={{ paddingLeft: 36 }}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
 
       <div className="card overflow-hidden">
@@ -148,25 +123,29 @@ export default function Fornecedores() {
             <div style={{ fontSize: 14 }}>Carregando fornecedores...</div>
           </div>
         ) : error ? (
-          <ErrorState message="Não foi possível carregar os fornecedores — verifique se o backend está no ar." onRetry={load} />
-        ) : filtered.length > 0 ? (
+          <ErrorState message="Não foi possível carregar os fornecedores." onRetry={load} />
+        ) : filtered.length ? (
           <div className="overflow-x-auto">
             <table className="data-table">
-              <thead>
-                <tr><th /><th>Fornecedor</th><th>Site</th><th>Contato</th><th /></tr>
-              </thead>
+              <thead><tr><th>Fornecedor</th><th>Site</th><th>Contato</th><th style={{ width: 64 }}>Ações</th></tr></thead>
               <tbody>
-                {filtered.map((f) => (
-                  <tr key={f.id}>
-                    <td style={{ width: 52 }}>
-                      <LogoThumb src={f.logoUrl} alt={f.nome} />
-                    </td>
-                    <td className="font-medium">{f.nome}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{f.site || '—'}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{f.contato || '—'}</td>
+                {filtered.map((fornecedor) => (
+                  <tr key={fornecedor.id}>
                     <td>
-                      <button className="btn btn-ghost btn-sm" aria-label={`Editar ${f.nome}`} onClick={() => openEdit(f)}>
-                        <Pencil style={{ width: 13, height: 13 }} />
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center" style={{ width: 34, height: 34, borderRadius: 7, background: 'var(--bg)' }}>
+                          <Building2 style={{ width: 16, height: 16, color: 'var(--gold)' }} />
+                        </span>
+                        <span className="font-medium">{fornecedor.nome}</span>
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>
+                      {fornecedor.site ? <a href={fornecedor.site.startsWith('http') ? fornecedor.site : `https://${fornecedor.site}`} target="_blank" rel="noreferrer">{fornecedor.site}</a> : '—'}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{fornecedor.contato || '—'}</td>
+                    <td>
+                      <button className="btn btn-ghost btn-sm" aria-label={`Editar ${fornecedor.nome}`} onClick={() => openEdit(fornecedor)}>
+                        <Pencil style={{ width: 14, height: 14 }} />
                       </button>
                     </td>
                   </tr>
@@ -182,55 +161,35 @@ export default function Fornecedores() {
         )}
       </div>
 
-      <div className={`modal-overlay${modalOpen ? ' open' : ''}`} role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-        <div className="modal-box" style={{ width: 460 }}>
+      <div className={`modal-overlay${modalOpen ? ' open' : ''}`} role="dialog" aria-modal="true" onClick={(event) => {
+        if (event.target === event.currentTarget && !saving) setModalOpen(false);
+      }}>
+        <div className="modal-box" style={{ width: 500 }}>
           <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-            <div style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
-              Editar Fornecedor
-            </div>
-            <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setModalOpen(false)}>
+            <div style={{ fontWeight: 700, fontSize: 17 }}>{editingId ? 'Editar fornecedor' : 'Cadastrar fornecedor'}</div>
+            <button className="btn btn-ghost btn-sm" aria-label="Fechar" disabled={saving} onClick={() => setModalOpen(false)}>
               <X style={{ width: 18, height: 18 }} />
             </button>
           </div>
           <div className="p-6">
             <div className="mb-4">
-              <label className="form-label" htmlFor="forn-nome">Nome *</label>
-              <input id="forn-nome" className="form-input" value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} />
+              <label className="form-label" htmlFor="fornecedor-nome">Nome do fornecedor *</label>
+              <input id="fornecedor-nome" className="form-input" autoFocus value={form.nome} onChange={(event) => setForm((value) => ({ ...value, nome: event.target.value }))} />
             </div>
             <div className="mb-4">
-              <label className="form-label">Logo</label>
-              <div className="flex items-center gap-3">
-                <LogoThumb src={form.logoUrl || null} alt="Logo" size={40} />
-                <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer' }}>
-                  <Upload style={{ width: 13, height: 13 }} /> Enviar imagem
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => { const file = e.target.files?.[0]; if (file) handleLogoFile(file); e.target.value = ''; }}
-                  />
-                </label>
-                {form.logoUrl && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setForm((f) => ({ ...f, logoUrl: '' }))}>
-                    Remover
-                  </button>
-                )}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
-                Use uma imagem com fundo transparente ou branco e a marca em cor escura — logos totalmente brancas não aparecem sobre a tabela.
-              </div>
+              <label className="form-label" htmlFor="fornecedor-site">Site</label>
+              <input id="fornecedor-site" className="form-input" type="url" placeholder="https://..." value={form.site ?? ''} onChange={(event) => setForm((value) => ({ ...value, site: event.target.value }))} />
             </div>
-            <div className="mb-4">
-              <label className="form-label" htmlFor="forn-site">Site</label>
-              <input id="forn-site" className="form-input" value={form.site} onChange={(e) => setForm((f) => ({ ...f, site: e.target.value }))} />
+            <div>
+              <label className="form-label" htmlFor="fornecedor-contato">Contato</label>
+              <input id="fornecedor-contato" className="form-input" placeholder="Nome, telefone ou e-mail" value={form.contato ?? ''} onChange={(event) => setForm((value) => ({ ...value, contato: event.target.value }))} />
             </div>
-            <div className="mb-2">
-              <label className="form-label" htmlFor="forn-contato">Contato</label>
-              <input id="forn-contato" className="form-input" value={form.contato} onChange={(e) => setForm((f) => ({ ...f, contato: e.target.value }))} />
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-gold" onClick={handleSave}>Salvar</button>
+            <div className="flex justify-end gap-2 mt-6">
+              <button className="btn btn-outline" disabled={saving} onClick={() => setModalOpen(false)}>Cancelar</button>
+              <button className="btn btn-gold" disabled={saving} onClick={handleSave}>
+                {saving && <Loader2 className="spin" style={{ width: 14, height: 14 }} />}
+                {editingId ? 'Salvar alterações' : 'Cadastrar fornecedor'}
+              </button>
             </div>
           </div>
         </div>

@@ -103,7 +103,15 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
 
   const addProductToProposal = (product: Product, ambiente = '') => {
     rowCounter.current += 1;
-    setRows((r) => [...r, { id: rowCounter.current, ambiente, code: product.id, desc: product.name, qty: 1, price: product.price, disc: 0, materiais: [] }]);
+    setRows((r) => [
+      ...r,
+      {
+        id: rowCounter.current, ambiente, code: product.id, desc: product.name, qty: 1, price: product.price, disc: 0, materiais: [],
+        // Começa igual ao catálogo — o vendedor edita daqui pra frente só nesta proposta
+        // (personalização pra venda), sem tocar no cadastro do produto.
+        acabamento: product.finish, material: product.material, dimensions: product.dimensions,
+      },
+    ]);
   };
 
   const addEmptyRow = (ambiente?: string) => {
@@ -213,6 +221,7 @@ export function ProposalDraftProvider({ children }: { children: ReactNode }) {
         price: item.product.price,
         disc: result.discount || 0,
         materiais: [],
+        acabamento: item.product.finish, material: item.product.material, dimensions: item.product.dimensions,
       };
     });
     setRows((r) => [...r, ...newRows]);

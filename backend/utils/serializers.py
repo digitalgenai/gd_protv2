@@ -40,13 +40,28 @@ def serialize_product(produto: CatalogoProduto) -> dict:
 
     return {
         "id": produto.codigo or f"GD-{produto.id}",
+        "databaseId": str(produto.id),
+        "fileId": str(produto.arquivo_id) if produto.arquivo_id is not None else None,
         "name": produto.produto_nome or "",
         "cat": produto.categoria or "",
         "supplier": produto.fornecedor.nome if produto.fornecedor else "",
+        "supplierId": str(produto.fornecedor_id) if produto.fornecedor_id is not None else "",
         "finish": customizacao.acabamento if customizacao and customizacao.acabamento else "",
         "material": customizacao.material if customizacao and customizacao.material else "",
         "price": _preco_produto(customizacao),
+        "salePrice": float(customizacao.preco_venda) if customizacao and customizacao.preco_venda is not None else 0,
+        "salePriceText": customizacao.preco_venda_txt if customizacao else None,
+        "finalPrice": float(customizacao.preco_final) if customizacao and customizacao.preco_final is not None else 0,
+        "unit": customizacao.unidade if customizacao and customizacao.unidade else "",
+        "customizationId": str(customizacao.id) if customizacao else None,
+        "customizationActive": bool(customizacao.ativo) if customizacao else False,
+        "customizationCreatedAt": customizacao.criado_em.isoformat() if customizacao and customizacao.criado_em else None,
+        "customizationUpdatedAt": customizacao.atualizado_em.isoformat() if customizacao and customizacao.atualizado_em else None,
         "dimensions": customizacao.dimensoes if customizacao and customizacao.dimensoes else "",
+        "active": bool(produto.ativo),
+        "source": "Importação" if produto.arquivo_id is not None else "Cadastro manual",
+        "createdAt": produto.criado_em.isoformat() if produto.criado_em else None,
+        "updatedAt": produto.atualizado_em.isoformat() if produto.atualizado_em else None,
         "img": absolute_image_url(imagens[0].storage_path) if imagens else "",
         "images": [
             {"id": img.id, "url": absolute_image_url(img.storage_path), "posicao": img.posicao}

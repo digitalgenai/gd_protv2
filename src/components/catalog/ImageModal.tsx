@@ -8,6 +8,7 @@ import { uploadProductImage, reorderProductImage } from '../../api/images';
 import { ApiError } from '../../api/client';
 import { formatCurrencyRounded } from '../../utils/format';
 import CurrencyInput from '../ui/CurrencyInput';
+import DimensionsInput from '../ui/DimensionsInput';
 import Dropdown from '../ui/Dropdown';
 import { STATUS_BADGE, statusBadgeLabel } from '../../utils/proposalStatus';
 import type { ProposalStatus } from '../../types';
@@ -232,13 +233,10 @@ export default function ImageModal() {
                 <CurrencyInput id="pi-preco" className="form-input" value={form.price} onChange={(price) => setForm((f) => ({ ...f, price }))} />
               </div>
               <div className="sm:col-span-2">
-                <label className="form-label" htmlFor="pi-dim">Dimensões</label>
-                <input
-                  id="pi-dim"
-                  className="form-input"
-                  placeholder="Ex.: 76 × 68 × 84 cm (L×P×A)"
+                <DimensionsInput
+                  idPrefix="catalog-product-dimensions"
                   value={form.dimensions}
-                  onChange={(e) => setForm((f) => ({ ...f, dimensions: e.target.value }))}
+                  onChange={(dimensions) => setForm((f) => ({ ...f, dimensions }))}
                 />
               </div>
             </div>

@@ -1,0 +1,6 @@
+[mcp_servers.engajacrm]
+command = "npm"
+args = [
+    "run",
+    "dev",
+]

@@ -1,11 +1,41 @@
 import { apiFetch } from './client';
 import type { FilterState, Product } from '../types';
 
-interface CatalogFacets {
+export interface CatalogFacets {
   categories: { value: string; count: number }[];
   suppliers: string[];
   finishes: string[];
   materials: string[];
+  units: string[];
+}
+
+export interface CreateProductPayload {
+  name: string;
+  supplierId: string;
+  cat: string;
+  finish: string;
+  material: string;
+  dimensions: string;
+  unit: string;
+  salePrice: number;
+  finalPrice: number;
+  active: boolean;
+}
+
+export interface CatalogMaterial {
+  id: string;
+  type: string;
+  name: string;
+  reference: string | null;
+  supplierId: string;
+  supplier: string;
+  displayName: string;
+}
+
+export interface CreateCatalogMaterialPayload {
+  name: string;
+  reference: string;
+  supplierId: string;
 }
 
 export interface ProductAnalyticsProposal {
@@ -38,6 +68,20 @@ export async function fetchProducts(filters: Partial<FilterState> = {}): Promise
 /** RF-015: valores disponíveis para cada filtro. */
 export async function fetchCatalogFacets(): Promise<CatalogFacets> {
   return apiFetch<CatalogFacets>('/produtos/filtros');
+}
+
+export async function createProduct(payload: CreateProductPayload): Promise<Product> {
+  return apiFetch<Product>('/produtos', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createCatalogMaterial(payload: CreateCatalogMaterialPayload): Promise<CatalogMaterial> {
+  return apiFetch<CatalogMaterial>('/materiais-catalogo', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /** RF-017: edição dos dados cadastrados de um produto (nome, categoria, fornecedor, acabamento, preço). */

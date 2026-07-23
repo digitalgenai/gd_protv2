@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft, PAYMENT_OPTIONS } from '../../context/ProposalDraftContext';
 import { useVendedores } from '../../context/VendedoresContext';
+import { isUpholsteredCategory } from '../../data/materialSuggestions';
 import { formatCurrency } from '../../utils/format';
 import { groupByAmbiente, shouldShowAmbienteHeaders, orderGroupsByAmbientList } from '../../utils/groupByAmbiente';
 import { buildHighlightGroups } from '../../utils/proposalHighlight';
@@ -118,8 +119,11 @@ export default function PrintProposal() {
                                   </span>
                                 )}
                               </div>
-                              <div className="pr-item-sub">{product ? [product.supplier, product.finish, product.material].filter(Boolean).join(' · ') : ''}</div>
-                              {r.materiais.length > 0 && (
+                              <div className="pr-item-sub">{[product?.supplier, r.acabamento ?? product?.finish, r.material ?? product?.material].filter(Boolean).join(' · ')}</div>
+                              {(r.dimensions ?? product?.dimensions) && (
+                                <div className="pr-item-sub">Dimensões: {r.dimensions ?? product?.dimensions}</div>
+                              )}
+                              {isUpholsteredCategory(product?.cat) && r.materiais.length > 0 && (
                                 <div className="pr-item-sub" style={{ marginTop: 3 }}>
                                   {r.materiais
                                     .filter((m) => m.descricao.trim())

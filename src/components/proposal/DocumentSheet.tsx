@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { isUpholsteredCategory } from '../../data/materialSuggestions';
 import { formatCurrency } from '../../utils/format';
 import { shouldShowAmbienteHeaders, type AmbienteGroup } from '../../utils/groupByAmbiente';
 import { buildHighlightGroups } from '../../utils/proposalHighlight';
@@ -114,8 +115,11 @@ export default function DocumentSheet({
                             </span>
                           )}
                         </div>
-                        <div className="prv-item-sub">{product ? [product.supplier, product.finish, product.material].filter(Boolean).join(' · ') : ''}</div>
-                        {r.materiais.filter((m) => m.descricao.trim()).length > 0 && (
+                        <div className="prv-item-sub">{[product?.supplier, r.acabamento ?? product?.finish, r.material ?? product?.material].filter(Boolean).join(' · ')}</div>
+                        {(r.dimensions ?? product?.dimensions) && (
+                          <div className="prv-item-sub">Dimensões: {r.dimensions ?? product?.dimensions}</div>
+                        )}
+                        {isUpholsteredCategory(product?.cat) && r.materiais.filter((m) => m.descricao.trim()).length > 0 && (
                           <div className="prv-item-sub">
                             {r.materiais
                               .filter((m) => m.descricao.trim())

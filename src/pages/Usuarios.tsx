@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Key, Loader2, Power, UserPlus, X, Users } from 'lucide-react';
-import { createUsuario, fetchUsuarios, resetSenhaUsuario, setUsuarioAtivo, type PerfilUsuario, type Usuario } from '../api/usuarios';
+import { Key, Loader2, Power, ShieldCheck, UserPlus, X, Users } from 'lucide-react';
+import { createUsuario, fetchUsuarios, resetSenhaUsuario, setUsuarioAtivo, setUsuarioPerfil, type PerfilUsuario, type Usuario } from '../api/usuarios';
 import ErrorState from '../components/ui/ErrorState';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 const PERFIS: PerfilUsuario[] = ['Administrador', 'Supervisor', 'Vendedor'];
 
 const EMPTY_FORM = { nome: '', email: '', senha: '', perfil: 'Vendedor' as PerfilUsuario, setor: 'Vendas' };
 
+const PERFIL_DESCRICOES: Record<PerfilUsuario, string> = {
+  Administrador: 'Acesso completo, incluindo usuários e configurações do sistema.',
+  Supervisor: 'Acessa Comercial, Catálogo e Gestão até Fornecedores. Não acessa Usuários nem Configurações.',
+  Vendedor: 'Acessa Dashboard, Comercial e Catálogo.',
+};
+
 export default function Usuarios() {
   const { showToast } = useToast();
+  const { usuario: usuarioLogado } = useAuth();
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(true);
@@ -20,6 +28,9 @@ export default function Usuarios() {
   const [senhaModalUsuario, setSenhaModalUsuario] = useState<Usuario | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
   const [resettingSenha, setResettingSenha] = useState(false);
+  const [perfilModalUsuario, setPerfilModalUsuario] = useState<Usuario | null>(null);
+  const [novoPerfil, setNovoPerfil] = useState<PerfilUsuario>('Vendedor');
+  const [savingPerfil, setSavingPerfil] = useState(false);
 
   const loadUsuarios = useCallback(() => {
     setLoadingUsuarios(true);
@@ -100,6 +111,26 @@ export default function Usuarios() {
     }
   }
 
+  function openPerfilModal(u: Usuario) {
+    setNovoPerfil(u.perfil);
+    setPerfilModalUsuario(u);
+  }
+
+  async function handleSavePerfil() {
+    if (!perfilModalUsuario) return;
+    setSavingPerfil(true);
+    try {
+      await setUsuarioPerfil(perfilModalUsuario.id, novoPerfil);
+      showToast(`Nível de acesso de ${perfilModalUsuario.nome} atualizado para ${novoPerfil}.`, 'success');
+      setPerfilModalUsuario(null);
+      loadUsuarios();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível atualizar o nível de acesso.', 'error');
+    } finally {
+      setSavingPerfil(false);
+    }
+  }
+
   return (
     <div id="view-usuarios" className="view active fade-in p-6" style={{ maxWidth: 960 }}>
       <div className="flex items-center gap-2 mb-5">
@@ -131,10 +162,19 @@ export default function Usuarios() {
                     <td className="font-medium">{u.nome}</td>
                     <td><span className="mono badge badge-gold">{u.codigoVendedor ?? '—'}</span></td>
                     <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
-                    <td>{u.perfil}</td>
+                    <td><span className={`badge ${u.perfil === 'Administrador' ? 'badge-gold' : u.perfil === 'Supervisor' ? 'badge-info' : 'badge-draft'}`}>{u.perfil}</span></td>
                     <td><span className={`badge ${u.isActive ? 'badge-success' : 'badge-draft'}`}>{u.isActive ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
                       <div className="flex gap-1">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          aria-label={`Editar nível de acesso de ${u.nome}`}
+                          title={u.id === usuarioLogado?.id ? 'Seu próprio nível de acesso não pode ser alterado' : `Editar nível de acesso de ${u.nome}`}
+                          onClick={() => openPerfilModal(u)}
+                          disabled={u.id === usuarioLogado?.id}
+                        >
+                          <ShieldCheck style={{ width: 13, height: 13, color: 'var(--gold-text)' }} />
+                        </button>
                         <button
                           className="btn btn-ghost btn-sm"
                           aria-label={`Trocar senha de ${u.nome}`}
@@ -159,6 +199,58 @@ export default function Usuarios() {
             </table>
           </div>
         )}
+      </div>
+
+      <div
+        className={`modal-overlay${perfilModalUsuario ? ' open' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="perfil-modal-title"
+        onClick={(e) => { if (e.target === e.currentTarget) setPerfilModalUsuario(null); }}
+      >
+        <div className="modal-box" style={{ width: 460 }}>
+          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <div>
+              <div id="perfil-modal-title" style={{ fontFamily: "'Kamerik205', 'Montserrat',sans-serif", fontWeight: 700, fontSize: 16 }}>
+                Editar nível de acesso
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>{perfilModalUsuario?.nome}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" aria-label="Fechar" onClick={() => setPerfilModalUsuario(null)}>
+              <X style={{ width: 18, height: 18 }} />
+            </button>
+          </div>
+          <div className="p-6">
+            <div className="mb-4">
+              <label className="form-label" htmlFor="edit-user-perfil">Nível de acesso</label>
+              <select
+                id="edit-user-perfil"
+                className="form-input"
+                value={novoPerfil}
+                onChange={(e) => setNovoPerfil(e.target.value as PerfilUsuario)}
+              >
+                {PERFIS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div
+              className="flex items-start gap-3"
+              style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}
+            >
+              <ShieldCheck style={{ width: 17, height: 17, color: 'var(--gold-text)', flexShrink: 0, marginTop: 1 }} />
+              <span>{PERFIL_DESCRICOES[novoPerfil]}</span>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button className="btn btn-outline" onClick={() => setPerfilModalUsuario(null)}>Cancelar</button>
+              <button
+                className="btn btn-gold"
+                onClick={handleSavePerfil}
+                disabled={savingPerfil || novoPerfil === perfilModalUsuario?.perfil}
+              >
+                {savingPerfil ? 'Salvando...' : 'Salvar nível'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className={`modal-overlay${modalOpen ? ' open' : ''}`} role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
@@ -187,6 +279,9 @@ export default function Usuarios() {
               <select id="user-perfil" className="form-input" value={form.perfil} onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilUsuario }))}>
                 {PERFIS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
+              <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.45 }}>
+                {PERFIL_DESCRICOES[form.perfil]}
+              </div>
             </div>
             <div className="mb-2">
               <label className="form-label" htmlFor="user-setor">Setor</label>

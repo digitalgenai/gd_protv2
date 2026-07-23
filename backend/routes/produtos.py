@@ -1,16 +1,70 @@
+from decimal import Decimal, InvalidOperation
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
 from config import MAX_IMAGES_PER_PRODUCT, MAX_TOTAL_IMAGES_PER_PRODUCT
 from db import get_session
-from models import CatalogoProduto, Fornecedor, ProdutoCustomizacao, ProdutoImagem, Proposta, PropostaVersao
-from utils.auth import login_required
+from models import CatalogoProduto, Fornecedor, MaterialCatalogo, ProdutoCustomizacao, ProdutoImagem, Proposta, PropostaVersao
+from utils.auth import feature_or_roles_required, login_required, roles_required
 from utils.s3_storage import delete_image, save_image
 from utils.serializers import absolute_image_url, serialize_product
 from utils.validation import ImageValidationError, validate_image
 
 bp = Blueprint("produtos", __name__)
+CATALOG_MANAGERS = ("Administrador", "Supervisor")
+CATALOG_WRITE_FLAG = "vendedores_cadastram_produtos"
+
+
+def _text(value):
+    value = str(value or "").strip()
+    return value or None
+
+
+def _decimal(value, field_name):
+    if value in (None, ""):
+        return None
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        raise ValueError(f'Campo "{field_name}" inválido.')
+    if parsed < 0:
+        raise ValueError(f'Campo "{field_name}" não pode ser negativo.')
+    return parsed.quantize(Decimal("0.01"))
+
+
+def _brl_text(value):
+    if value is None:
+        return None
+    formatted = f"{value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+    return f"R$ {formatted}"
+
+
+def _serialize_fornecedor(fornecedor):
+    return {
+        "id": str(fornecedor.id),
+        "nome": fornecedor.nome,
+        "logoUrl": None,
+        "site": fornecedor.site,
+        "contato": fornecedor.contato,
+    }
+
+
+def _material_display(material):
+    return f"{material.nome} — {material.referencia}" if material.referencia else material.nome
+
+
+def _serialize_material(material):
+    return {
+        "id": str(material.id),
+        "type": material.tipo,
+        "name": material.nome,
+        "reference": material.referencia,
+        "supplierId": str(material.fornecedor_id),
+        "supplier": material.fornecedor.nome if material.fornecedor else "",
+        "displayName": _material_display(material),
+    }
 
 
 def _base_query(session):
@@ -105,32 +159,222 @@ def get_filtros():
         .distinct()
         .all()
     )
+    materiais_cadastrados = (
+        session.query(MaterialCatalogo)
+        .options(selectinload(MaterialCatalogo.fornecedor))
+        .filter(MaterialCatalogo.ativo.is_(True))
+        .order_by(MaterialCatalogo.nome)
+        .all()
+    )
+    unidades = (
+        session.query(ProdutoCustomizacao.unidade)
+        .filter(ProdutoCustomizacao.unidade.isnot(None), ProdutoCustomizacao.ativo.is_(True))
+        .distinct()
+        .order_by(ProdutoCustomizacao.unidade)
+        .all()
+    )
 
     return jsonify({
         "categories": [{"value": c, "count": n} for c, n in category_counts],
         "suppliers": [row[0] for row in fornecedores],
         "finishes": [row[0] for row in acabamentos],
-        "materials": [row[0] for row in materiais],
+        "materials": sorted({
+            *[row[0] for row in materiais if row[0]],
+            *[_material_display(material) for material in materiais_cadastrados],
+        }),
+        "units": [row[0] for row in unidades if row[0]],
     })
+
+
+@bp.get("/materiais-catalogo")
+@login_required
+def list_materiais_catalogo():
+    session = get_session()
+    materiais = (
+        session.query(MaterialCatalogo)
+        .options(selectinload(MaterialCatalogo.fornecedor))
+        .filter(MaterialCatalogo.ativo.is_(True))
+        .order_by(MaterialCatalogo.nome)
+        .all()
+    )
+    return jsonify([_serialize_material(material) for material in materiais])
+
+
+@bp.post("/materiais-catalogo")
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
+def create_material_catalogo():
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+    nome = _text(data.get("name"))
+    referencia = _text(data.get("reference"))
+    try:
+        fornecedor_id = int(data.get("supplierId"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Selecione o fornecedor do tecido."}), 400
+    if not nome:
+        return jsonify({"error": "Informe o nome do tecido."}), 400
+
+    fornecedor = (
+        session.query(Fornecedor)
+        .filter(Fornecedor.id == fornecedor_id, Fornecedor.ativo.is_(True))
+        .first()
+    )
+    if not fornecedor:
+        return jsonify({"error": "Fornecedor não encontrado ou inativo."}), 400
+
+    duplicate_query = session.query(MaterialCatalogo).filter(
+        MaterialCatalogo.fornecedor_id == fornecedor_id,
+        func.lower(MaterialCatalogo.nome) == nome.lower(),
+        MaterialCatalogo.ativo.is_(True),
+    )
+    if referencia:
+        duplicate_query = duplicate_query.filter(func.lower(MaterialCatalogo.referencia) == referencia.lower())
+    if duplicate_query.first():
+        return jsonify({"error": "Este tecido já está cadastrado para o fornecedor selecionado."}), 409
+
+    material = MaterialCatalogo(
+        tipo="Tecido",
+        nome=nome,
+        referencia=referencia,
+        fornecedor_id=fornecedor.id,
+        ativo=True,
+    )
+    session.add(material)
+    session.commit()
+    session.refresh(material)
+    return jsonify(_serialize_material(material)), 201
 
 
 @bp.get("/fornecedores")
 @login_required
 def list_fornecedores():
-    """Cadastro de fornecedores — só existem nome/ativo/markup no banco hoje; logo, site e
-    contato ainda não têm coluna própria, então voltam nulos até essa parte ser modelada."""
     session = get_session()
     fornecedores = (
         session.query(Fornecedor).filter(Fornecedor.ativo.is_(True)).order_by(Fornecedor.nome).all()
     )
-    return jsonify([
-        {"id": str(f.id), "nome": f.nome, "logoUrl": None, "site": None, "contato": None}
-        for f in fornecedores
-    ])
+    return jsonify([_serialize_fornecedor(f) for f in fornecedores])
+
+
+@bp.post("/fornecedores")
+@roles_required(*CATALOG_MANAGERS)
+def create_fornecedor():
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+    nome = _text(data.get("nome"))
+    if not nome:
+        return jsonify({"error": "Informe o nome do fornecedor."}), 400
+    duplicate = session.query(Fornecedor).filter(func.lower(Fornecedor.nome) == nome.lower()).first()
+    if duplicate:
+        return jsonify({"error": "Já existe um fornecedor com esse nome."}), 409
+
+    fornecedor = Fornecedor(
+        nome=nome,
+        site=_text(data.get("site")),
+        contato=_text(data.get("contato")),
+        ativo=True,
+    )
+    session.add(fornecedor)
+    session.commit()
+    session.refresh(fornecedor)
+    return jsonify(_serialize_fornecedor(fornecedor)), 201
+
+
+@bp.patch("/fornecedores/<int:fornecedor_id>")
+@roles_required(*CATALOG_MANAGERS)
+def update_fornecedor(fornecedor_id):
+    session = get_session()
+    fornecedor = session.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
+    if not fornecedor:
+        return jsonify({"error": "Fornecedor não encontrado."}), 404
+
+    data = request.get_json(silent=True) or {}
+    if "nome" in data:
+        nome = _text(data.get("nome"))
+        if not nome:
+            return jsonify({"error": "Informe o nome do fornecedor."}), 400
+        duplicate = (
+            session.query(Fornecedor)
+            .filter(func.lower(Fornecedor.nome) == nome.lower(), Fornecedor.id != fornecedor_id)
+            .first()
+        )
+        if duplicate:
+            return jsonify({"error": "Já existe um fornecedor com esse nome."}), 409
+        fornecedor.nome = nome
+    if "site" in data:
+        fornecedor.site = _text(data.get("site"))
+    if "contato" in data:
+        fornecedor.contato = _text(data.get("contato"))
+
+    session.commit()
+    session.refresh(fornecedor)
+    return jsonify(_serialize_fornecedor(fornecedor))
+
+
+@bp.post("/produtos")
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
+def create_produto():
+    """Cria o registro principal e sua primeira configuração comercial numa transação."""
+    session = get_session()
+    data = request.get_json(silent=True) or {}
+    nome = _text(data.get("name"))
+    categoria = _text(data.get("cat"))
+    fornecedor_id = data.get("supplierId")
+
+    if not nome:
+        return jsonify({"error": "Informe o nome do produto."}), 400
+    if not categoria:
+        return jsonify({"error": "Selecione a categoria do produto."}), 400
+    try:
+        fornecedor_id = int(fornecedor_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Selecione um fornecedor válido."}), 400
+
+    fornecedor = (
+        session.query(Fornecedor)
+        .filter(Fornecedor.id == fornecedor_id, Fornecedor.ativo.is_(True))
+        .first()
+    )
+    if not fornecedor:
+        return jsonify({"error": "Fornecedor não encontrado ou inativo."}), 400
+
+    try:
+        preco_venda = _decimal(data.get("salePrice"), "Preço de venda")
+        preco_final = _decimal(data.get("finalPrice"), "Preço final")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    produto = CatalogoProduto(
+        fornecedor_id=fornecedor.id,
+        arquivo_id=None,
+        categoria=categoria,
+        produto_nome=nome,
+        ativo=bool(data.get("active", True)),
+    )
+    session.add(produto)
+    session.flush()
+
+    customizacao = ProdutoCustomizacao(
+        produto_id=produto.id,
+        acabamento=_text(data.get("finish")),
+        material=_text(data.get("material")),
+        dimensoes=_text(data.get("dimensions")),
+        unidade=_text(data.get("unit")),
+        preco_venda=preco_venda,
+        preco_venda_txt=_brl_text(preco_venda),
+        # Na interface, R$ 0,00 significa "usar o preço de venda"; guardar NULL mantém
+        # exatamente essa semântica no serializer e nas consultas legadas.
+        preco_final=(preco_final if preco_final and preco_final > 0 else None),
+        ativo=True,
+    )
+    session.add(customizacao)
+    session.commit()
+
+    produto = _base_query(session).filter(CatalogoProduto.id == produto.id).first()
+    return jsonify(serialize_product(produto)), 201
 
 
 @bp.patch("/produtos/<codigo>")
-@login_required
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
 def update_produto(codigo):
     session = get_session()
     produto = (
@@ -177,7 +421,7 @@ def update_produto(codigo):
 
 
 @bp.post("/produtos/<codigo>/imagens")
-@login_required
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
 def upload_imagem(codigo):
     session = get_session()
     produto = (
@@ -218,7 +462,7 @@ def upload_imagem(codigo):
 
 
 @bp.delete("/produtos/<codigo>/imagens/<int:image_id>")
-@login_required
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
 def delete_imagem(codigo, image_id):
     session = get_session()
     produto = session.query(CatalogoProduto).filter(CatalogoProduto.codigo == codigo).first()
@@ -256,7 +500,7 @@ def delete_imagem(codigo, image_id):
 
 
 @bp.patch("/produtos/<codigo>/imagens/<int:image_id>/posicao")
-@login_required
+@feature_or_roles_required(CATALOG_WRITE_FLAG, *CATALOG_MANAGERS)
 def reordenar_imagem(codigo, image_id):
     session = get_session()
     produto = (

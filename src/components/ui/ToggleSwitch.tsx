@@ -6,10 +6,11 @@ interface ToggleSwitchProps {
   offLabel?: string;
   badgeLabel?: string;
   ariaLabel?: string;
+  disabled?: boolean;
 }
 
 export default function ToggleSwitch({
-  checked, onChange, onLabel = 'Sim', offLabel = 'Não', badgeLabel, ariaLabel,
+  checked, onChange, onLabel = 'Sim', offLabel = 'Não', badgeLabel, ariaLabel, disabled = false,
 }: ToggleSwitchProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
@@ -18,8 +19,10 @@ export default function ToggleSwitch({
         role="switch"
         aria-checked={checked}
         aria-label={ariaLabel}
+        disabled={disabled}
         className="toggle-switch"
         onClick={() => onChange(!checked)}
+        style={{ opacity: disabled ? 0.55 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
       >
         <span className="toggle-switch-thumb" />
       </button>

@@ -1,11 +1,12 @@
 import { apiFetch, ApiError } from './client';
+import type { PerfilUsuario } from './usuarios';
 
 export interface AuthUser {
   id: string;
   nome: string;
   codigoVendedor: number | null;
   email: string;
-  perfil: string;
+  perfil: PerfilUsuario;
   setor: string;
   isActive: boolean;
 }

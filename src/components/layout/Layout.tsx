@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { useProducts } from '../../context/ProductsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSystemSettings } from '../../context/SystemSettingsContext';
 // Voz: modo de gravação por áudio adiado para a v2 — ver App.tsx/Dashboard.tsx/Sidebar.tsx.
 // import { useVoz } from '../../context/VozContext';
 // import VoiceRecorderFab from '../voice/VoiceRecorderFab';
@@ -12,6 +13,7 @@ import ImageModal from '../catalog/ImageModal';
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
   '/catalogo': 'Catálogo',
+  '/catalogo/cadastrar': 'Cadastrar Produto',
   '/catalogo/qualidade': 'Qualidade do Catálogo',
   '/propostas/nova': 'Nova Proposta',
   '/propostas/revisao': 'Propostas para Revisão',
@@ -40,6 +42,9 @@ export default function Layout() {
   const { products } = useProducts();
   const { usuario } = useAuth();
   const isAdmin = usuario?.perfil === 'Administrador';
+  const isSupervisor = usuario?.perfil === 'Supervisor';
+  const { sellersCanManageCatalog } = useSystemSettings();
+  const canRegisterProducts = isAdmin || isSupervisor || sellersCanManageCatalog;
   const location = useLocation();
 
   const title = getPageTitle(location.pathname);
@@ -62,6 +67,8 @@ export default function Layout() {
         mobileOpen={mobileOpen}
         onNavigate={closeMobile}
         isAdmin={isAdmin}
+        isSupervisor={isSupervisor}
+        canRegisterProducts={canRegisterProducts}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">

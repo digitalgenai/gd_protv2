@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDown, Contact, FilePlus, FileText, History, LayoutDashboard,
-  Package, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
+  Package, PackagePlus, PanelLeftClose, PanelLeftOpen, PencilRuler, Settings, ShieldCheck, Truck, Users,
 } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 
@@ -12,6 +12,8 @@ interface SidebarProps {
   mobileOpen: boolean;
   onNavigate: () => void;
   isAdmin: boolean;
+  isSupervisor: boolean;
+  canRegisterProducts: boolean;
 }
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -77,7 +79,9 @@ function NavGroup({
   );
 }
 
-export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin }: SidebarProps) {
+export default function Sidebar({
+  collapsed, onToggleCollapse, mobileOpen, onNavigate, isAdmin, isSupervisor, canRegisterProducts,
+}: SidebarProps) {
   const { resetDraft } = useProposalDraft();
   const { pathname } = useLocation();
   // Accordion de verdade: só um grupo aberto por vez — abrir um fecha o que já estava aberto,
@@ -186,6 +190,12 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
               <Package className="nav-icon" style={{ width: 16, height: 16 }} />
               <span className="nav-label">Produtos</span>
             </NavLink>
+            {canRegisterProducts && (
+              <NavLink to="/catalogo/cadastrar" className={navClass} onClick={onNavigate}>
+                <PackagePlus className="nav-icon" style={{ width: 16, height: 16 }} />
+                <span className="nav-label">Cadastrar Produto</span>
+              </NavLink>
+            )}
             <NavLink to="/catalogo/qualidade" className={navClass} onClick={onNavigate}>
               <ShieldCheck className="nav-icon" style={{ width: 16, height: 16 }} />
               <span className="nav-label">Qualidade do Catálogo</span>
@@ -193,7 +203,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
           </div>
         </NavGroup>
 
-        {isAdmin && (
+        {(isAdmin || isSupervisor) && (
           <>
             <NavGroup onEnter={groupEnter('gestao')} onLeave={groupLeave}>
               <GroupHeader icon={Users} label="Gestão" open={openGroup === 'gestao'} onToggle={() => toggleGroup('gestao')} active={groupIsActive(['/gestao'])} />
@@ -210,13 +220,16 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
                   <Truck className="nav-icon" style={{ width: 16, height: 16 }} />
                   <span className="nav-label">Fornecedores</span>
                 </NavLink>
-                <NavLink to="/gestao/usuarios" className={navClass} onClick={onNavigate}>
-                  <Users className="nav-icon" style={{ width: 16, height: 16 }} />
-                  <span className="nav-label">Usuários</span>
-                </NavLink>
+                {isAdmin && (
+                  <NavLink to="/gestao/usuarios" className={navClass} onClick={onNavigate}>
+                    <Users className="nav-icon" style={{ width: 16, height: 16 }} />
+                    <span className="nav-label">Usuários</span>
+                  </NavLink>
+                )}
               </div>
             </NavGroup>
 
+            {isAdmin && (
             <NavGroup onEnter={groupEnter('sistema')} onLeave={groupLeave}>
               <GroupHeader icon={Settings} label="Sistema" open={openGroup === 'sistema'} onToggle={() => toggleGroup('sistema')} active={groupIsActive(['/config'])} />
               <div className={submenuClass} style={submenuStyle('sistema', openGroup === 'sistema')}>
@@ -226,6 +239,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onNav
                 </NavLink>
               </div>
             </NavGroup>
+            )}
           </>
         )}
       </nav>

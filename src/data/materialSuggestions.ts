@@ -1,9 +1,28 @@
-/**
- * Sugestões de materiais de outros fornecedores por categoria de produto (RF relacionado a
- * "materiais de outros fornecedores" nos itens da proposta) — ex.: estofados sugerem tecidos,
- * cadeiras/mesas sugerem madeiras, armários sugerem puxadores/acabamentos. Dado ilustrativo
- * enquanto não existe um catálogo real de materiais complementares por fornecedor.
- */
+/** Somente estas famílias do catálogo representam peças estofadas e aceitam
+ * tecido vindo de outro fornecedor na proposta. */
+const UPHOLSTERED_CATEGORIES = new Set([
+  'estofados',
+  'sofas',
+  'poltronas',
+  'puffs',
+  'puffs & chaises',
+  'chaises',
+]);
+
+function normalizeCategory(category: string) {
+  return category
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function isUpholsteredCategory(category?: string | null) {
+  return Boolean(category && UPHOLSTERED_CATEGORIES.has(normalizeCategory(category)));
+}
+
+/** Sugestões de tecidos complementares por família de estofado.
+ * Dado ilustrativo enquanto não existe um catálogo real de tecidos por fornecedor. */
 export const MATERIAL_SUGGESTIONS_BY_CATEGORY: Record<string, string[]> = {
   Sofás: [
     'Tecido Linho Natural',
@@ -12,32 +31,8 @@ export const MATERIAL_SUGGESTIONS_BY_CATEGORY: Record<string, string[]> = {
     'Couro Ecológico Caramelo',
     'Chenille Cinza',
   ],
-  Cadeiras: [
-    'Estofado em Veludo',
-    'Estofado em Couro',
-    'Madeira Freijó',
-    'Madeira Carvalho Natural',
-    'Palhinha Natural',
-  ],
-  Mesas: [
-    'Tampo em Mármore Carrara',
-    'Tampo em Vidro Temperado',
-    'Base em Madeira Freijó',
-    'Base em Aço Inox',
-  ],
-  Armários: [
-    'Puxador em Latão',
-    'Puxador Preto Fosco',
-    'Porta em Vidro Fumê',
-    'Acabamento Laqueado Branco',
-  ],
-  Iluminação: [
-    'Cúpula em Linho',
-    'Estrutura em Latão Envelhecido',
-    'Lâmpada LED Branco Quente 3000K',
-  ],
-  Acessórios: [
-    'Acabamento Personalizado',
-    'Cor Personalizada',
-  ],
+  Poltronas: ['Tecido Linho Natural', 'Tecido Veludo', 'Tecido Bouclê', 'Couro Natural', 'Chenille'],
+  Puffs: ['Tecido Linho Natural', 'Tecido Veludo', 'Tecido Bouclê', 'Couro Natural'],
+  'Puffs & Chaises': ['Tecido Linho Natural', 'Tecido Veludo', 'Tecido Bouclê', 'Couro Natural'],
+  Chaises: ['Tecido Linho Natural', 'Tecido Veludo', 'Tecido Bouclê', 'Couro Natural'],
 };

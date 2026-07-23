@@ -63,6 +63,33 @@ class Fornecedor(Base):
     ativo = Column(Boolean, nullable=False, default=True)
     criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
     markup = Column(Numeric(5, 4))
+    site = Column(Text)
+    contato = Column(Text)
+
+
+class ConfiguracaoSistema(Base):
+    __tablename__ = "configuracoes_sistema"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    chave = Column(Text, primary_key=True)
+    valor = Column(JSONB, nullable=False)
+    descricao = Column(Text)
+    atualizado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+
+class MaterialCatalogo(Base):
+    __tablename__ = "materiais_catalogo"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+    tipo = Column(Text, nullable=False, default="Tecido")
+    nome = Column(Text, nullable=False)
+    referencia = Column(Text)
+    fornecedor_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.fornecedores.id"), nullable=False)
+    ativo = Column(Boolean, nullable=False, default=True)
+    criado_em = Column(DateTime(timezone=True), server_default=FetchedValue())
+
+    fornecedor = relationship("Fornecedor")
 
 
 class CatalogoProduto(Base):

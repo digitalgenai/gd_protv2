@@ -39,6 +39,13 @@ export function setUsuarioAtivo(id: string, isActive: boolean): Promise<Usuario>
   });
 }
 
+export function setUsuarioPerfil(id: string, perfil: PerfilUsuario): Promise<Usuario> {
+  return apiFetch<Usuario>(`/usuarios/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ perfil }),
+  });
+}
+
 /** Reset de senha pelo administrador — não exige a senha atual do usuário (diferente da troca
  * de senha em Perfil.tsx, que é o próprio usuário trocando a sua). */
 export function resetSenhaUsuario(id: string, novaSenha: string): Promise<{ ok: true }> {

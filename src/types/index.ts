@@ -1,12 +1,27 @@
 export interface Product {
   id: string;
+  databaseId?: string;
+  fileId?: string | null;
   name: string;
   cat: string;
   supplier: string;
+  supplierId?: string;
   finish: string;
   /** Material da variante (ex.: "Tecido #7", "Latão / Metalizado") — vem de produto_customizacoes.material. */
   material: string;
   price: number;
+  salePrice?: number;
+  salePriceText?: string | null;
+  finalPrice?: number;
+  unit?: string;
+  customizationId?: string | null;
+  customizationActive?: boolean;
+  customizationCreatedAt?: string | null;
+  customizationUpdatedAt?: string | null;
+  active?: boolean;
+  source?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   img: string;
   /** Dimensões do produto (L × P × A em cm, ou L × C para tapetes). */
   dimensions: string;
@@ -42,6 +57,14 @@ export interface ProposalRow {
    * `null` = não mostrar este item na página de destaque; número = id da imagem escolhida.
    */
   highlightImageId?: number | null;
+  /**
+   * Acabamento/material/dimensões customizados só para esta proposta (o vendedor personaliza
+   * o móvel pra venda) — nunca altera o cadastro do produto no catálogo. `undefined` = usa o
+   * valor do catálogo (preenchido ao adicionar o item; editável depois no modal de Detalhes).
+   */
+  acabamento?: string;
+  material?: string;
+  dimensions?: string;
 }
 
 export type ProposalStatus = 'Aprovada' | 'Enviada' | 'Rascunho' | 'Reprovada' | 'Revisão';

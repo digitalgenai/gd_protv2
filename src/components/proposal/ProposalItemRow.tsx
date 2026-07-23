@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Info, Trash2 } from 'lucide-react';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
 import { useProducts } from '../../context/ProductsContext';
+import { isUpholsteredCategory } from '../../data/materialSuggestions';
 import { formatCurrency, parseClamped } from '../../utils/format';
 import ProposalItemDetailModal from './ProposalItemDetailModal';
 import type { ProposalRow } from '../../types';
@@ -17,16 +18,34 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const line = row.qty * row.price * (1 - row.disc / 100);
-  const materialCount = row.materiais.length;
   const matchedProduct = products.find((p) => p.id.toLowerCase() === row.code.trim().toLowerCase());
+  const materialCount = isUpholsteredCategory(matchedProduct?.cat) ? row.materiais.length : 0;
   const hasHighlightChoice = (matchedProduct?.images ?? []).length > 1;
-  const hasCustomizations = materialCount > 0 || (hasHighlightChoice && row.highlightImageId !== undefined);
+  const hasProductCustomization = matchedProduct
+    ? (row.acabamento ?? matchedProduct.finish) !== matchedProduct.finish
+      || (row.material ?? matchedProduct.material) !== matchedProduct.material
+      || (row.dimensions ?? matchedProduct.dimensions) !== matchedProduct.dimensions
+      || Math.abs(row.price - matchedProduct.price) > 0.009
+    : Boolean(row.acabamento || row.material || row.dimensions);
+  const hasCustomizations = materialCount > 0
+    || hasProductCustomization
+    || (hasHighlightChoice && row.highlightImageId !== undefined);
 
   function handleCodeChange(value: string) {
     const product = products.find((p) => p.id.toLowerCase() === value.trim().toLowerCase());
     if (product) {
-      // Código reconhecido no catálogo: preenche descrição e preço automaticamente.
-      updateRow(row.id, { code: product.id, desc: product.name, price: product.price });
+      // Código reconhecido no catálogo: começa novamente com os dados do novo produto.
+      // A escolha manual de foto também precisa ser limpa, pois o id pertencia ao produto anterior.
+      updateRow(row.id, {
+        code: product.id,
+        desc: product.name,
+        price: product.price,
+        acabamento: product.finish,
+        material: product.material,
+        dimensions: product.dimensions,
+        materiais: [],
+        highlightImageId: undefined,
+      });
     } else {
       updateRow(row.id, { code: value });
     }
@@ -70,7 +89,19 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
         <td>
           <div className="flex items-center gap-2">
             {matchedProduct
-              ? <img src={matchedProduct.img} alt={matchedProduct.name} className="row-thumb" title={[matchedProduct.supplier, matchedProduct.finish, matchedProduct.material].filter(Boolean).join(' · ')} />
+              ? (
+                <img
+                  src={matchedProduct.img}
+                  alt={matchedProduct.name}
+                  className="row-thumb"
+                  title={[
+                    matchedProduct.supplier,
+                    row.acabamento ?? matchedProduct.finish,
+                    row.material ?? matchedProduct.material,
+                    row.dimensions ?? matchedProduct.dimensions,
+                  ].filter(Boolean).join(' · ')}
+                />
+              )
               : <span className="row-thumb-empty" title="Sem produto do catálogo vinculado" />}
             <input className="proposal-input" style={{ width: '100%' }} value={row.desc} onChange={(e) => updateRow(row.id, { desc: e.target.value })} />
             {matchedProduct?.vendaDireta && (
@@ -103,12 +134,13 @@ export default function ProposalItemRow({ row, index }: ProposalItemRowProps) {
               color: hasCustomizations ? 'var(--gold-text)' : 'var(--text-secondary)',
               width: '100%', justifyContent: 'center',
             }}
-            aria-label={`Ver detalhes do item ${index + 1} (informações do produto, materiais e destaque)`}
-            title="Ver informações do produto, materiais de outros fornecedores e imagem de destaque"
+            aria-label={`Ver detalhes do item ${index + 1} (personalização e imagem de destaque)`}
+            title="Ver personalização do produto e imagem de destaque"
             onClick={() => setDetailOpen(true)}
           >
             <Info style={{ width: 13, height: 13 }} />
             Detalhes{materialCount > 0 ? ` (${materialCount})` : ''}
+            {hasProductCustomization && <span className="proposal-detail-dot" aria-label="Item personalizado" />}
           </button>
         </td>
         <td>
