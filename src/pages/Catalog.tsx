@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LayoutGrid, List, Loader2, PackageSearch, Plus, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, List, Loader2, PackageSearch, Plus, ShieldCheck } from 'lucide-react';
 import { filterProductsLocally } from '../api/products';
 import AmbienteSelectorBar from '../components/catalog/AmbienteSelectorBar';
 import FilterSidebar from '../components/catalog/FilterSidebar';
@@ -42,7 +42,6 @@ function getPageNumbers(current: number, total: number): (number | '...')[] {
 
 export default function Catalog() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedAmbiente, setSelectedAmbiente] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const { openImageModal } = useImageModal();
@@ -81,25 +80,16 @@ export default function Catalog() {
 
   return (
     <div id="view-catalog" className="view active fade-in" style={{ maxWidth: 1440 }}>
-      <div className="flex">
+      <div id="catalog-layout" className="flex">
         <FilterSidebar
           filters={filters}
           onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
           onClear={() => setFilters(DEFAULT_FILTERS)}
-          mobileOpen={mobileFilterOpen}
-          onCloseMobile={() => setMobileFilterOpen(false)}
         />
 
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <button
-                id="btn-filter-mobile"
-                style={{ display: 'none', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--card)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}
-                onClick={() => setMobileFilterOpen(true)}
-              >
-                <SlidersHorizontal style={{ width: 14, height: 14 }} /> Filtros
-              </button>
               <input
                 type="text"
                 placeholder="Código ou nome..."

@@ -158,22 +158,21 @@ input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
 
 /* Catálogo dentro de modal (Nova Proposta) — sidebar embutida, sem o overlay fixed da tela cheia */
 .catalog-picker-body { display: flex; height: calc(85vh - 130px); }
-.catalog-picker-filter-btn { display: none; }
 @media (max-width: 900px) {
+  /* Sem botão pra abrir/fechar: o filtro fica sempre visível, empilhado acima da lista de
+     produtos em vez de escondido atrás de uma gaveta. */
   .catalog-picker-body { flex-direction: column; height: auto; max-height: calc(85vh - 130px); overflow-y: auto; }
   .catalog-picker-sidebar-wrap { width: 100%; }
   .catalog-picker-sidebar-wrap #catalog-filter-sidebar {
-    display: none !important;
     position: static !important;
     width: 100% !important;
     min-height: auto !important;
+    max-height: 240px;
     z-index: auto !important;
     box-shadow: none !important;
     border-right: none !important;
     border-bottom: 1px solid var(--border);
   }
-  .catalog-picker-sidebar-wrap.open #catalog-filter-sidebar { display: block !important; }
-  .catalog-picker-filter-btn { display: inline-flex !important; align-items: center; gap: 6px; }
 }
 
 /* Toast */
@@ -337,22 +336,18 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
   #sidebar .brand-name .brand-logo-full { display: none; }
   #sidebar .brand-name .brand-logo-compact { display: block; }
 
-  /* Catálogo: o filtro lateral (224px fixos) vira gaveta a partir daqui — na mesma largura em
-     que o nav principal já encolhe pra só-ícones, senão sobra pouco espaço pro conteúdo entre
-     os dois (era o intervalo "nem desktop nem mobile" onde nada colapsava ainda). */
+  /* Catálogo: o filtro lateral (224px fixos) vira um bloco empilhado acima da lista de
+     produtos a partir daqui — na mesma largura em que o nav principal já encolhe pra
+     só-ícones, senão sobra pouco espaço pro conteúdo entre os dois. Sempre visível, sem
+     botão pra abrir/fechar. */
+  #catalog-layout { flex-direction: column; }
   #catalog-filter-sidebar {
-    display: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    max-height: 260px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
   }
-  #catalog-filter-sidebar.mobile-open {
-    display: block !important;
-    position: fixed; top: 0; left: 0; bottom: 0;
-    width: 280px !important; z-index: 51;
-    overflow-y: auto; border-radius: 0;
-    box-shadow: 4px 0 32px rgba(0,0,0,.4);
-    background: var(--card) !important;
-  }
-  #btn-filter-mobile       { display: flex !important; }
-  #btn-close-filter-mobile { display: flex !important; }
   #view-catalog .flex.items-center.justify-between { flex-wrap: wrap; gap: 6px; }
   #view-catalog .flex.items-center.gap-2 { flex-wrap: wrap; }
 }

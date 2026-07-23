@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import type { FilterState } from '../../types';
 
@@ -7,8 +7,6 @@ interface FilterSidebarProps {
   filters: FilterState;
   onChange: (patch: Partial<FilterState>) => void;
   onClear: () => void;
-  mobileOpen: boolean;
-  onCloseMobile: () => void;
 }
 
 function toggleValue(list: string[], value: string): string[] {
@@ -30,7 +28,7 @@ function FilterGroup({ label, defaultOpen = true, children }: { label: string; d
   );
 }
 
-export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, onCloseMobile }: FilterSidebarProps) {
+export default function FilterSidebar({ filters, onChange, onClear }: FilterSidebarProps) {
   const { facets, products } = useProducts();
 
   // Acabamento depende do(s) fornecedor(es) marcado(s): sem nenhum marcado, mostra todos os
@@ -56,21 +54,12 @@ export default function FilterSidebar({ filters, onChange, onClear, mobileOpen, 
   return (
     <aside
       id="catalog-filter-sidebar"
-      className={`w-56 flex-shrink-0 bg-white border-r p-4 overflow-y-auto${mobileOpen ? ' mobile-open' : ''}`}
+      className="w-56 flex-shrink-0 bg-white border-r p-4 overflow-y-auto"
       style={{ borderColor: 'var(--border)', minHeight: 'calc(100vh - 57px)' }}
     >
       <div className="flex items-center justify-between mb-4">
         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Filtros</span>
-        <div className="flex items-center gap-2">
-          <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
-          <button
-            id="btn-close-filter-mobile"
-            style={{ display: mobileOpen ? 'flex' : 'none', width: 28, height: 28, border: 'none', background: 'var(--border)', borderRadius: 6, cursor: 'pointer', alignItems: 'center', justifyContent: 'center' }}
-            onClick={onCloseMobile}
-          >
-            <X style={{ width: 14, height: 14, color: 'var(--primary)' }} />
-          </button>
-        </div>
+        <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
       </div>
 
       <FilterGroup label="Categoria" defaultOpen={false}>

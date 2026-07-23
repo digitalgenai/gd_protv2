@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, List, PackageSearch, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { LayoutGrid, List, PackageSearch, Plus, X } from 'lucide-react';
 import { filterProductsLocally } from '../../api/products';
 import { useProducts } from '../../context/ProductsContext';
 import { useProposalDraft } from '../../context/ProposalDraftContext';
@@ -33,7 +33,6 @@ interface CatalogPickerModalProps {
  */
 export default function CatalogPickerModal({ open, onClose }: CatalogPickerModalProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [selectedAmbiente, setSelectedAmbiente] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const { header, rows, addProductToProposal } = useProposalDraft();
@@ -84,13 +83,11 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
         </div>
 
         <div className="catalog-picker-body">
-          <div className={`catalog-picker-sidebar-wrap${mobileFilterOpen ? ' open' : ''}`} style={{ overflowY: 'auto', flexShrink: 0 }}>
+          <div className="catalog-picker-sidebar-wrap" style={{ overflowY: 'auto', flexShrink: 0 }}>
             <FilterSidebar
               filters={filters}
               onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
               onClear={() => setFilters(DEFAULT_FILTERS)}
-              mobileOpen={mobileFilterOpen}
-              onCloseMobile={() => setMobileFilterOpen(false)}
             />
           </div>
           <div className="flex-1 p-5 overflow-y-auto" style={{ minWidth: 0 }}>
@@ -137,9 +134,6 @@ export default function CatalogPickerModal({ open, onClose }: CatalogPickerModal
                   </button>
                 </div>
               </div>
-              <button className="catalog-picker-filter-btn btn btn-outline btn-sm" onClick={() => setMobileFilterOpen(true)}>
-                <SlidersHorizontal style={{ width: 13, height: 13 }} /> Filtros
-              </button>
             </div>
             <AmbienteSelectorBar
               ambientes={header.ambientes}
