@@ -125,14 +125,15 @@ h1, h2, h3 { font-family: 'Kamerik205', 'Montserrat', sans-serif; }
 
 /* ── Recolher/expandir o sidebar de filtros inteiro (desktop) — devolve espaço horizontal
    pra tabela/grade quando não está filtrando. Em telas estreitas o filtro fica sempre
-   visível, então este controle não aparece lá (ver FilterSidebar.tsx). ── */
+   visível, então este controle não aparece lá (ver FilterSidebar.tsx).
+   Fica no fluxo normal (ao lado de "Limpar"), não posicionado fora da caixa — o aside tem
+   overflow-y:auto, e isso força o overflow-x a virar "auto" também (regra do CSS quando só
+   um eixo é "visible"), cortando qualquer coisa posicionada pra fora da borda. ── */
 .filter-sidebar-collapse-btn {
-  position: absolute; top: 14px; right: -12px;
-  width: 24px; height: 24px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
   background: var(--card); border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text-secondary); z-index: 5;
-  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  cursor: pointer; color: var(--text-secondary);
   transition: color .15s, border-color .15s;
 }
 .filter-sidebar-collapse-btn:hover { color: var(--gold-text); border-color: var(--gold); }

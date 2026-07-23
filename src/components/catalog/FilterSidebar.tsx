@@ -83,22 +83,24 @@ export default function FilterSidebar({ filters, onChange, onClear }: FilterSide
     <aside
       id="catalog-filter-sidebar"
       className="w-56 flex-shrink-0 bg-white border-r p-4 overflow-y-auto"
-      style={{ borderColor: 'var(--border)', minHeight: 'calc(100vh - 57px)', position: 'relative' }}
+      style={{ borderColor: 'var(--border)', minHeight: 'calc(100vh - 57px)' }}
     >
-      {!isNarrowViewport && (
-        <button
-          type="button"
-          className="filter-sidebar-collapse-btn"
-          onClick={() => setCollapsed(true)}
-          aria-label="Esconder filtros"
-          title="Esconder filtros"
-        >
-          <ChevronLeft style={{ width: 14, height: 14 }} />
-        </button>
-      )}
       <div className="flex items-center justify-between mb-4">
         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Filtros</span>
-        <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
+        <div className="flex items-center gap-2">
+          <button className="text-xs" style={{ color: 'var(--gold-text)', fontWeight: 600 }} onClick={onClear}>Limpar</button>
+          {!isNarrowViewport && (
+            <button
+              type="button"
+              className="filter-sidebar-collapse-btn"
+              onClick={() => setCollapsed(true)}
+              aria-label="Esconder filtros"
+              title="Esconder filtros"
+            >
+              <ChevronLeft style={{ width: 14, height: 14 }} />
+            </button>
+          )}
+        </div>
       </div>
 
       <FilterGroup label="Categoria" defaultOpen={false}>
